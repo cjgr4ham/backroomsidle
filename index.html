@@ -490,6 +490,23 @@ body.reduce-motion .vp-banner { animation: none; opacity: 1; }
 
 /* ------------------------------------------------------------------ experiment styles (one slot each; see docs/experiments) */
 /* >>> EXP-CLICK-POWER */
+.spower { border: 1px solid var(--line); background: var(--panel); }
+.spower-head { width: 100%; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; padding: 7px 10px; background: transparent; border: 0; text-align: left; color: var(--paper); }
+.spower-head:hover { background: var(--panel-2); }
+.spower-label { font: 700 11px var(--font-sign); letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); }
+.spower-label::after { content: " ▾"; color: var(--faint); letter-spacing: 0; }
+.spower-head[aria-expanded="true"] .spower-label::after { content: " ▴"; }
+.spower-val { font: 600 14px var(--font-mono); color: var(--sodium-hi); font-variant-numeric: tabular-nums; }
+.spower-next { margin-left: auto; font: 11px var(--font-mono); color: var(--dim); }
+.spower-detail { border-top: 1px solid var(--line); padding: 6px 10px 9px; }
+.spower-detail dl { margin: 0; display: grid; gap: 4px; }
+.spower-detail dl > div { display: grid; grid-template-columns: 128px minmax(0, 1fr); gap: 8px; align-items: baseline; font-size: 12px; }
+.spower-detail dt { color: var(--dim); }
+.spower-detail dd { margin: 0; display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: baseline; min-width: 0; }
+.spower-detail dd b { font: 600 12px var(--font-mono); color: var(--paper); font-variant-numeric: tabular-nums; }
+.spower-detail dd span { color: var(--faint); font-size: 11.5px; overflow-wrap: anywhere; }
+.spower-proj { margin: 0; font: 11px var(--font-mono); color: var(--sodium-hi); }
+@media (max-width: 520px) { .spower-detail dl > div { grid-template-columns: minmax(0, 1fr); gap: 0; } .spower-next { margin-left: 0; } }
 /* <<< EXP-CLICK-POWER */
 /* -- */
 /* >>> EXP-CREW-AUTOMATION */
@@ -4650,6 +4667,236 @@ function onKey(e) {
 // ===========================================================================
 //
 // >>> EXP-CLICK-POWER
+// Click-power progression. Survey power is the salvage one survey you make by
+// hand recovers. Hand tools add to its base, which every survey multiplier then
+// scales. Automatic surveys (beacons, cartographers) never receive hand tools,
+// notes or drills. Registry entry and rollback: docs/experiments/EXP-CLICK-POWER.md
+(function clickPowerExperiment() {
+  const ID = 'EXP-CLICK-POWER';
+  Exp.define({
+    id: ID,
+    name: 'Click-power progression',
+    summary: 'Survey power stat with a breakdown, Work Gloves as the first upgrade, and hand tools that raise the salvage of every survey you make by hand.',
+  });
+
+  const DRILLS_MAX = 25;
+  const DRILLS_STEP = 0.1;
+  const drillRank = () => (S.run.ext.click ? S.run.ext.click.drills : 0);
+  Exp.ext.run.click = (v) => (isObj(v) ? { drills: int(v.drills, 0, 0, DRILLS_MAX) } : undefined);
+  const SATCHEL_PER_FACILITY = 0.05;
+
+  // `hand` adds to the base salvage of a survey you make yourself.
+  const LADDER = [
+    { id: 'gloves', name: 'Work Gloves', cost: { salvage: 10 }, req: { rooms: 2 }, hand: 1,
+      effect: '+1 base salvage on every survey you make by hand.',
+      flavor: 'Canvas, stiff, one finger already worn through. Somebody broke them in for you.' },
+    { id: 'prybar', name: 'Pry Bar', cost: { salvage: 75 }, req: { rooms: 15 }, hand: 2,
+      effect: '+2 base salvage on every survey you make by hand.',
+      flavor: 'Ceiling tiles, outlet covers, the panel behind the vending machine. Everything comes loose.' },
+    { id: 'satchel', name: 'Canvas Satchel', cost: { salvage: 500 }, req: { facTotal: 10 },
+      effect: `+${SATCHEL_PER_FACILITY} base salvage on every survey you make by hand, for each facility you own.`,
+      flavor: 'Room for whatever the machines missed. They miss more as there are more of them.' },
+    { id: 'cutters', name: 'Bolt Cutters', cost: { salvage: 5000 }, req: { level: 1 }, hand: 5,
+      effect: '+5 base salvage on every survey you make by hand.',
+      flavor: 'The Annex keeps its crates chained shut. The chains are not attached to anything.' },
+    { id: 'sounder', name: 'Echo Sounder', cost: { salvage: 30000 }, req: { level: 1 },
+      effect: 'Surveys you make by hand find Echoes twice as often and almond water 50% more often.',
+      flavor: 'A pocket transducer. Hold it to the wallpaper and listen for the room underneath.' },
+    { id: 'spreader', name: 'Hydraulic Spreader', cost: { salvage: 2e6 }, req: { level: 3 }, hand: 25,
+      effect: '+25 base salvage on every survey you make by hand.',
+      flavor: 'Rated for car doors. The Poolrooms tiles part like curtains, then close behind you.' },
+    { id: 'drills', name: 'Survey Drills', req: { rooms: 100 },
+      get cost() { return { salvage: Math.ceil(1000 * Math.pow(5, drillRank())) }; },
+      get effect() {
+        const n = drillRank();
+        return `Rank ${n + 1}: every survey you make by hand recovers +${Math.round(DRILLS_STEP * 100)}% more salvage (now +${Math.round(n * DRILLS_STEP * 100)}%). Repeatable.`;
+      },
+      flavor: 'Walk the same ten rooms until your hands know where the copper is.' },
+  ];
+  for (const u of LADDER) {
+    u.exp = ID;
+    u.cat = 'Survey';
+    UPGRADES.push(u);
+    UPG[u.id] = u;
+  }
+  // Upgrades that change the salvage of a survey you make by hand, in the order a player meets them.
+  const SALVAGE_LADDER = ['gloves', 'flashlight', 'prybar', 'satchel', 'drills', 'notebook', 'cutters', 'boots', 'clipboard', 'pedometer', 'spreader', 'carbon'];
+  const AFFECTS = new Set(SALVAGE_LADDER);
+
+  // ------------------------------------------------------------- the reward
+  Exp.hook('derive:survey', ID, (D) => {
+    let hand = 0;
+    for (const u of LADDER) if (u.hand && has(u.id)) hand += u.hand;
+    if (has('satchel')) hand += SATCHEL_PER_FACILITY * totalFacilities();
+    const drill = 1 + DRILLS_STEP * drillRank();
+    D.manualHand = hand;
+    D.manualBase = CONFIG.survey.baseSalvage + hand;
+    D.manualShare = D.surveyPct * D.spsNominal;
+    D.manualDrill = drill;
+    D.manualCondition = D.sanityBand.salvage * (D.lightsOut ? 0.5 : 1);
+    D.manualSalvage = (D.manualBase * D.surveyMult + D.manualShare) * drill * D.sanityBand.salvage * (D.lightsOut ? 0.5 : 1);
+    if (has('sounder')) {
+      D.manualEchoMult = 2;
+      D.manualWaterMult = 1.5;
+    }
+  });
+
+  // Survey Drills is repeatable: it keeps its rank in this experiment's own save namespace.
+  Exp.hook('upgrade:buy', ID, (id) => {
+    if (id !== 'drills') return undefined;
+    const u = UPG.drills;
+    if (!upgradeAvailable(u) || drillRank() >= DRILLS_MAX || !canAffordUpgrade(u)) return false;
+    Wallet.pay('salvage', upgradePrice(u));
+    S.run.ext.click = { drills: drillRank() + 1 };
+    rt.structureDirty = true;
+    Sound.play('buy');
+    log(`Survey Drills, rank ${drillRank()}. Surveys you make by hand recover +${Math.round(drillRank() * DRILLS_STEP * 100)}% salvage.`, 'gain', 'TRAINING');
+    return true;
+  });
+  Exp.hook('upgradeHome', ID, (u) => (u.id === 'drills' && drillRank() >= DRILLS_MAX ? 'none' : undefined));
+
+  // The Upgrades tab opens after two rooms so the first upgrade is findable straight away.
+  Exp.hook('tabUnlocked', ID, (t) => (t.id === 'upgrades' && S.run.rooms >= 2 ? true : undefined));
+  Exp.hook('objective', ID, () => {
+    const r = S.run;
+    if (r.rooms >= 2 && r.rooms < 60 && !has('gloves')) return 'Requisition Work Gloves in Upgrades. They add +1 salvage to every survey you make by hand.';
+    return undefined;
+  }, 10);
+
+  // ------------------------------------------------------------- previews
+  /** Survey power if `u` were bought (one more rank, for drills). State is restored afterwards. */
+  function projectedPower(u) {
+    const r = S.run;
+    if (u.id === 'drills') {
+      const prev = r.ext.click;
+      r.ext.click = { drills: drillRank() + 1 };
+      const v = derive().manualSalvage;
+      if (prev) r.ext.click = prev; else delete r.ext.click;
+      return v;
+    }
+    const had = r.upgrades[u.id];
+    r.upgrades[u.id] = true;
+    const v = derive().manualSalvage;
+    if (had === undefined) delete r.upgrades[u.id]; else r.upgrades[u.id] = had;
+    return v;
+  }
+  /** The cheapest survey upgrade you can buy now, or else the next one that is still locked. */
+  function nextUpgrade() {
+    let best = null;
+    for (const id of SALVAGE_LADDER) {
+      const u = UPG[id];
+      if (!u || !contentOn(u) || !reqMet(u.req)) continue;
+      if (id === 'drills' ? drillRank() >= DRILLS_MAX : has(id)) continue;
+      if (!best || upgradePrice(u) < upgradePrice(best)) best = u;
+    }
+    if (best) return { u: best, locked: false };
+    for (const id of SALVAGE_LADDER) {
+      const u = UPG[id];
+      if (u && contentOn(u) && id !== 'drills' && !has(id) && !reqMet(u.req)) return { u, locked: true };
+    }
+    return null;
+  }
+  /** Every multiplier on a survey, by source. Anything unlisted shows as "Other", so the parts always multiply to the real value. */
+  function multiplierParts(D) {
+    const r = S.run, L = LEVELS[r.level];
+    const parts = [];
+    if (L.surveyMult !== 1) parts.push([`Level ${r.level}`, L.surveyMult]);
+    if (D.dvMult !== 1) parts.push(['Déjà Vu', D.dvMult]);
+    if (D.achMult !== 1) parts.push(['Achievements', D.achMult]);
+    if (D.recur !== 1) parts.push(['Recurrence', D.recur]);
+    if (has('flashlight')) parts.push(['Flashlight', 2]);
+    if (has('boots')) parts.push(['Rubber Boots', 3]);
+    if (has('pedometer')) parts.push(['Backwards Pedometer', 4]);
+    if (researched('pattern')) parts.push(['Wallpaper Pattern Analysis', 2]);
+    if (memRank('muscle')) parts.push(['Muscle Memory', 3]);
+    if (r.doctrine === 'doc_wet') parts.push(['Wet Doctrine', 0.5]);
+    if (relic('vhs')) parts.push(['VHS relic', 1.1]);
+    const product = parts.reduce((m, p) => m * p[1], 1);
+    const rest = D.surveyMult / product;
+    if (Math.abs(rest - 1) > 1e-9) parts.push(['Other', rest]);
+    return parts;
+  }
+  const lowerFirst = (s) => (s ? s[0].toLowerCase() + s.slice(1) : s);
+  /** "+8 → +9 (+10%)": the percentage keeps small gains visible when both sides round to the same number. */
+  const change = (a, b) => `+${fmt(a)} → +${fmt(b)}${a > 0 ? ` (+${Math.round((b / a - 1) * 100)}%)` : ''}`;
+
+  // ------------------------------------------------------------- interface
+  let ui = null;
+  Exp.hook('ui:init', ID, () => {
+    const val = el('span', { class: 'spower-val num' });
+    const next = el('span', { class: 'spower-next' });
+    const head = el('button', { type: 'button', class: 'spower-head', id: 'spowerHead', 'aria-expanded': 'false', 'aria-controls': 'spowerDetail' },
+      el('span', { class: 'spower-label', text: 'Survey power' }), val, next);
+    const detail = el('div', { class: 'spower-detail', id: 'spowerDetail', hidden: true });
+    const box = el('section', { class: 'spower', id: 'surveyPower', 'aria-label': 'Survey power', hidden: true }, head, detail);
+    $('btnSurvey').after(box);
+    ui = { box, head, val, next, detail, dirty: true };
+    head.addEventListener('click', () => {
+      const open = detail.hidden;
+      detail.hidden = !open;
+      head.setAttribute('aria-expanded', String(open));
+      ui.dirty = true;
+      UI.update();
+    });
+  });
+  function renderDetail(D) {
+    ui.dirty = false;
+    const rows = [];
+    const base = ['1 to start'];
+    for (const u of LADDER) if (u.hand && has(u.id)) base.push(`${u.name} +${u.hand}`);
+    if (has('satchel')) base.push(`Canvas Satchel +${fmtRate(SATCHEL_PER_FACILITY * totalFacilities())} (${fmt(totalFacilities())} facilities)`);
+    rows.push(['Base salvage', fmtRate(D.manualBase), base.join(' · ')]);
+    const parts = multiplierParts(D);
+    rows.push(['Multipliers', `×${fmtRate(D.surveyMult)}`, parts.length ? parts.map(([k, v]) => `${k} ×${fmtRate(v)}`).join(' · ') : 'none yet']);
+    if (D.surveyPct > 0) rows.push(['Share of output', `+${fmtRate(D.manualShare)}`, `${Math.round(D.surveyPct * 100)}% of ${fmtRate(D.spsNominal)} salvage/s from your notes`]);
+    if (D.manualDrill !== 1) rows.push(['Survey Drills', `×${D.manualDrill.toFixed(2)}`, `rank ${drillRank()}`]);
+    if (D.manualCondition !== 1) {
+      const why = [];
+      if (D.sanityBand.salvage !== 1) why.push(`${D.sanityBand.name} sanity ×${D.sanityBand.salvage}`);
+      if (D.lightsOut) why.push('lights out ×0.5');
+      rows.push(['Condition', `×${fmtRate(D.manualCondition)}`, why.join(', ')]);
+    }
+    rows.push(['Per survey', `+${fmtRate(D.manualSalvage)}`, `and ${fmtRooms(D.roomsPerSurvey)} ${D.roomsPerSurvey === 1 ? 'room' : 'rooms'} mapped`]);
+    rows.push(['Automatic surveys', `+${fmtRate(D.surveyFlat * CONFIG.survey.autoShare)} each`, `${pct(CONFIG.survey.autoShare)} of 1 base × the multipliers. Hand tools, notes and drills apply only to your own surveys.`]);
+    ui.detail.replaceChildren(el('dl', null, rows.map(([k, v, note]) => el('div', null,
+      el('dt', { text: k }), el('dd', null, el('b', { class: 'num', text: v }), note ? el('span', { text: note }) : null)))));
+  }
+  Exp.hook('ui:update', ID, (D) => {
+    if (!ui) return;
+    const on = Exp.on(ID);
+    setHidden(ui.box, !on);
+    if (!on) return;
+    setText(ui.val, `+${fmt(D.manualSalvage)} salvage per survey`);
+    const n = nextUpgrade();
+    let nextText = 'Every survey upgrade is owned';
+    if (n && n.locked) nextText = `Next: ${n.u.name}, ${lowerFirst(reqText(n.u.req)).replace(/\.$/, '')}`;
+    else if (n) nextText = `Next: ${n.u.name}, ${costLabel(upgradePrice(n.u), upgradeCurrency(n.u))}: ${change(D.manualSalvage, projectedPower(n.u))}`;
+    setText(ui.next, nextText);
+    if (!ui.detail.hidden && (ui.dirty || rt.uiTick % 4 === 0)) renderDetail(D);
+  });
+
+  // Requisition slips for survey upgrades show what they would do to survey power.
+  Exp.hook('upgrades:slip', ID, (ref) => {
+    if (!AFFECTS.has(ref.u.id)) return;
+    ref.power = el('p', { class: 'spower-proj num' });
+    ref.card.insertBefore(ref.power, ref.btn);
+  });
+  Exp.hook('upgrades:slipUpdate', ID, (ref) => {
+    if (!ref.power) return;
+    setText(ref.power, `Survey power ${change(rt.D.manualSalvage, projectedPower(ref.u))}`);
+    if (ref.u.id === 'drills') {
+      setText(ref.card.querySelector('h3'), `Survey Drills · rank ${drillRank() + 1}`);
+      setText(ref.card.querySelector('.effect'), ref.u.effect);
+      setText(ref.btn.children[1], costLabel(upgradePrice(ref.u), 'salvage'));
+    }
+  });
+
+  Exp.hook('manual', ID, (add) => add('Survey power', [
+    'Survey power is the salvage one survey you make by hand recovers. It is shown under the Survey button; select it for the full breakdown.',
+    'Hand tools (Work Gloves, Pry Bar, Canvas Satchel, Bolt Cutters, Hydraulic Spreader) add to the base reward. Every survey multiplier (Flashlight, Rubber Boots, deeper levels, Déjà Vu and others) then scales that base. Notes add a share of your salvage per second, and Survey Drills add +10% per rank.',
+    `Automatic surveys by beacons and cartographers recover ${pct(CONFIG.survey.autoShare)} of 1 base × the same multipliers. They never receive hand tools, notes or drills.`,
+  ]));
+})();
 // <<< EXP-CLICK-POWER
 //
 // ---------------------------------------------------------------------------
