@@ -5536,7 +5536,10 @@ function onKey(e) {
     { id: 'attention', title: 'Attention', show: () => true, rows: [
       ['Attention', () => `${Math.round(S.run.attention)}`, () => 'How closely something is listening. 75 and above, incidents can happen.'],
       ['Heading to', (D) => `${Math.round(D.attnTarget)}`, () => `100 × noise ÷ (noise + absorption). Attention closes ${pct(CONFIG.attention.rate)} of the gap each second.`],
-      ['Noise', (D) => fmtRate(D.noise, 3), (D) => (D.lightsOut ? 'None while the lights are out.' : 'Made by facilities, more with some doctrines and upgrades.')],
+      ['Noise', (D) => fmtRate(D.noise, 3), (D) => (D.lightsOut ? 'None while the lights are out.'
+        // D.noiseSteps exists when footsteps make noise (EXP-ATTENTION-BALANCE); the ledger works either way.
+        : D.noiseSteps != null ? `Machines ${fmtRate(D.noiseMachines, 3)}, your footsteps ${fmtRate(D.noiseSteps, 3)}. Footsteps fade within seconds of your last survey.`
+          : 'Made by facilities, more with some doctrines and upgrades.')],
       ['Absorption', (D) => fmtRate(D.absorb), () => `Base ${fmt(CONFIG.attention.baseAbsorb)}, plus dampeners, watchers, research and relics; ×1.5 in the Poolrooms.`],
     ] },
     { id: 'dv', title: 'Déjà Vu', show: () => S.dvTotal > 0 || S.iteration > 1 || S.run.level >= CONFIG.prestige.minLevel, rows: [

@@ -5,7 +5,7 @@
 | Identifier | `EXP-RESOURCE-LEDGER` |
 | Name | Resource ledger |
 | Purpose | Explains what the numbers mean. For every resource and meter it shows: what you hold, what comes in per second and from where, what one survey by hand brings, what it is spent on, and the next threshold. Selecting a resource in the header opens its entry. |
-| Depends on | `EXP-CORE`, for the `archive:subtabs`, `archive:build`, `archive:update`, `ui:init` and `ui:update` hooks. When EXP-CREW-AUTOMATION is on, its notes say how many machines are running. |
+| Depends on | `EXP-CORE`, for the `archive:subtabs`, `archive:build`, `archive:update`, `ui:init` and `ui:update` hooks. Two notes use optional fields that other experiments provide: machines running (EXP-CREW-AUTOMATION) and footstep noise (EXP-ATTENTION-BALANCE). Without them the ledger still works. |
 | Flag | `EXP-RESOURCE-LEDGER`, on by default. |
 
 ## What it changes (presentation only)
@@ -78,12 +78,13 @@ Turning the flag off or reverting the code is enough. No data is involved.
 
 - Run `node tools/run-tests.js` for the full suite.
 - Run the three-experiment equivalence check described in EXP-UPGRADE-CATEGORIES.
-- `node tools/tests/ledger.test.js` runs 11 checks:
+- `node tools/tests/ledger.test.js` runs 12 checks:
   - The header readouts are buttons.
   - Selecting almond water opens its entry.
   - Every resource and meter in play is covered.
   - Per-second salvage and water, and salvage held, match the header. Per-survey salvage matches the Survey button. Level progress reads 300 / 800.
   - After a purchase and an assignment, the ledger updates at once.
+  - The noise row names its sources, including footsteps when EXP-ATTENTION-BALANCE is on.
   - Enter on a focused readout opens its entry.
   - Switched off, the readouts are plain and the section is gone.
   - No errors.
