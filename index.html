@@ -6118,6 +6118,27 @@ function onKey(e) {
 // ---------------------------------------------------------------------------
 //
 // >>> EXP-FACILITY-INDEPENDENCE
+// Facilities never need crew. Every facility is bought and runs at its full output with
+// nobody assigned, while you watch and while you are away. Facilities may still need a
+// level, rooms, almond water or earlier facilities, as before; never crew. Crew stay a
+// separate system with their own jobs in the Crew tab. This switches off the staffing
+// rule of EXP-CREW-AUTOMATION through the crew:staffing hook; without that experiment
+// there is nothing to switch off. Registry entry and rollback: docs/experiments/EXP-FACILITY-INDEPENDENCE.md
+(function facilityIndependenceExperiment() {
+  const ID = 'EXP-FACILITY-INDEPENDENCE';
+  Exp.define({
+    id: ID,
+    name: 'Facilities never need crew',
+    summary: 'Every facility can be bought and runs at full output with no crew. Switches off the crew staffing rule; crew keep their own jobs and output.',
+  });
+
+  Exp.hook('crew:staffing', ID, () => false);
+  Exp.hook('facilities:sub', ID, () => 'Facilities run at full output with or without crew, while you watch and while you are away. Most of them make noise.', -10);
+  Exp.hook('manual', ID, (add) => add('Facilities and crew', [
+    'Facilities never need crew. A facility can be bought as soon as its level and other requirements are met, and it produces its full output with nobody assigned to it.',
+    `Crew are a separate system. Each job produces on its own: scavengers recover salvage by hand, cartographers survey, dowsers find water, watchers absorb noise and archivists record Echoes. Scavengers also add +${Math.round(CONFIG.crew.scavengeBonus * 100)}% facility salvage each, on top of the facilities’ full output.`,
+  ]));
+})();
 // <<< EXP-FACILITY-INDEPENDENCE
 //
 // ---------------------------------------------------------------------------
