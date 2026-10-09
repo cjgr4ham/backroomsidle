@@ -634,6 +634,25 @@ body.reduce-motion .vp-banner { animation: none; opacity: 1; }
 /* <<< EXP-DEJA-VU-SHOP */
 /* -- */
 /* >>> EXP-ACCOUNT-UI */
+.acct-chip { max-width: 16ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 6px 10px; background: var(--panel-2); border: 1px solid var(--line); color: var(--dim); font: 600 12px var(--font-mono); }
+.acct-chip:hover { color: var(--paper); border-color: var(--line-2); }
+.acct-chip.signed-in { color: var(--paper); }
+.acct-chip.signed-in::before { content: "◉ "; color: var(--ok); }
+.acct-chip.warn { color: var(--warn); }
+.acct-form { display: grid; gap: 10px; }
+.acct-mode { justify-self: start; }
+.acct-field { display: grid; gap: 4px; font: 700 11px var(--font-sign); letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); }
+.acct-input { width: 100%; padding: 9px 10px; background: var(--ink-2); border: 1px solid var(--line-2); color: var(--paper); font: 15px var(--font-mono); letter-spacing: 0; text-transform: none; }
+.acct-input:focus { outline: 2px solid var(--focus); outline-offset: 1px; border-color: var(--sodium-deep); }
+.acct-policy { margin: 0; }
+.acct-err:empty { display: none; }
+.acct-note { color: var(--sodium-hi) !important; }
+.acct-section { display: grid; gap: 8px; }
+.acct-section .setting b { color: var(--sodium); }
+.acct-section .btn { flex: none; white-space: nowrap; }
+.modal .acct-err { color: var(--warn); }
+@media (max-width: 520px) { .acct-chip { max-width: 11ch; } }
+.modal-actions:empty { display: none; }
 /* <<< EXP-ACCOUNT-UI */
 /* -- */
 /* >>> EXP-CLOUD-SAVE */
@@ -6694,6 +6713,151 @@ function onKey(e) {
 // ---------------------------------------------------------------------------
 //
 // >>> EXP-ACCOUNT-UI
+// The account interface: a sign-in screen in the terminal's own style, the signed-in name in the header,
+// and Settings → Account. It appears only when the game is served by its server (EXP-ACCOUNT-AUTH finds
+// it); a copy without a server says plainly that accounts are not available there. The sign-in screen
+// opens when a visit has no valid session (unless the player chose to play offline in this browser), after
+// a deliberate sign-out, and when a session expires; never while a session is valid. Usernames are always
+// inserted as text. Registry entry and rollback: docs/experiments/EXP-ACCOUNT-UI.md
+(function accountInterfaceExperiment() {
+  const ID = 'EXP-ACCOUNT-UI';
+  Exp.define({
+    id: ID,
+    name: 'Account interface',
+    summary: 'Sign-in and registration screen, the signed-in username in the header, and an Account section in Settings.',
+  });
+
+  const KEY = 'the-hum.account-ui';   // this browser's choice to play offline; not part of the save
+  const prefs = (() => { try { const v = JSON.parse(Store.get(KEY) || '{}'); return isObj(v) ? { offline: v.offline === true } : { offline: false }; } catch (e) { return { offline: false }; } })();
+  const savePrefs = () => Store.set(KEY, JSON.stringify(prefs));
+  const service = () => Exp.ask('account:service');
+  const state = () => { const s = service(); return s ? s.state() : { status: 'none', user: null, reason: '' }; };
+  const on = () => Exp.on(ID);
+
+  // ------------------------------------------------------------- the sign-in screen
+  let dialog = null;      // the sign-in form, while it is the open dialog
+  let pending = null;     // a screen to show once no other dialog is open: { mode, note }
+  const mine = () => !!(dialog && dialog.form.isConnected);
+  function openSignIn(mode, note) {
+    const svc = service();
+    if (!on() || !svc) return;
+    if (UI.modalOpen && !mine()) { pending = { mode, note }; return; }   // never replace another dialog
+    pending = null;
+    const view = { mode: mode === 'register' ? 'register' : 'login', busy: false };
+    const err = el('p', { class: 'err acct-err', role: 'alert' });
+    const user = el('input', { class: 'acct-input', id: 'acctUser', type: 'text', autocomplete: 'username', autocapitalize: 'none', spellcheck: 'false', maxlength: '20', required: true });
+    const pass = el('input', { class: 'acct-input', id: 'acctPass', type: 'password', maxlength: '200', required: true });
+    const policy = el('p', { class: 'muted acct-policy', text: 'Username: 3 to 20 letters, digits, _ or -. Password: at least 10 characters, not containing your username. A few unrelated words work well.' });
+    const submit = el('button', { type: 'submit', class: 'btn primary' });
+    const tabs = el('div', { class: 'seg acct-mode', role: 'group', 'aria-label': 'Sign in or create an account' });
+    const mBtn = (m, label) => { const b = el('button', { type: 'button', 'data-mode': m }, label); b.addEventListener('click', () => { view.mode = m; render(); }); return b; };
+    tabs.append(mBtn('login', 'Sign in'), mBtn('register', 'Create account'));
+    const offline = el('button', { type: 'button', class: 'btn' }, 'Play offline');
+    offline.addEventListener('click', () => { prefs.offline = true; savePrefs(); close(); UI.toast('Playing offline', 'Progress is saved in this browser. Sign in any time from the header.', ''); });
+    const form = el('form', { class: 'acct-form', novalidate: true },
+      tabs,
+      el('label', { class: 'acct-field', for: 'acctUser' }, el('span', { text: 'Username' }), user),
+      el('label', { class: 'acct-field', for: 'acctPass' }, el('span', { text: 'Password' }), pass),
+      policy, err,
+      el('div', { class: 'modal-actions' }, offline, submit));
+    function render() {
+      for (const b of tabs.children) setAttr(b, 'aria-pressed', b.dataset.mode === view.mode);
+      setHidden(policy, view.mode !== 'register');
+      setAttr(pass, 'autocomplete', view.mode === 'register' ? 'new-password' : 'current-password');
+      setText(submit, view.busy ? (view.mode === 'register' ? 'Creating…' : 'Signing in…') : (view.mode === 'register' ? 'Create account' : 'Sign in'));
+      setDis(submit, view.busy);
+      setDis(offline, view.busy);
+      setText(err, '');
+    }
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (view.busy) return;
+      if (!user.value.trim() || !pass.value) { setText(err, 'Enter a username and a password.'); return; }
+      view.busy = true; render();
+      const r = view.mode === 'register' ? await svc.register(user.value, pass.value) : await svc.login(user.value, pass.value);
+      view.busy = false; render();
+      if (r.ok) return;   // account:changed closes the screen
+      setText(err, (r.data && r.data.message) || 'That did not work. Try again.');
+      (r.data && /^username/.test(r.data.error) ? user : pass).focus();
+    });
+    const intro = note || 'Sign in to keep your progress with your account, on any device, and to appear on the noclip leaderboard. Without an account the game is the same, saved in this browser only.';
+    UI.modal({ title: 'Survey terminal: sign in', body: [el('p', { class: note ? 'acct-note' : '', text: intro }), form], actions: [] });
+    dialog = { form, user };
+    render();
+    user.focus();
+  }
+  function close() { if (mine()) UI.closeModal(); dialog = null; }
+
+  // ------------------------------------------------------------- reacting to the account
+  Exp.hook('account:changed', ID, (s) => {
+    if (UI.sigs) UI.sigs.settings = null;   // rebuild Settings → Account
+    if (s.status === 'signed-in') {
+      prefs.offline = false; savePrefs();
+      close();
+      if (s.reason === 'registered' || s.reason === 'login') UI.toast(s.reason === 'registered' ? 'Account created' : 'Signed in', `Welcome, ${s.user.username}.`, 'ach');
+    } else if (s.status === 'signed-out') {
+      if (s.reason === 'logout') openSignIn('login', 'You signed out. Your progress stays in this browser and with your account. Sign in again, or play offline.');
+      else if (s.reason === 'expired') openSignIn('login', 'Your session has ended. Sign in again to keep saving to your account. Your progress is still saved in this browser.');
+      else if (!prefs.offline) openSignIn('login');
+    }
+    if (UI.built) UI.update();   // the header and Settings show the change at once
+  });
+
+  // ------------------------------------------------------------- the header
+  let chip = null;
+  Exp.hook('ui:init', ID, () => {
+    chip = el('button', { type: 'button', class: 'acct-chip', hidden: true });
+    chip.addEventListener('click', () => {
+      const s = state();
+      if (s.status === 'signed-out') openSignIn('login');
+      else { UI.selectTab('settings'); const n = document.getElementById('acctSection'); if (n) n.scrollIntoView({ block: 'start' }); }
+    });
+    document.querySelector('.sysctl').prepend(chip);
+  });
+  Exp.hook('ui:update', ID, () => {
+    if (!chip) return;
+    const s = state();
+    const show = on() && (s.status === 'signed-in' || s.status === 'signed-out' || s.status === 'error');
+    setHidden(chip, !show);
+    if (pending && on() && !UI.modalOpen) openSignIn(pending.mode, pending.note);
+    if (!show) return;
+    const label = s.status === 'signed-in' ? s.user.username : s.status === 'signed-out' ? 'Sign in' : 'Server unreachable';
+    setText(chip, label);
+    chip.classList.toggle('signed-in', s.status === 'signed-in');
+    chip.classList.toggle('warn', s.status === 'error');
+    setAttr(chip, 'aria-label', s.status === 'signed-in' ? `Signed in as ${s.user.username}. Open Settings → Account.` : s.status === 'signed-out' ? 'Sign in or create an account' : 'The server cannot be reached. Open Settings → Account.');
+  });
+
+  // ------------------------------------------------------------- Settings → Account
+  Exp.hook('settings:sections', ID, (add) => {
+    const s = state();
+    const box = el('section', { class: 'acct-section', id: 'acctSection', 'aria-label': 'Account' });
+    add(el('h3', { class: 'section-title', text: 'Account' }));
+    const row = (label, note, btn) => el('div', { class: 'setting' }, el('div', { class: 'lbl' }, label, note ? el('small', { text: note }) : null), btn || null);
+    if (s.status === 'none' || s.status === 'checking') {
+      box.append(el('p', { class: 'panel-sub', text: 'This copy of The Hum runs without its server, so accounts, cloud saves and the leaderboard are not available here. Your progress is saved in this browser; export it below to keep a copy.' }));
+    } else if (s.status === 'error') {
+      const retry = el('button', { type: 'button', class: 'btn' }, 'Try again');
+      retry.addEventListener('click', () => { const svc = service(); if (svc) svc.retry(); });
+      box.append(row(el('span', { text: 'The server cannot be reached right now.' }), 'Your progress is still saved in this browser.', retry));
+    } else if (s.status === 'signed-out') {
+      const btn = el('button', { type: 'button', class: 'btn primary' }, 'Sign in or create an account');
+      btn.addEventListener('click', () => openSignIn('login'));
+      box.append(row(el('span', { text: 'Not signed in.' }), 'Sign in to keep your progress with your account and appear on the leaderboard.', btn));
+    } else {
+      const out = el('button', { type: 'button', class: 'btn' }, 'Sign out');
+      out.addEventListener('click', async () => { setDis(out, true); setText(out, 'Signing out…'); const svc = service(); if (svc) await svc.logout(); });
+      box.append(row(el('span', null, 'Signed in as ', el('b', { text: s.user.username })), 'Signing out keeps your progress in this browser and with your account.', out));
+      Exp.run('account:sections', (node) => box.append(node));   // cloud save status, leaderboard and the like
+    }
+    add(box);
+  });
+
+  Exp.hook('manual', ID, (add) => add('Accounts', [
+    'When The Hum is opened from its server, you can create an account with a username and password, or sign in. Your session lasts 30 days of not visiting and survives refreshes. Signing out is in Settings → Account.',
+    'You can always play offline instead: the game is the same, saved in this browser. Copies of the game without a server (opened from a file, or a static page) have no accounts.',
+  ]));
+})();
 // <<< EXP-ACCOUNT-UI
 //
 // ---------------------------------------------------------------------------
