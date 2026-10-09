@@ -533,6 +533,9 @@ body.reduce-motion .vp-banner { animation: none; opacity: 1; }
 /* >>> EXP-UPGRADE-CATEGORIES */
 /* <<< EXP-UPGRADE-CATEGORIES */
 /* -- */
+/* >>> EXP-FACILITY-TIERS */
+/* <<< EXP-FACILITY-TIERS */
+/* -- */
 /* >>> EXP-RESOURCE-LEDGER */
 /* <<< EXP-RESOURCE-LEDGER */
 /* -- */
@@ -3453,8 +3456,9 @@ Panels.facilities = {
 };
 
 Panels.upgrades = {
-  sig: () => UPGRADES.filter(upgradeVisible).map((u) => u.id).join() + '|' + Object.keys(S.run.upgrades).length + '|' + Exp.sig(),
+  sig: () => UPGRADES.filter(upgradeVisible).map((u) => u.id).join() + '|' + Object.keys(S.run.upgrades).length + '|' + Exp.sig() + '|' + (Exp.ask('upgrades:sig') || ''),
   build(p) {
+    if (Exp.ask('upgrades:build', p)) return;   // an experiment laid the panel out itself
     p.append(el('div', { class: 'panel-head' }, el('div', null,
       el('h2', { text: 'Upgrades' }),
       el('p', { class: 'panel-sub', text: 'One-off requisitions. Most cost salvage; some cost almond water. All are lost when you noclip.' }))));
@@ -5239,6 +5243,11 @@ function onKey(e) {
 //
 // >>> EXP-UPGRADE-CATEGORIES
 // <<< EXP-UPGRADE-CATEGORIES
+//
+// ---------------------------------------------------------------------------
+//
+// >>> EXP-FACILITY-TIERS
+// <<< EXP-FACILITY-TIERS
 //
 // ---------------------------------------------------------------------------
 //

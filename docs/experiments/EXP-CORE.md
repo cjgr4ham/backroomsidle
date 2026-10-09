@@ -28,7 +28,7 @@ All of the changes are in `index.html`.
 - **Interface hook points**:
   - `facilities:sub`, `facilities:line`, `facilities:row`, `facilities:rowUpdate`, `facilities:afterRows`
   - `crew:sig`, `crew:top`, `crew:lockedText`, `crew:jobRow`, `crew:jobLine`, `crew:jobUpdate`, `crew:afterRows`, `crew:update`
-  - `upgrades:slip`, `upgrades:slipUpdate`
+  - `upgrades:build` (an experiment lays out the Upgrades tab itself), `upgrades:sig`, `upgrades:slip`, `upgrades:slipUpdate`
   - `archive:subtabs`, `archive:build`, `archive:update`
   - `manual`, `settings:sections`
   - `ui:init` and `ui:update` (these run for every experiment, on or off)
