@@ -31,7 +31,9 @@ function summarize(d) {
 /** The save's shape, as far as the server needs it. The game itself validates every field when it loads. */
 function validate(d) {
   if (!d || typeof d !== 'object' || Array.isArray(d)) throw new HttpError(400, 'save_invalid', 'That is not a saved game.');
-  if (d.v !== 1) throw new HttpError(400, 'save_version', 'This save format is not supported here.');
+  // Version 2 is the current format. Version 1 is still accepted from pages loaded before the update: the game
+  // migrates it when it is loaded again, so nothing is lost either way.
+  if (d.v !== 1 && d.v !== 2) throw new HttpError(400, 'save_version', 'This save format is not supported here.');
   if (!Number.isInteger(d.iteration) || d.iteration < 1 || d.iteration > 1e6) throw new HttpError(400, 'save_invalid', 'That is not a saved game.');
   for (const k of ['run', 'life']) if (!d[k] || typeof d[k] !== 'object' || Array.isArray(d[k])) throw new HttpError(400, 'save_invalid', 'That is not a saved game.');
   for (const k of ['dv', 'dvTotal', 'time']) if (d[k] !== undefined && !(typeof d[k] === 'number' && Number.isFinite(d[k]) && d[k] >= 0)) throw new HttpError(400, 'save_invalid', 'That is not a saved game.');
