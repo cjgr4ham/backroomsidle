@@ -3352,7 +3352,7 @@ Panels.facilities = {
     }
     p.append(el('div', { class: 'panel-head' },
       el('div', null, el('h2', { text: 'Facilities' }),
-        el('p', { class: 'panel-sub', text: 'Facilities run whether you watch or not, and while you are away. Most of them make noise.' })),
+        el('p', { class: 'panel-sub', text: Exp.ask('facilities:sub') || 'Facilities run whether you watch or not, and while you are away. Most of them make noise.' })),
       seg));
     const rows = el('div', { class: 'rows' });
     this.rows = {};
@@ -3493,14 +3493,15 @@ Panels.upgrades = {
 };
 
 Panels.crew = {
-  sig: () => `${crewUnlocked()}|${has('whistle')}|${S.run.level}|${S.run.crew.missing.length > 0}`,
+  sig: () => `${crewUnlocked()}|${has('whistle')}|${S.run.level}|${S.run.crew.missing.length > 0}|${Exp.sig()}|${Exp.ask('crew:sig') || ''}`,
   build(p) {
     p.append(el('div', { class: 'panel-head' }, el('div', null,
       el('h2', { text: 'Crew' }),
       el('p', { class: 'panel-sub', text: 'Other lost people. They cost almond water to take in, and each one can work a job, watch for trouble, or go on expeditions.' }))));
     this.refs = null;
+    Exp.run('crew:top', p);
     if (!crewUnlocked()) {
-      p.append(el('p', { class: 'empty', text: 'Requisition the Shortwave Radio in Upgrades. It lets lost people find their way to you.' }));
+      p.append(el('p', { class: 'empty', text: Exp.ask('crew:lockedText') || 'Requisition the Shortwave Radio in Upgrades. It lets lost people find their way to you.' }));
       return;
     }
     const R = {};
@@ -3537,19 +3538,23 @@ Panels.crew = {
         n,
         el('button', { type: 'button', class: 'btn small', 'data-action': 'assign', 'data-job': j.id, 'data-delta': '1', 'aria-label': `Assign one ${j.name}` }, '+'),
         el('button', { type: 'button', class: 'btn small', 'data-action': 'assign', 'data-job': j.id, 'data-delta': '5', 'aria-label': `Assign 5 ${j.name}s` }, '+5'));
+      const body = el('div', { class: 'row-body' }, el('div', { class: 'row-title' }, el('h3', { text: j.name })),
+        el('p', { class: 'row-stats muted', text: j.desc(CONFIG.crew) }), out);
       rows.append(el('div', { class: 'row' },
         el('div', { class: 'row-icon' }, icon('crew')),
-        el('div', { class: 'row-body' }, el('div', { class: 'row-title' }, el('h3', { text: j.name })),
-          el('p', { class: 'row-stats muted', text: j.desc(CONFIG.crew) }), out),
+        body,
         el('div', { class: 'row-act' }, ctl)));
-      R.jobs[j.id] = { n, out, btns: ctl.querySelectorAll('button') };
+      R.jobs[j.id] = { n, out, body, btns: ctl.querySelectorAll('button') };
+      Exp.run('crew:jobRow', j, R.jobs[j.id]);
     }
     p.append(rows);
     R.missingList = el('p', { class: 'panel-sub' });
     p.append(R.missingList);
+    Exp.run('crew:afterRows', p);
     this.refs = R;
   },
   update() {
+    Exp.run('crew:update', rt.D);
     const R = this.refs;
     if (!R) return;
     const c = S.run.crew, D = rt.D;
@@ -3566,13 +3571,16 @@ Panels.crew = {
     for (const id in R.jobs) {
       const J = R.jobs[id];
       setText(J.n, fmt(c.jobs[id]));
-      let out;
-      if (id === 'scavenge') out = `Now: +${fmtRate(D.jobOut.scavenge)} salvage/s, facility salvage ×${D.scavengeBoost.toFixed(2)}`;
-      else if (id === 'chart') out = `Now: ${fmtRate(D.jobOut.chart)} surveys/s, mapping ${fmtRate(D.jobOut.chart * D.roomsPerSurvey)} rooms/s`;
-      else if (id === 'dowse') out = `Now: +${fmtRate(D.jobOut.dowse)} water/s`;
-      else if (id === 'watch') out = `Now: absorbing ${fmtRate(D.jobOut.watch)} noise`;
-      else out = `Now: +${fmtRate(D.jobOut.archive, 3)} Echoes/s`;
+      let out = Exp.ask('crew:jobLine', id, D);
+      if (out === undefined) {
+        if (id === 'scavenge') out = `Now: +${fmtRate(D.jobOut.scavenge)} salvage/s, facility salvage ×${D.scavengeBoost.toFixed(2)}`;
+        else if (id === 'chart') out = `Now: ${fmtRate(D.jobOut.chart)} surveys/s, mapping ${fmtRate(D.jobOut.chart * D.roomsPerSurvey)} rooms/s`;
+        else if (id === 'dowse') out = `Now: +${fmtRate(D.jobOut.dowse)} water/s`;
+        else if (id === 'watch') out = `Now: absorbing ${fmtRate(D.jobOut.watch)} noise`;
+        else out = `Now: +${fmtRate(D.jobOut.archive, 3)} Echoes/s`;
+      }
       setText(J.out, out);
+      Exp.run('crew:jobUpdate', id, J, D);
       setDis(J.btns[0], c.jobs[id] < 1); setDis(J.btns[1], c.jobs[id] < 1);
       setDis(J.btns[2], idle < 1); setDis(J.btns[3], idle < 1);
     }

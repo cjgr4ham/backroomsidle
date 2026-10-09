@@ -26,7 +26,8 @@ All of the changes are in `index.html`.
   - `upgradeVisible(u)` means listed in the Upgrades tab.
   - `Panels.upgrades.slip()`/`updateSlips()` build requisition slips that other tabs can reuse.
 - **Interface hook points**:
-  - `facilities:line`, `facilities:row`, `facilities:rowUpdate`, `facilities:afterRows`
+  - `facilities:sub`, `facilities:line`, `facilities:row`, `facilities:rowUpdate`, `facilities:afterRows`
+  - `crew:sig`, `crew:top`, `crew:lockedText`, `crew:jobRow`, `crew:jobLine`, `crew:jobUpdate`, `crew:afterRows`, `crew:update`
   - `upgrades:slip`, `upgrades:slipUpdate`
   - `archive:subtabs`, `archive:build`, `archive:update`
   - `manual`, `settings:sections`
