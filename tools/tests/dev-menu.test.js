@@ -132,16 +132,20 @@ const ID = 'EXP-DEV-MENU';
   // Production view and experiment switches.
   const prod = await ev(() => { HUM.UI.selectTab('dev'); HUM.UI.update(true); return document.querySelector('#panel-dev .dev-prod').textContent; });
   c.check('production figures are shown live', /Salvage\/s/.test(prod) && /Facility multiplier/.test(prod), prod.slice(0, 120));
+  // Any other experiment in the build will do (this page starts with them switched off by ?exp=none).
   const sw = await ev(() => {
     const rows = [...document.querySelectorAll('#panel-dev .dev-exp')];
-    const row = rows.find((r) => /EXP-CLICK-POWER/.test(r.textContent));
+    const row = rows.find((r) => !/EXP-DEV-MENU/.test(r.textContent));
+    if (!row) return { none: true };
+    const id = row.querySelector('code').textContent.trim();
+    const was = HUM.Exp.on(id);
     row.querySelector('button').click();
-    const on = HUM.Exp.on('EXP-CLICK-POWER');
+    const on = HUM.Exp.on(id);
     const stored = JSON.parse(localStorage.getItem('the-hum.experiments') || '{}');
     [...document.querySelectorAll('#panel-dev button')].find((b) => /Reset all experiments/.test(b.textContent)).click();
-    return { on, stored, after: HUM.Exp.on('EXP-CLICK-POWER'), kept: localStorage.getItem('the-hum.experiments') };
+    return { id, was, on, stored: stored[id], after: HUM.Exp.on(id), def: HUM.Exp.defs[id].defaultOn, kept: localStorage.getItem('the-hum.experiments') };
   });
-  c.check('the experiment switches turn experiments on and off and can be reset', sw.on === true && sw.stored['EXP-CLICK-POWER'] === true && sw.after === true && sw.kept === null, sw);
+  c.check('the experiment switches turn experiments on and off and can be reset', sw.none || (sw.on === !sw.was && sw.stored === sw.on && sw.after === sw.def && sw.kept === null), sw);
 
   // Developer settings stay out of the save.
   const saved = await ev(() => { const st = JSON.parse(JSON.stringify(HUM.S)); return { dev: st.ext.dev, hasInfinite: JSON.stringify(st).includes('"infinite"'), devKey: !!localStorage.getItem('the-hum.dev') }; });
