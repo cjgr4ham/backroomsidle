@@ -550,6 +550,18 @@ body.reduce-motion .vp-banner { animation: none; opacity: 1; }
 /* <<< EXP-FACILITY-TIERS */
 /* -- */
 /* >>> EXP-RESOURCE-LEDGER */
+.rl-book { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; }
+.rl-entry { padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); scroll-margin-top: 8px; }
+.rl-entry:focus { outline: 1px solid var(--sodium-deep); }
+.rl-entry h4 { margin: 0 0 6px; font: 700 11px var(--font-sign); letter-spacing: 0.16em; text-transform: uppercase; color: var(--sodium); }
+.rl-entry dl { margin: 0; display: grid; gap: 5px; }
+.rl-entry dl > div { display: grid; grid-template-columns: 9.5em minmax(0, 1fr); gap: 2px 10px; align-items: baseline; }
+.rl-entry dt { font: 11px var(--font-mono); color: var(--dim); }
+.rl-entry dd { margin: 0; display: grid; gap: 1px; min-width: 0; }
+.rl-entry dd b { font: 600 13px var(--font-mono); color: var(--paper); font-variant-numeric: tabular-nums; }
+.rl-entry dd span { font-size: 12px; color: var(--dim); line-height: 1.35; }
+.res.res-link { cursor: pointer; }
+.res.res-link:hover, .res.res-link:focus-visible { border-color: var(--sodium-deep); }
 /* <<< EXP-RESOURCE-LEDGER */
 /* -- */
 /* >>> EXP-ATTENTION-BALANCE */
@@ -5459,6 +5471,155 @@ function onKey(e) {
 // ---------------------------------------------------------------------------
 //
 // >>> EXP-RESOURCE-LEDGER
+// Resource ledger. An Archive section that lays out every resource and meter:
+// what you hold, what comes in per second and from where, what one survey by hand
+// brings, what it is spent on, and the next threshold. Every number is read from
+// the same calculations the simulation uses. Selecting a resource in the header
+// opens its entry. Registry entry and rollback: docs/experiments/EXP-RESOURCE-LEDGER.md
+(function resourceLedgerExperiment() {
+  const ID = 'EXP-RESOURCE-LEDGER';
+  Exp.define({
+    id: ID,
+    name: 'Resource ledger',
+    summary: 'Adds a Resources section to the Archive that explains every resource and meter, and lets you open it from the resource readouts in the header.',
+  });
+
+  const perSec = (v, dp) => `${v >= 0 ? '+' : '−'}${fmtRate(Math.abs(v), dp)}/s`;
+  const on = (D) => (D.lightsOut ? 0 : 1);
+  // Each entry: id, title, when it is shown, and rows of [label, value(D), meaning(D)].
+  const ENTRIES = [
+    { id: 'salvage', title: 'Salvage', show: () => true, rows: [
+      ['Held', () => fmt(S.run.salvage), () => 'Spent on facilities and most requisitions. Lost when you noclip.'],
+      ['Per second', (D) => perSec(D.sps), (D) => (D.lightsOut ? 'Nothing comes in while the lights are out.' : 'All passive salvage: the three lines below.')],
+      ['· from machines', (D) => perSec(D.facSalvage), (D) => (D.ops && D.ops.lines.scavenge.machines ? `Salvage machines in Facilities. ${fmt(D.ops.lines.scavenge.staffed)} of ${fmt(D.ops.lines.scavenge.machines)} are running; the rest work at 25%.` : 'Salvage machines in Facilities.')],
+      ['· from crew', (D) => perSec(D.crewSalvage), () => (researched('phantom') ? 'Scavengers working by hand, and idle wanderers at half efficiency (Phantom Labour).' : 'Scavengers working by hand.')],
+      ['· from automatic surveys', (D) => perSec(D.autoSalvage), () => `Beacons and cartographers. Each automatic survey recovers ${pct(CONFIG.survey.autoShare)} of a survey's base salvage.`],
+      ['Per survey by hand', (D) => `+${fmtRate(D.manualSalvage)}`, () => 'One survey you make yourself, with the Survey button or the S key.'],
+      ['Facility multiplier', (D) => `×${fmtRate(D.facMult)}`, () => 'Everything that multiplies machine salvage: levels reached, Déjà Vu, achievements, shift upgrades, the scavenger bonus, research and conditions.'],
+      ['This iteration', () => fmt(S.run.stats.salvage), () => `Salvage recovered since your last noclip. Déjà Vu = (this ÷ ${fmt(CONFIG.prestige.divisor)}) ^ ${CONFIG.prestige.exponent}.`],
+    ] },
+    { id: 'aw', title: 'Almond water', show: () => S.run.flags.water || S.run.aw > 0, rows: [
+      ['Held', () => fmt(S.run.aw), () => 'Spent on drinks, taking in wanderers, expeditions and some requisitions.'],
+      ['Per second', (D) => perSec(D.aws), () => 'Condensers and dowsers.'],
+      ['· from condensers', (D) => perSec(D.fac.condenser.total * on(D)), (D) => (D.ops && D.ops.lines.dowse.machines ? `${fmt(D.ops.lines.dowse.staffed)} of ${fmt(D.ops.lines.dowse.machines)} condensers are running; the rest work at 25%.` : 'Humidity Condensers in Facilities.')],
+      ['· from dowsers', (D) => perSec(D.jobOut.dowse * on(D)), () => 'Dowsers working by hand.'],
+      ['Found by surveys', (D) => `${pct(CONFIG.survey.waterChance * (D.manualWaterMult || 1))} of rooms`, () => { const m = (1 + S.run.level) * (condMods().aw || 1); return `Surveys by hand only, ${fmt(m)}–${fmt(3 * m)} water each on this level.`; }],
+      ['A drink', () => `${fmt(drinkCost())} water`, () => `Restores ${fmt(drinkRestore())} sanity. Costs more on deeper levels.`],
+      ['Next wanderer', () => (crewUnlocked() ? `${fmt(hireCost())} water` : '—'), () => (crewUnlocked() ? `Each one costs ${pct(CONFIG.crew.growth - 1)} more than the last.` : 'Needs the Shortwave Radio.')],
+    ] },
+    { id: 'echo', title: 'Echoes', show: () => !!S.seen.echoes, rows: [
+      ['Held', () => fmtEcho(S.echoes), () => 'Spent on research. Kept when you noclip.'],
+      ['Per second', (D) => perSec(D.eps, 4), () => 'Resonance Arrays and archivists.'],
+      ['· from arrays', (D) => perSec(D.fac.array.total * on(D), 4), (D) => (D.ops && D.ops.lines.archive.machines ? `${fmt(D.ops.lines.archive.staffed)} of ${fmt(D.ops.lines.archive.machines)} arrays are running; the rest work at 25%.` : 'Resonance Arrays in Facilities.')],
+      ['· from archivists', (D) => perSec(D.jobOut.archive * on(D), 4), () => 'Archivists working by hand.'],
+      ['Found by surveys', (D) => (S.run.rooms >= 25 ? `${(CONFIG.survey.echoChance * D.sanityBand.echo * (D.manualEchoMult || 1) * 100).toFixed(2)}% of rooms` : 'after 25 rooms'), () => 'Surveys by hand only. More likely at low sanity.'],
+      ['Attention bonus', (D) => `×${D.attnEcho.toFixed(2)}`, () => 'Attention multiplies every Echo gain, including documented anomalies.'],
+    ] },
+    { id: 'rooms', title: 'Rooms and levels', show: () => true, rows: [
+      ['Mapped this iteration', () => fmt(S.run.rooms), () => 'Every room you or your automation have mapped since your last noclip.'],
+      ['On this level', () => `${fmt(Math.floor(S.run.levelRooms))} / ${fmt(exitRooms(S.run.level))}`, () => (S.run.level === LEVELS.length - 1 ? 'Rooms to map to find the exit.' : `Rooms to map to find the way down to Level ${S.run.level + 1}.`)],
+      ['Per survey by hand', (D) => fmtRooms(D.roomsPerSurvey), () => 'Rooms one survey of yours maps.'],
+      ['Automatic', (D) => `${fmtRate(D.roomsPerSec)} rooms/s`, (D) => `${fmtRate(D.autoSurveys, 3)} automatic surveys/s from beacons and cartographers.`],
+      ['Next level', (D) => { const need = exitRooms(S.run.level) - S.run.levelRooms; return S.run.exitFound ? 'exit found' : D.roomsPerSec > 0 ? `~${fmtTime(Math.max(0, need) / D.roomsPerSec)}` : '—'; }, () => 'At the automatic rate alone. Your own surveys make it sooner.'],
+    ] },
+    { id: 'crew', title: 'Wanderers', show: () => crewUnlocked(), rows: [
+      ['Wanderers', () => fmt(S.run.crew.total), () => 'Everyone you have taken in this iteration.'],
+      ['Working', () => fmt(crewAssigned()), () => 'On a job in the Crew tab.'],
+      ['Idle', () => fmt(crewIdle()), () => (researched('phantom') ? 'Free for jobs or expeditions. Phantom Labour has them scavenge at half efficiency.' : 'Free for jobs or expeditions.')],
+      ['Away / missing', () => `${fmt(crewOnExpeditions())} / ${fmt(S.run.crew.missing.length)}`, () => 'On expeditions, or taken by an incident. Missing wanderers always come back.'],
+      ['Efficiency', (D) => `×${D.crewEff.toFixed(2)}`, (D) => (D.ops ? `Multiplies every job's output and the machines each crew member runs (${fmtRate(D.ops.each)} now).` : 'Multiplies every job’s output.')],
+    ] },
+    { id: 'sanity', title: 'Sanity', show: () => true, rows: [
+      ['Sanity', (D) => `${Math.round(S.run.sanity)} · ${D.sanityBand.name}`, (D) => (D.sanityBand.salvage < 1 ? `Surveys by hand recover ${pct(1 - D.sanityBand.salvage)} less salvage; Echo finds are more likely.` : 'No effect at this level.')],
+      ['Change', (D) => perSec(D.sanityNet, 3), (D) => `Recovers ${fmtRate(D.sanityRegen, 3)}/s, drains ${fmtRate(D.sanityDrain, 3)}/s. Attention above ${CONFIG.sanity.drainStart} drains it.`],
+    ] },
+    { id: 'attention', title: 'Attention', show: () => true, rows: [
+      ['Attention', () => `${Math.round(S.run.attention)}`, () => 'How closely something is listening. 75 and above, incidents can happen.'],
+      ['Heading to', (D) => `${Math.round(D.attnTarget)}`, () => `100 × noise ÷ (noise + absorption). Attention closes ${pct(CONFIG.attention.rate)} of the gap each second.`],
+      ['Noise', (D) => fmtRate(D.noise, 3), (D) => (D.lightsOut ? 'None while the lights are out.' : 'Made by facilities, more with some doctrines and upgrades.')],
+      ['Absorption', (D) => fmtRate(D.absorb), () => `Base ${fmt(CONFIG.attention.baseAbsorb)}, plus dampeners, watchers, research and relics; ×1.5 in the Poolrooms.`],
+    ] },
+    { id: 'dv', title: 'Déjà Vu', show: () => S.dvTotal > 0 || S.iteration > 1 || S.run.level >= CONFIG.prestige.minLevel, rows: [
+      ['Held', () => fmt(S.dv), () => 'Spent on Memories in the Noclip tab. Kept forever.'],
+      ['Earned in total', () => fmt(S.dvTotal), (D) => `Adds +${fmt((D.dvMult - 1) * 100)}% to salvage and water production, even after you spend it.`],
+      ['On noclip now', () => fmt(dvPreview()), () => (canNoclip() ? 'What you would keep if you noclipped now.' : `Noclip opens at Level ${CONFIG.prestige.minLevel}.`)],
+    ] },
+  ];
+
+  let view = null;
+  let focus = null;    // entry to bring into view when the section opens
+  Exp.hook('archive:subtabs', ID, (subs) => {
+    const i = subs.findIndex(([id]) => id === 'stats');
+    subs.splice(i < 0 ? subs.length : i, 0, ['ledger', 'Resources']);
+  });
+  Exp.hook('archive:build', ID, (tab, p) => {
+    if (tab !== 'ledger') return undefined;
+    view = { cells: [] };
+    p.append(el('p', { class: 'panel-sub', text: 'What each resource and meter means, where it comes from and where it goes. Per-second rates count only while the lights are on.' }));
+    const wrap = el('div', { class: 'rl-book' });
+    let target = null;
+    for (const E of ENTRIES) {
+      if (!E.show()) continue;
+      const dl = el('dl');
+      for (const [label, value, note] of E.rows) {
+        const dd = el('b', { class: 'num' }), nn = el('span');
+        dl.append(el('div', null, el('dt', { text: label }), el('dd', null, dd, nn)));
+        view.cells.push({ dd, nn, value, note });
+      }
+      const sec = el('section', { class: 'rl-entry', id: 'ledger-' + E.id, tabindex: '-1', 'aria-label': E.title }, el('h4', { text: E.title }), dl);
+      if (focus === E.id) target = sec;
+      wrap.append(sec);
+    }
+    p.append(wrap);
+    fill(rt.D || derive());
+    if (target) {
+      const t = target;
+      setTimeout(() => { t.scrollIntoView({ block: 'start' }); t.focus({ preventScroll: true }); }, 0);
+    }
+    focus = null;
+    return true;
+  });
+  function fill(D) {
+    for (const c of view.cells) { setText(c.dd, c.value(D)); setText(c.nn, c.note(D)); }
+  }
+  Exp.hook('archive:update', ID, () => { if (view && rt.archiveTab === 'ledger' && rt.tab === 'archive') fill(rt.D); });
+
+  // The resource readouts in the header open their ledger entry.
+  const CHIP = { salvage: 'salvage', aw: 'aw', echo: 'echo', crew: 'crew', dv: 'dv' };
+  function open(id) {
+    if (!Exp.on(ID)) return;
+    focus = id;
+    rt.archiveTab = 'ledger';
+    UI.selectTab('archive');   // rebuilds the Archive panel, which brings the entry into view
+  }
+  Exp.hook('ui:init', ID, () => {
+    for (const id in CHIP) {
+      const R = UI.res[id];
+      if (!R) continue;
+      R.chip.addEventListener('click', () => open(CHIP[id]));
+      R.chip.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && Exp.on(ID)) { e.preventDefault(); open(CHIP[id]); } });
+    }
+  });
+  Exp.hook('ui:update', ID, () => {
+    const live = Exp.on(ID);
+    for (const id in CHIP) {
+      const R = UI.res[id];
+      if (!R) continue;
+      R.chip.classList.toggle('res-link', live);
+      if (live) {
+        setAttr(R.chip, 'role', 'button');
+        setAttr(R.chip, 'tabindex', '0');
+        setAttr(R.chip, 'title', 'Open in the resource ledger');
+      } else if (R.chip.hasAttribute('role')) {
+        R.chip.removeAttribute('role'); R.chip.removeAttribute('tabindex'); R.chip.removeAttribute('title');
+      }
+    }
+  });
+
+  Exp.hook('manual', ID, (add) => add('Resource ledger', [
+    'Archive → Resources explains every resource and meter: what you hold, what comes in per second and from where, what one survey by hand brings, what it is spent on, and the next threshold. Select a resource in the header to open its entry.',
+  ]));
+})();
 // <<< EXP-RESOURCE-LEDGER
 //
 // ---------------------------------------------------------------------------
