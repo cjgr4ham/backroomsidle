@@ -73,6 +73,7 @@ The game file is unchanged by this round, so the equivalence check still applies
   - sets security headers;
   - provides the API envelope: JSON only, body limits, the cross-site guard, a per-address rate limit and `REQUIRE_HTTPS`;
   - answers `/api/health`, which lists the features that loaded;
+  - marks the page it serves with `<meta name="the-hum-server">`, outside any script, so the game knows a server is present without probing other hosts;
   - logs one line per request, never bodies, cookies or tokens.
 - **Features.** The server loads every file in `server/features/` that is present and not listed in `HUM_DISABLE`, after the features it requires. A feature whose requirement is missing is skipped, with a log line. With no features, it only serves the game.
 - **`server/db.js`.** It opens one SQLite file through `node:sqlite`, runs transactions, and applies numbered migrations per feature, recorded in `schema_migrations`. Migrations only add. Removing a feature never drops its tables.
