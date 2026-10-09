@@ -144,7 +144,8 @@ const ID = 'EXP-DEJA-VU-SHOP';
   c.check('a save from before the shop loads with its Déjà Vu and Memories, shown as levels', compat.dv === 40 && compat.levels.join() === '1,1,3,0' && compat.recurCost === 64, compat);
   c.check('shop levels in a save are validated: clamped to the maximum, nonsense dropped', compat.odd === '{"levels":{"stash":8}}', compat.odd);
 
-  // ------------------------------------------------------------- developer infinite Déjà Vu
+  // ------------------------------------------------------------- developer infinite Déjà Vu (when the developer menu is in this build)
+  if (await ev(() => !!HUM.Exp.defs['EXP-DEV-MENU'])) {
   await ev(() => { localStorage.setItem('the-hum.dev', JSON.stringify({ enabled: true, infinite: { dv: true } })); });
   await g.reload();
   const inf = await ev(() => {
@@ -157,6 +158,7 @@ const ID = 'EXP-DEJA-VU-SHOP';
   c.check('developer infinite Déjà Vu buys without spending and marks the save', inf.ok && inf.level === 1 && inf.dv === 0 && inf.mark.includes('infinite dv'), inf);
   await ev(() => { localStorage.removeItem('the-hum.dev'); });
   await g.reload();
+  } else console.log('  (developer infinite Déjà Vu not checked: EXP-DEV-MENU is not in this build)');
 
   // ------------------------------------------------------------- switching it off keeps every bit of data
   const off = await ev((id) => {
