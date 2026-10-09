@@ -543,6 +543,10 @@ body.reduce-motion .vp-banner { animation: none; opacity: 1; }
 /* <<< EXP-UPGRADE-CATEGORIES */
 /* -- */
 /* >>> EXP-FACILITY-TIERS */
+.tier-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; color: var(--dim); }
+.tier-line .tier-text { flex: 1 1 220px; }
+.tier-btn { display: inline-flex; align-items: baseline; gap: 6px; padding: 3px 8px; font-size: 12px; }
+.tier-btn .sub { font: 11px var(--font-mono); opacity: 0.85; }
 /* <<< EXP-FACILITY-TIERS */
 /* -- */
 /* >>> EXP-RESOURCE-LEDGER */
@@ -5385,6 +5389,71 @@ function onKey(e) {
 // ---------------------------------------------------------------------------
 //
 // >>> EXP-FACILITY-TIERS
+// Facility tiers on their facilities. The 30 tier upgrades (×2 to one facility type
+// at 10, 25 and 50 owned) are listed on that facility's row in Facilities instead of
+// the Upgrades tab. Prices, requirements and effects are unchanged.
+// Registry entry and rollback: docs/experiments/EXP-FACILITY-TIERS.md
+(function facilityTiersExperiment() {
+  const ID = 'EXP-FACILITY-TIERS';
+  Exp.define({
+    id: ID,
+    name: 'Facility tiers on facility rows',
+    summary: 'Lists each facility’s tier upgrades on its own row in Facilities instead of in the Upgrades tab.',
+  });
+
+  const tiersOf = (f) => TIER_UPGRADES.filter((u) => u.fac === f.id && contentOn(u));
+  Exp.hook('upgradeHome', ID, (u) => (u.fac && u.tier != null ? 'facilities' : undefined));
+
+  /** The tier to show next: the cheapest one you can install now, or else the next one still locked. */
+  function nextTier(f) {
+    const open = tiersOf(f).filter((u) => !has(u.id));
+    const ready = open.filter((u) => reqMet(u.req)).sort((a, b) => upgradePrice(a) - upgradePrice(b));
+    if (ready.length) return { u: ready[0], ready: true };
+    return open.length ? { u: open[0], ready: false } : null;
+  }
+
+  Exp.hook('facilities:row', ID, (f, R) => {
+    if (!f.tiers.length) return;
+    const text = el('span', { class: 'tier-text' });
+    const cost = el('span', { class: 'sub' });
+    const btn = el('button', { type: 'button', class: 'btn small tier-btn', 'data-action': 'buy-upg' }, el('span', { text: 'Install' }), cost);
+    R.tier = { line: el('p', { class: 'row-stats tier-line' }, text, btn), text, btn, cost };
+    (R.crewNote || R.stats).after(R.tier.line);   // after the staffing note when crew run the machines
+  });
+  Exp.hook('facilities:rowUpdate', ID, (f, R) => {
+    if (!R.tier) return;
+    const T = R.tier;
+    const list = tiersOf(f);
+    const owned = list.filter((u) => has(u.id)).length;
+    const mult = tierMult(f);
+    const head = `Tiers ${owned}/${list.length}${owned ? ` · output ×${fmt(mult)}` : ''}`;
+    const n = nextTier(f);
+    if (!n) {
+      setText(T.text, `${head}. Every tier is installed.`);
+      setHidden(T.btn, true);
+      return;
+    }
+    const step = f.kind === 'survey' ? 1.5 : 2;
+    if (!n.ready) {
+      setText(T.text, `${head}. Next: ${n.u.name}, ×${step} output, at ${fmt(n.u.req.n)} owned (you have ${fmt(count(f.id))}).`);
+      setHidden(T.btn, true);
+      return;
+    }
+    setText(T.text, `${head}. Next: ${n.u.name}, ×${step} output.`);
+    setHidden(T.btn, false);
+    if (T.btn.dataset.id !== n.u.id) T.btn.dataset.id = n.u.id;
+    setText(T.cost, costLabel(upgradePrice(n.u), 'salvage'));
+    setDis(T.btn, !canAffordUpgrade(n.u));
+    setAttr(T.btn, 'aria-label', `Install ${n.u.name} for ${fmt(upgradePrice(n.u))} salvage: ${f.name}s produce ×${step}`);
+  });
+
+  // The Facilities tab is marked when a tier can be installed, as the Upgrades tab was.
+  Exp.hook('tabDot', ID, (tab) => (tab === 'facilities' && FACILITIES.some((f) => { const n = facVisible(f) && nextTier(f); return n && n.ready && canAffordUpgrade(n.u); }) ? true : undefined));
+
+  Exp.hook('manual', ID, (add) => add('Facility tiers', [
+    'Each facility type has three tiers, installed from its row in Facilities once you own 10, 25 and 50 of it. Each tier doubles that type’s output (beacons ×1.5). The row shows how many are installed and what the next one needs.',
+  ]));
+})();
 // <<< EXP-FACILITY-TIERS
 //
 // ---------------------------------------------------------------------------
