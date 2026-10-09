@@ -107,8 +107,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await page.waitForTimeout(400);
   const counted = dbq.call ? new DatabaseSync(path.join(solo.dataDir, 'the-hum.db')).prepare("SELECT COUNT(*) AS n FROM noclip_events e JOIN accounts a ON a.id = e.account_id WHERE a.username_key = 'lantern'").get().n : -1;
   c.check('reloading right after the noclip does not count it twice', counted === 1, counted);
-  const records = await page.evaluate(() => { HUM.S.seen.tab_noclip = true; HUM.rt.noclipTab = 'noclip'; HUM.UI.selectTab('noclip'); HUM.UI.update(true); return (document.querySelector('.ns-extra') || {}).textContent || ''; });
-  c.check('the Noclip tab’s Records panel says what the server has recorded', /Leaderboard: 1 noclip recorded by the server, rank \d+/.test(records), records);
+  // The line this experiment offers the Records panel (EXP-NOCLIP-STATISTICS shows it there when present).
+  const records = await page.evaluate(() => HUM.Exp.ask('noclip:records') || '');
+  c.check('the line offered to the Noclip tab’s Records panel says what the server has recorded', /Leaderboard: 1 noclip recorded by the server, rank \d+/.test(records), records);
 
   // Offline: the report waits, then is sent.
   await page.route('**/api/noclips', (r) => r.abort());
