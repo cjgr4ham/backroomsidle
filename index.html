@@ -609,6 +609,16 @@ body.reduce-motion .vp-banner { animation: none; opacity: 1; }
 /* <<< EXP-FACILITY-SALVAGE-SCALING */
 /* -- */
 /* >>> EXP-NOCLIP-STATISTICS */
+.brand-noclips { padding: 0; border: 0; background: none; font: inherit; color: var(--deja); letter-spacing: inherit; }
+.brand-noclips::before { content: "·"; color: var(--dim); margin: 0 0.45em; }
+.brand-noclips:hover { text-decoration: underline; }
+.ns-records { display: grid; gap: 6px; }
+.ns-records dl { margin: 0; display: grid; border-top: 1px solid var(--line); }
+.ns-records dl > div { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 2px 12px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.ns-records dt { font: 700 11px/1.6 var(--font-sign); letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); }
+.ns-records dd { margin: 0; font: 12px/1.5 var(--font-mono); color: var(--paper); font-variant-numeric: tabular-nums; }
+.ns-extra { margin: 0; }
+@media (max-width: 520px) { .ns-records dl > div { grid-template-columns: minmax(0, 1fr); gap: 0; } }
 /* <<< EXP-NOCLIP-STATISTICS */
 /* -- */
 /* >>> EXP-DEJA-VU-SHOP */
@@ -6326,6 +6336,73 @@ function onKey(e) {
 // ---------------------------------------------------------------------------
 //
 // >>> EXP-NOCLIP-STATISTICS
+// Noclip statistics. The number of completed noclips is shown in the header, next to the
+// iteration, and the Noclip tab gets a Records panel: noclips and exits, Déjà Vu to spend
+// and earned in all, this iteration's progress, and lifetime salvage. Counting itself is
+// unchanged: S.life.noclips goes up once, inside noclip(), when a noclip completes (going
+// through the exit included). Opening the tab or the confirmation counts nothing, and
+// loading a save never changes the count. Registry entry and rollback: docs/experiments/EXP-NOCLIP-STATISTICS.md
+(function noclipStatisticsExperiment() {
+  const ID = 'EXP-NOCLIP-STATISTICS';
+  Exp.define({
+    id: ID,
+    name: 'Noclip statistics',
+    summary: 'Completed noclips in the header, and a Records panel in the Noclip tab with Déjà Vu, this iteration and lifetime salvage.',
+  });
+
+  const noclipsText = (n) => `${fmt(n)} ${n === 1 ? 'noclip' : 'noclips'}`;
+
+  // ------------------------------------------------------------- header
+  let chip = null;
+  Exp.hook('ui:init', ID, () => {
+    chip = el('button', { type: 'button', class: 'brand-noclips', hidden: true, title: 'Completed noclips. Opens the Noclip tab.' });
+    chip.addEventListener('click', () => {
+      const t = TABS.find((x) => x.id === 'noclip');
+      if (!t || !tabVisible(t)) return;
+      rt.noclipTab = 'noclip';
+      UI.selectTab('noclip');
+    });
+    $('iterLabel').after(chip);
+  });
+  Exp.hook('ui:update', ID, () => {
+    if (!chip) return;
+    const n = S.life.noclips;
+    const show = Exp.on(ID) && (n > 0 || !!S.seen.tab_noclip);
+    setHidden(chip, !show);
+    if (!show) return;
+    setText(chip, noclipsText(n));
+    setAttr(chip, 'aria-label', `${noclipsText(n)} completed. Open the Noclip tab.`);
+  });
+
+  // ------------------------------------------------------------- the Records panel
+  let rec = null;
+  Exp.hook('noclip:afterBox', ID, (p) => {
+    const line = (label) => { const dd = el('dd'); return [el('div', null, el('dt', { text: label }), dd), dd]; };
+    const [a, noclips] = line('Noclips');
+    const [b, dv] = line('Déjà Vu');
+    const [c, run] = line('This iteration');
+    const [d, life] = line('Lifetime salvage');
+    rec = { noclips, dv, run, life, extra: el('p', { class: 'panel-sub ns-extra', hidden: true }) };
+    p.append(el('section', { class: 'ns-records', 'aria-label': 'Records' },
+      el('h3', { class: 'section-title', text: 'Records' }), el('dl', null, a, b, c, d), rec.extra));
+  });
+  Exp.hook('noclip:update', ID, (tab) => {
+    if (!rec || tab !== 'noclip' || !rec.noclips.isConnected) return;
+    const L = S.life, r = S.run;
+    setText(rec.noclips, `${fmt(L.noclips)} completed${L.exits ? ` · ${fmt(L.exits)} through the exit` : ''}`);
+    setText(rec.dv, `${fmt(S.dv)} to spend · ${fmt(S.dvTotal)} earned in all`);
+    setText(rec.run, `Iteration ${fmt(S.iteration)} · Level ${r.level}: ${LEVELS[r.level].name} · ${fmtRooms(r.rooms)} rooms · ${fmt(r.stats.salvage)} salvage recovered · ${fmtTime(r.stats.time)}`);
+    setText(rec.life, `${fmt(L.salvage)} salvage across every iteration`);
+    const extra = Exp.ask('noclip:records');   // another experiment may add a line, such as what a leaderboard server has recorded
+    setHidden(rec.extra, !extra);
+    if (extra) setText(rec.extra, extra);
+  });
+
+  Exp.hook('manual', ID, (add) => add('Noclip records', [
+    'The header shows how many noclips you have completed. A noclip counts once, when it completes: going through the exit counts too. Opening the Noclip tab or its confirmation does not count, and loading a save never changes the count.',
+    'The Records panel in the Noclip tab shows your noclips and exits, the Déjà Vu you can spend and have earned in all, this iteration’s progress, and the salvage you have recovered across every iteration.',
+  ]));
+})();
 // <<< EXP-NOCLIP-STATISTICS
 //
 // ---------------------------------------------------------------------------
