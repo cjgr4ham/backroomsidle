@@ -55,16 +55,21 @@ const ID = 'EXP-RESOURCE-LEDGER';
   const v2 = await read();
   c.check('after a purchase and a new assignment the ledger updates at once', v2.sps !== v1.sps && v2.sps === v2.headerSps && v2.crew !== v1.crew, { v1, v2 });
 
+  // Footstep noise comes from EXP-ATTENTION-BALANCE; when that experiment is not in the build, only the plain wording is checked.
   const noise = await ev(() => {
     const row = [...document.querySelectorAll('#ledger-attention dl > div')].find((d) => d.querySelector('dt').textContent === 'Noise');
     const plain = row.querySelector('dd span').textContent;
-    HUM.Exp.session['EXP-ATTENTION-BALANCE'] = true;
-    HUM.UI.update();
-    const split = row.querySelector('dd span').textContent;
-    HUM.Exp.session['EXP-ATTENTION-BALANCE'] = false;
-    return { plain, split };
+    const present = !!HUM.Exp.defs['EXP-ATTENTION-BALANCE'];
+    let split = null;
+    if (present) {
+      HUM.Exp.session['EXP-ATTENTION-BALANCE'] = true;
+      HUM.UI.update();
+      split = row.querySelector('dd span').textContent;
+      HUM.Exp.session['EXP-ATTENTION-BALANCE'] = false;
+    }
+    return { plain, present, split };
   });
-  c.check('the noise row names its sources, with footsteps when that experiment is on', /^Made by facilities/.test(noise.plain) && /^Machines [\d.]+, your footsteps [\d.]+\./.test(noise.split), noise);
+  c.check('the noise row names its sources, with footsteps when that experiment is on', /^Made by facilities/.test(noise.plain) && (!noise.present || /^Machines [\d.]+, your footsteps [\d.]+\./.test(noise.split)), noise);
 
   await ev(() => document.querySelector('.res-salvage').focus());
   await page.keyboard.press('Enter');
