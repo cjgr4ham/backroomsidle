@@ -87,6 +87,9 @@ function buyEverything() {
   c.check('the Facilities tab says facilities run with or without crew, with no staffing notes', /full output with or without crew/.test(ui.sub) && ui.notes === 0 && !ui.running, ui);
 
   // ------------------------------------------------------------- switching it off brings the staffing rule back, and on again removes it
+  // (only meaningful while EXP-CREW-AUTOMATION, which owns the staffing rule, is in this build)
+  const hasCrew = await ev(() => !!HUM.Exp.defs['EXP-CREW-AUTOMATION']);
+  if (hasCrew) {
   const toggle = await ev(() => {
     const H = HUM;
     H.replaceState(H.sanitizeState({ v: 1, run: { facilities: { cart: 30 } } }));
@@ -108,6 +111,7 @@ function buyEverything() {
   c.check('switched off, the crew staffing rule returns: existing machines keep running, new ones with nobody on them work at 25%',
     toggle.staffedOps && toggle.converted && Math.abs(toggle.convertedTotal - toggle.full) < 1e-9 && Math.abs(toggle.staffedTotal - toggle.each * (30 + 10 * 0.25)) < 1e-9, toggle);
   c.check('switched on again, every machine is back at full output at once', !toggle.againOps && Math.abs(toggle.again - toggle.each * 40) < 1e-9, toggle);
+  } else console.log('  (staffing toggle not checked: EXP-CREW-AUTOMATION is not in this build)');
 
   // ------------------------------------------------------------- alone with the crew experiment, and without it
   const solo = await open(`?exp=none,EXP-CREW-AUTOMATION,${ID}`);
