@@ -17,11 +17,13 @@ const { open, Checker } = require('./harness');
   await page.waitForTimeout(200);
   const first = await ev(() => {
     const listed = [...document.querySelectorAll('#panel-upgrades .slip h3')].map((h) => h.textContent);
-    const available = HUM.UPGRADES.filter((u) => HUM.upgradeAvailable(u)).map((u) => u.id);
+    // Each survey has a 7% chance to find almond water, which makes the Shortwave Radio available too; it is
+    // left out so the check does not depend on that roll.
+    const available = HUM.UPGRADES.filter((u) => HUM.upgradeAvailable(u) && !(u.req && u.req.flag === 'water')).map((u) => u.id);
     return { tabVisible: !document.getElementById('tab-upgrades').hidden, available, listed, objective: document.getElementById('objective').textContent };
   });
   c.check('the Upgrades tab opens after 2 rooms', first.tabVisible, first);
-  c.check('Work Gloves is the only upgrade available at the start', first.available.join() === 'gloves', first.available);
+  c.check('Work Gloves is the only upgrade available at the start (besides the radio, after a lucky water find)', first.available.join() === 'gloves', first.available);
   c.check('the objective points to the first upgrade', /Work Gloves/.test(first.objective), first.objective);
 
   const poor = await ev(() => HUM.buyUpgrade('gloves'));
