@@ -38,6 +38,33 @@ All of the changes are in `index.html`.
 - **Load hook**: `afterLoad` runs after loading, importing or erasing.
 - **Module slots**: marked regions before section 9 of the script and at the end of the stylesheet, one per experiment.
 
+### Second round, for the final specification update
+
+Behaviour is unchanged while no experiment answers these hooks. The equivalence check and every existing suite were re-run on this commit.
+
+- **Facility prices.**
+  - `facPrice(f)` returns `{ base, growth }`, the price curve that `facilityCost()` and `maxAffordable()` use.
+  - The `facility:price` hook lets experiments adjust it: a per-facility curve, or a Déjà Vu discount.
+  - With no handler, the arithmetic is the original's, operation for operation.
+- **Noclip.**
+  - `noclip()` records the iteration that is ending: iteration, level, exit, rooms, salvage, time, condition and gain.
+  - `noclip:newRun` runs once on the fresh run, after the original Memories set it up and before the save. Starting bonuses go here, so they are never applied on load.
+  - `noclip:done` runs once after the save. Reporting goes here.
+- **Saving.** `save:after` runs after every successful local save.
+- **Noclip tab.**
+  - Sub-tabs from experiments (`noclip:subtabs`, `noclip:build`, `noclip:update`, `noclip:sig`). The noclip itself stays the first sub-tab, and there is no sub-tab bar while no experiment adds one.
+  - A hook after the noclip box (`noclip:afterBox`).
+  - A replaceable Memories section (`noclip:memories`).
+  - `rt.noclipTab` holds the open sub-tab.
+- **Facilities tab.**
+  - `facilities:layout` lets an experiment arrange the rows. It builds them with the panel's own `row()`, so the core update still refreshes every row.
+  - `facilities:update` runs after the rows update, and `facilities:sig` adds to the rebuild signature.
+- **Confirmations.** `reset:notes` and `import:notes` let experiments add paragraphs to the erase and import confirmations.
+- **Debug handle.** `facPrice` and `memoryCost` are exported for the tools.
+- **Slots** for the eight new experiments, after `EXP-DEV-MENU`:
+  - JS slots for `EXP-FACILITY-INDEPENDENCE`, `EXP-FACILITY-SALVAGE-SCALING`, `EXP-NOCLIP-STATISTICS`, `EXP-DEJA-VU-SHOP`, `EXP-ACCOUNT-AUTH`, `EXP-ACCOUNT-UI`, `EXP-CLOUD-SAVE` and `EXP-NOCLIP-LEADERBOARD`;
+  - CSS slots for those that need styles.
+
 ## Save-schema effects
 
 These changes are additive and the save version stays 1.
@@ -59,7 +86,7 @@ These changes are additive and the save version stays 1.
 - `node tools/equivalence-check.js` plays 8 seeded scripted sessions in the baseline build and this build with `?exp=none`. The sessions include noclips, offline catch-up and save round-trips. It compares the full state and every derived rate at 96 checkpoints, and all are identical.
   - A planted 0.05% change to one facility's output is detected on every seed, so an "identical" result is meaningful.
 - `node tools/functional-test.js`: the original 55 checks, with every experiment off.
-- `node tools/tests/core.test.js`: 18 checks covering flags, storage, URL overrides, dormant ids, opaque experiment data and the wallet.
+- `node tools/tests/core.test.js`: 29 checks covering flags, storage, URL overrides, dormant ids, opaque experiment data and the wallet. The second-round hooks are also covered: price curves, the order of the noclip hooks, Noclip sub-tabs, a replaced Memories section, a custom facility layout and confirmation notes.
 - `node tools/run-tests.js` runs everything.
 
 ## Limitations

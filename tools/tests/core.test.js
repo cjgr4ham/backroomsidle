@@ -79,6 +79,82 @@ const { open, Checker } = require('./harness');
   c.check('wallet reads every currency', wallet.bal.join() === '50,7,3,2', wallet);
   c.check('wallet compares and pays exactly', wallet.can.join() === 'true,false' && wallet.after.join() === '40,2,2,0', wallet);
 
+  // Hook points added for the facilities, Déjà Vu, Noclip and account experiments.
+  const hooks = await ev(() => {
+    const E = HUM.Exp, out = {};
+    HUM.replaceState(HUM.sanitizeState({ v: 1 })); HUM.rt.saveBlocked = true;
+    const cart = HUM.FAC.cart;
+    out.plain = [HUM.facilityCost(cart, 0, 1), HUM.facilityCost(cart, 10, 5), HUM.maxAffordable(cart, 0, 1000)];
+    E.define({ id: 'EXP-HOOKS', name: 'Hook probe', defaultOn: true });
+    E.hook('facility:price', 'EXP-HOOKS', (f, p) => { if (f.id === 'cart') { p.base *= 2; p.growth = 1.2; } });
+    out.adjusted = [HUM.facilityCost(cart, 0, 1), HUM.facilityCost(cart, 2, 1)];
+    E.set('EXP-HOOKS', false);
+    out.offAgain = HUM.facilityCost(cart, 10, 5);
+    E.set('EXP-HOOKS', true);
+    // Noclip: newRun once on the fresh run, done once after the save, never on load.
+    const calls = [];
+    E.hook('noclip:newRun', 'EXP-HOOKS', (ended) => calls.push(['newRun', ended.iteration, HUM.S.iteration, HUM.S.run.level, ended.gain]));
+    E.hook('noclip:done', 'EXP-HOOKS', (ended) => calls.push(['done', ended.iteration, ended.level, ended.exitFound]));
+    E.hook('save:after', 'EXP-HOOKS', (manual) => calls.push(['saved', !!manual]));
+    const r = HUM.S.run;
+    r.level = 3; r.stats.salvage = 1e8;
+    HUM.rt.saveBlocked = false;
+    out.noclipped = HUM.noclip();
+    HUM.rt.saveBlocked = true;
+    out.again = HUM.noclip();
+    HUM.replaceState(HUM.sanitizeState(JSON.parse(JSON.stringify(HUM.S))));
+    HUM.rt.saveBlocked = true;
+    out.calls = calls;
+    return out;
+  });
+  c.check('facility prices are unchanged while nothing adjusts them', Math.abs(hooks.plain[0] - 15) < 1e-9 && Math.abs(hooks.plain[1] - 15 * Math.pow(1.15, 10) * (Math.pow(1.15, 5) - 1) / 0.15) < 1e-6 && hooks.plain[2] > 0, hooks.plain);
+  c.check('facility:price adjusts the base price and the growth', Math.abs(hooks.adjusted[0] - 30) < 1e-9 && Math.abs(hooks.adjusted[1] - 30 * 1.44) < 1e-9, hooks.adjusted);
+  c.check('a switched-off price adjustment no longer applies', Math.abs(hooks.offAgain - hooks.plain[1]) < 1e-9, hooks.offAgain);
+  c.check('a noclip runs noclip:newRun on the new run, saves, then runs noclip:done, once each',
+    hooks.noclipped === true && hooks.again === false && JSON.stringify(hooks.calls.map((x) => x[0])) === '["newRun","saved","done"]', hooks.calls);
+  c.check('the noclip hooks describe the iteration that ended', JSON.stringify(hooks.calls[0]) === JSON.stringify(['newRun', 1, 2, 0, 7]) && JSON.stringify(hooks.calls[2]) === JSON.stringify(['done', 1, 3, false]), hooks.calls);
+
+  const panels = await ev(() => {
+    const E = HUM.Exp, out = {};
+    E.hook('noclip:subtabs', 'EXP-HOOKS', (subs) => subs.push(['probe', 'Probe']));
+    E.hook('noclip:build', 'EXP-HOOKS', (tab, p) => { if (tab !== 'probe') return undefined; p.append(Object.assign(document.createElement('p'), { id: 'probeBody', textContent: 'probe' })); return true; });
+    E.hook('noclip:memories', 'EXP-HOOKS', (p) => { p.append(Object.assign(document.createElement('p'), { id: 'probeMem', textContent: 'memories elsewhere' })); return true; });
+    HUM.S.seen.tab_noclip = true;
+    HUM.UI.selectTab('noclip');
+    const pn = document.getElementById('panel-noclip');
+    out.bar = [...pn.querySelectorAll('[data-action="noclip-subtab"]')].map((b) => b.dataset.id + ':' + b.getAttribute('aria-pressed'));
+    out.memReplaced = !!pn.querySelector('#probeMem') && !pn.querySelector('[data-action="memory"]');
+    pn.querySelector('[data-id="probe"]').click();
+    out.probe = !!pn.querySelector('#probeBody') && !pn.querySelector('.noclip-box');
+    pn.querySelector('[data-id="noclip"]').click();
+    out.back = !!pn.querySelector('.noclip-box');
+    E.hook('facilities:layout', 'EXP-HOOKS', (p, P) => { const box = document.createElement('div'); box.id = 'probeRows'; box.append(P.row(HUM.FAC.cart)); p.append(box); return true; });
+    let updates = 0;
+    E.hook('facilities:update', 'EXP-HOOKS', () => { updates++; });
+    HUM.UI.selectTab('facilities');
+    const pf = document.getElementById('panel-facilities');
+    out.layout = !!pf.querySelector('#probeRows [data-action="buy-fac"][data-id="cart"]') && pf.querySelectorAll('[data-action="buy-fac"]').length === 1;
+    HUM.UI.update();
+    out.updates = updates;
+    out.countText = pf.querySelector('#probeRows .count').textContent;
+    E.hook('reset:notes', 'EXP-HOOKS', (add) => add('Probe note for erasing.'));
+    document.querySelector('[data-tab="settings"]').click();
+    document.querySelector('[data-action="reset"]').click();
+    out.resetNote = [...document.querySelectorAll('.modal p')].some((n) => n.textContent === 'Probe note for erasing.');
+    HUM.UI.closeModal();
+    E.set('EXP-HOOKS', false);
+    HUM.UI.selectTab('noclip');
+    out.offBar = document.getElementById('panel-noclip').querySelectorAll('[data-action="noclip-subtab"]').length;
+    out.offMem = !!document.getElementById('panel-noclip').querySelector('[data-action="memory"]');
+    return out;
+  });
+  c.check('experiments add Noclip sub-tabs next to the noclip itself', panels.bar.join() === 'noclip:true,probe:false', panels.bar);
+  c.check('an experiment can replace the Memories section', panels.memReplaced);
+  c.check('a Noclip sub-tab shows its own content and the noclip comes back', panels.probe && panels.back, panels);
+  c.check('an experiment can lay out the facility rows, which core still updates', panels.layout && panels.updates >= 1 && panels.countText === '×0', panels);
+  c.check('experiments can add notes to the erase confirmation', panels.resetNote);
+  c.check('with the experiment off the Noclip panel is the original one', panels.offBar === 0 && panels.offMem, panels);
+
   c.finish(g.errors);
   await g.browser.close();
 })();

@@ -593,6 +593,24 @@ body.reduce-motion .vp-banner { animation: none; opacity: 1; }
 }
 /* <<< EXP-DEV-MENU */
 /* -- */
+/* >>> EXP-FACILITY-SALVAGE-SCALING */
+/* <<< EXP-FACILITY-SALVAGE-SCALING */
+/* -- */
+/* >>> EXP-NOCLIP-STATISTICS */
+/* <<< EXP-NOCLIP-STATISTICS */
+/* -- */
+/* >>> EXP-DEJA-VU-SHOP */
+/* <<< EXP-DEJA-VU-SHOP */
+/* -- */
+/* >>> EXP-ACCOUNT-UI */
+/* <<< EXP-ACCOUNT-UI */
+/* -- */
+/* >>> EXP-CLOUD-SAVE */
+/* <<< EXP-CLOUD-SAVE */
+/* -- */
+/* >>> EXP-NOCLIP-LEADERBOARD */
+/* <<< EXP-NOCLIP-LEADERBOARD */
+/* -- */
 </style>
 </head>
 <body>
@@ -1519,7 +1537,7 @@ const rt = {
   anomaly: null,
   offline: false, offlineNotes: null,
   buyMode: 1,
-  tab: 'facilities', archiveTab: 'docs', openDoc: null,
+  tab: 'facilities', archiveTab: 'docs', noclipTab: 'noclip', openDoc: null,
   lastSurveyReal: 0,
   checkAcc: 0, autobuyAcc: 0, hallucinateAt: 0,
   logDirty: true,
@@ -2210,13 +2228,19 @@ const Wallet = {
   },
 };
 
+/** A facility's price curve: the first unit's price and the growth per unit owned. Experiments may adjust it. */
+function facPrice(f) {
+  const p = { base: f.cost, growth: f.growth };
+  Exp.run('facility:price', f, p);
+  return p;
+}
 function facilityCost(f, owned, n) {
-  const g = f.growth;
-  return f.cost * Math.pow(g, owned) * (Math.pow(g, n) - 1) / (g - 1);
+  const { base, growth: g } = facPrice(f);
+  return base * Math.pow(g, owned) * (Math.pow(g, n) - 1) / (g - 1);
 }
 function maxAffordable(f, owned, budget) {
-  const g = f.growth;
-  const first = f.cost * Math.pow(g, owned);
+  const { base, growth: g } = facPrice(f);
+  const first = base * Math.pow(g, owned);
   if (!(budget >= Math.ceil(first))) return 0;
   let n = Math.floor(Math.log(budget * (g - 1) / first + 1) / Math.log(g));
   n = clamp(n, 0, 10000);
@@ -2522,6 +2546,9 @@ function noclip() {
   if (!canNoclip()) return false;
   const gain = dvPreview();
   const exited = S.run.exitFound;
+  /** The iteration that is ending, for experiments that set up the next run or record the noclip. */
+  const ended = { iteration: S.iteration, level: S.run.level, exitFound: exited, rooms: S.run.rooms,
+    salvage: S.run.stats.salvage, time: S.run.stats.time, condition: S.condition, gain };
   S.dv += gain;
   S.dvTotal += gain;
   S.life.noclips++;
@@ -2534,6 +2561,7 @@ function noclip() {
   rt.D = null;
   if (memRank('friends')) applyFriends();
   if (memRank('hoard')) { S.run.facilities.cart = 10; S.run.facilities.bench = 5; S.run.facilities.beacon = 2; }
+  Exp.run('noclip:newRun', ended);   // starting bonuses: applied here once, never on load
   S.log = [];
   log(`WELCOME BACK, SURVEYOR. Iteration ${S.iteration}. Conditions: ${COND[S.condition].name}.`, 'terminal', 'TERMINAL');
   log(`You keep ${fmt(gain)} Déjà Vu. Spend it on Memories in the Noclip tab.`, 'gain', 'NOCLIP');
@@ -2545,6 +2573,7 @@ function noclip() {
   Sound.play('noclip');
   UI.banner(`Iteration ${S.iteration}`, 'Level 0 · The Lobby');
   save();
+  Exp.run('noclip:done', ended);
   return true;
 }
 
@@ -2748,6 +2777,7 @@ function save(manual) {
     Store.set(CONFIG.backupKey, data);
     rt.lastBackupReal = performance.now();
   }
+  if (ok) Exp.run('save:after', manual);
   if (manual) UI.toast('Saved', ok ? 'Progress saved in this browser.' : 'This browser blocked saving. Export your save to keep it.', ok ? 'ach' : 'danger');
   return ok;
 }
@@ -3413,7 +3443,7 @@ const tabUnlocked = (t) => { const v = Exp.ask('tabUnlocked', t); return v !== u
 const Panels = {};
 
 Panels.facilities = {
-  sig: () => FACILITIES.filter(facVisible).map((f) => f.id).join() + '|' + memRank('procure') + '|' + rt.buyMode + '|' + Exp.sig(),
+  sig: () => FACILITIES.filter(facVisible).map((f) => f.id).join() + '|' + memRank('procure') + '|' + rt.buyMode + '|' + Exp.sig() + '|' + (Exp.ask('facilities:sig') || ''),
   build(p) {
     const seg = el('div', { class: 'seg', role: 'group', 'aria-label': 'Purchase quantity' });
     for (const m of [1, 10, 25, 'max']) {
@@ -3423,21 +3453,23 @@ Panels.facilities = {
       el('div', null, el('h2', { text: 'Facilities' }),
         el('p', { class: 'panel-sub', text: Exp.ask('facilities:sub') || 'Facilities run whether you watch or not, and while you are away. Most of them make noise.' })),
       seg));
-    const rows = el('div', { class: 'rows' });
     this.rows = {};
-    for (const f of FACILITIES) {
-      if (facVisible(f)) rows.append(this.row(f));
+    if (!Exp.ask('facilities:layout', p, this)) {   // an experiment may arrange the rows itself (built with this.row)
+      const rows = el('div', { class: 'rows' });
+      for (const f of FACILITIES) {
+        if (facVisible(f)) rows.append(this.row(f));
+      }
+      const next = FACILITIES.find((f) => !facVisible(f));
+      if (next) {
+        rows.append(el('div', { class: 'row locked' },
+          el('div', { class: 'row-icon' }, icon('lock'), el('span', { class: 'code', text: next.code })),
+          el('div', { class: 'row-body' },
+            el('div', { class: 'row-title' }, el('h3', { text: next.name })),
+            el('p', { class: 'row-stats muted', text: reqText({ level: next.level, ...(next.req || {}) }) })),
+        ));
+      }
+      p.append(rows);
     }
-    const next = FACILITIES.find((f) => !facVisible(f));
-    if (next) {
-      rows.append(el('div', { class: 'row locked' },
-        el('div', { class: 'row-icon' }, icon('lock'), el('span', { class: 'code', text: next.code })),
-        el('div', { class: 'row-body' },
-          el('div', { class: 'row-title' }, el('h3', { text: next.name })),
-          el('p', { class: 'row-stats muted', text: reqText({ level: next.level, ...(next.req || {}) }) })),
-      ));
-    }
-    p.append(rows);
     if (memRank('procure')) p.append(el('p', { class: 'panel-sub', text: 'Auto-buy purchases one unit at a time whenever you hold at least twice its price, so it never spends your last salvage.' }));
     Exp.run('facilities:afterRows', p);
   },
@@ -3500,6 +3532,7 @@ Panels.facilities = {
       if (R.auto && R.auto.checked !== !!S.run.autobuy[f.id]) R.auto.checked = !!S.run.autobuy[f.id];
       Exp.run('facilities:rowUpdate', f, R, D);
     }
+    Exp.run('facilities:update', D);
   },
 };
 
@@ -3801,11 +3834,24 @@ Panels.research = {
 };
 
 Panels.noclip = {
-  sig: () => `${canNoclip()}|${S.run.exitFound}|${S.nextCondition}|${S.iteration}|${JSON.stringify(S.memories)}|${S.run.level >= CONFIG.prestige.minLevel}|${Object.keys(S.run.expeditions).length}`,
+  sig: () => `${canNoclip()}|${S.run.exitFound}|${S.nextCondition}|${S.iteration}|${JSON.stringify(S.memories)}|${S.run.level >= CONFIG.prestige.minLevel}|${Object.keys(S.run.expeditions).length}|${rt.noclipTab}|${Exp.sig()}|${Exp.ask('noclip:sig') || ''}`,
   build(p) {
     p.append(el('div', { class: 'panel-head' }, el('div', null,
       el('h2', { text: 'Noclip' }),
       el('p', { class: 'panel-sub', text: 'Slip through the floor and start the survey again from Level 0. You lose the operation. You keep what you remember.' }))));
+    // Sections added by experiments appear as sub-tabs next to the noclip itself.
+    const subs = [];
+    Exp.run('noclip:subtabs', subs);
+    if (!subs.some(([id]) => id === rt.noclipTab)) rt.noclipTab = 'noclip';
+    if (subs.length) {
+      const bar = el('div', { class: 'subtabs', role: 'group', 'aria-label': 'Noclip sections' });
+      for (const [id, label] of [['noclip', 'Noclip'], ...subs]) {
+        bar.append(el('button', { type: 'button', 'data-action': 'noclip-subtab', 'data-id': id, 'aria-pressed': String(rt.noclipTab === id) }, label));
+      }
+      p.append(bar);
+    }
+    this.R = null;
+    if (rt.noclipTab !== 'noclip') { Exp.ask('noclip:build', rt.noclipTab, p); return; }
     const R = {};
     R.status = el('p');
     R.gain = el('span', { class: 'big-num' });
@@ -3827,6 +3873,7 @@ Panels.noclip = {
       expN ? el('p', { class: 'err', text: `${plural(expN, 'expedition')} under way will be abandoned.` }) : null,
       el('div', null, R.btn));
     p.append(R.box);
+    Exp.run('noclip:afterBox', p);
 
     p.append(el('h3', { class: 'section-title', text: `Conditions for iteration ${S.iteration + 1}` }));
     const conds = el('div', { class: 'conds', role: 'radiogroup', 'aria-label': 'Conditions for the next iteration' });
@@ -3839,11 +3886,16 @@ Panels.noclip = {
     }
     p.append(conds);
 
+    R.mem = [];
+    R.dv = null;
+    if (!Exp.ask('noclip:memories', p)) this.buildMemories(p, R);
+    this.R = R;
+  },
+  buildMemories(p, R) {
     p.append(el('h3', { class: 'section-title', text: 'Memories' }));
     R.dv = el('span', { class: 'num' });
     p.append(el('p', { class: 'panel-sub' }, 'Spend Déjà Vu on permanent Memories. Spending does not reduce the production bonus. You have ', R.dv, ' Déjà Vu.'));
     const grid = el('div', { class: 'slips' });
-    R.mem = [];
     for (const M of MEMORIES) {
       const rank = memRank(M.id);
       const done = !M.repeatable && rank > 0;
@@ -3856,10 +3908,10 @@ Panels.noclip = {
         el('h3', { text: M.name }), el('p', { class: 'effect', text: M.effect }), el('p', { class: 'flavor', text: M.flavor }), btn));
     }
     p.append(grid);
-    this.R = R;
   },
   update() {
     const R = this.R, r = S.run;
+    if (!R) { Exp.run('noclip:update', rt.noclipTab); return; }
     const gain = dvPreview();
     const ready = canNoclip();
     R.box.classList.toggle('ready', ready);
@@ -3870,12 +3922,13 @@ Panels.noclip = {
     setText(R.detail, `From ${fmt(r.stats.salvage)} salvage recovered this iteration. The next point comes at ${fmt(dvNextAt())} salvage.${r.exitFound ? ' Includes the ×1.5 exit bonus.' : ' Finding the exit on Level 5 multiplies this by 1.5.'}`);
     setText(R.bonus, `Every point of Déjà Vu ever earned adds +${Math.round(CONFIG.prestige.dvBonus * 100)}% to salvage and water production. Current bonus: +${fmt(S.dvTotal * CONFIG.prestige.dvBonus * 100)}%.`);
     setDis(R.btn, !ready);
-    setText(R.dv, fmt(S.dv));
+    if (R.dv) setText(R.dv, fmt(S.dv));
     for (const m of R.mem) {
       if (m.done) { setText(m.sub, ''); continue; }
       setText(m.sub, `${fmt(memoryCost(m.M))} Déjà Vu`);
       setDis(m.btn, !canBuyMemory(m.M));
     }
+    Exp.run('noclip:update', rt.noclipTab);
   },
 };
 
@@ -4214,6 +4267,7 @@ const UI = {
       case 'memory': buyMemory(id); break;
       case 'noclip': confirmNoclip(); break;
       case 'subtab': rt.archiveTab = id; break;
+      case 'noclip-subtab': rt.noclipTab = id; break;
       case 'doc':
         rt.openDoc = id;
         S.docsRead[id] = true;
@@ -4580,6 +4634,7 @@ const UI = {
           el('li', null, el('span', { text: 'Déjà Vu earned' }), el('b', { text: fmt(st.dvTotal) })),
           el('li', null, el('span', { text: 'Achievements' }), el('b', { text: `${Object.keys(st.achievements).length} / ${ACHIEVEMENTS.length}` }))),
         el('p', { class: 'muted', text: 'Imported saves do not earn offline progress for the time since they were exported.' }),
+        ...extraNotes('import:notes'),
       ],
       actions: [
         { label: 'Cancel' },
@@ -4588,6 +4643,13 @@ const UI = {
     });
   },
 };
+
+/** Extra paragraphs experiments add to a confirmation dialog. */
+function extraNotes(hook) {
+  const notes = [];
+  Exp.run(hook, (text) => notes.push(el('p', { class: 'muted', text })));
+  return notes;
+}
 
 /** Lets a rebuilt panel restore focus to the "same" control. */
 function focusSignature(node) {
@@ -4651,6 +4713,7 @@ function confirmReset() {
     body: [
       el('p', { text: 'This permanently deletes your progress in this browser: every iteration, Déjà Vu, relic and achievement.' }),
       el('p', { class: 'muted', text: 'Export your save first if you might want it back.' }),
+      ...extraNotes('reset:notes'),
     ],
     actions: [
       { label: 'Keep my save', cls: 'primary' },
@@ -6019,6 +6082,46 @@ function onKey(e) {
 // <<< EXP-DEV-MENU
 //
 // ---------------------------------------------------------------------------
+//
+// >>> EXP-FACILITY-INDEPENDENCE
+// <<< EXP-FACILITY-INDEPENDENCE
+//
+// ---------------------------------------------------------------------------
+//
+// >>> EXP-FACILITY-SALVAGE-SCALING
+// <<< EXP-FACILITY-SALVAGE-SCALING
+//
+// ---------------------------------------------------------------------------
+//
+// >>> EXP-NOCLIP-STATISTICS
+// <<< EXP-NOCLIP-STATISTICS
+//
+// ---------------------------------------------------------------------------
+//
+// >>> EXP-DEJA-VU-SHOP
+// <<< EXP-DEJA-VU-SHOP
+//
+// ---------------------------------------------------------------------------
+//
+// >>> EXP-ACCOUNT-AUTH
+// <<< EXP-ACCOUNT-AUTH
+//
+// ---------------------------------------------------------------------------
+//
+// >>> EXP-ACCOUNT-UI
+// <<< EXP-ACCOUNT-UI
+//
+// ---------------------------------------------------------------------------
+//
+// >>> EXP-CLOUD-SAVE
+// <<< EXP-CLOUD-SAVE
+//
+// ---------------------------------------------------------------------------
+//
+// >>> EXP-NOCLIP-LEADERBOARD
+// <<< EXP-NOCLIP-LEADERBOARD
+//
+// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // 9. BOOT AND MAIN LOOP
@@ -6097,7 +6200,7 @@ function boot() {
       get S() { return S; }, rt, CONFIG, LEVELS, FACILITIES, UPGRADES, RESEARCH, MEMORIES, EXPEDITIONS, ANOMALIES,
       step, catchUp, derive, survey, buyFacility, buyUpgrade, hire, assign, launchExpedition, doResearch, adoptDoctrine,
       noclip, buyMemory, killLights, drink, documentAnomaly, spawnAnomaly, scheduleIncident, dvPreview, canNoclip,
-      facVisible, upgradeVisible, buyQuote, facilityCost, maxAffordable, save, loadGame, sanitizeState, encodeSave, decodeSave,
+      facVisible, upgradeVisible, buyQuote, facilityCost, maxAffordable, facPrice, memoryCost, save, loadGame, sanitizeState, encodeSave, decodeSave,
       replaceState, exitRooms, crewIdle, canLaunch, canResearch, canBuyMemory, hireCost, UI,
       Exp, Wallet, contentOn, upgradeAvailable, upgradeHome, Panels, TABS, JOBS, FAC, UPG, CONDITIONS, ACHIEVEMENTS,
       setBuyMode(m) { rt.buyMode = m; },
