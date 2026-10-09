@@ -487,6 +487,112 @@ body.reduce-motion .vp-banner { animation: none; opacity: 1; }
   .hide-narrow { display: none; }
   .float-gain { display: none; }
 }
+
+/* ------------------------------------------------------------------ experiment styles (one slot each; see docs/experiments) */
+/* >>> EXP-CLICK-POWER */
+.spower { border: 1px solid var(--line); background: var(--panel); }
+.spower-head { width: 100%; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; padding: 7px 10px; background: transparent; border: 0; text-align: left; color: var(--paper); }
+.spower-head:hover { background: var(--panel-2); }
+.spower-label { font: 700 11px var(--font-sign); letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); }
+.spower-label::after { content: " ▾"; color: var(--faint); letter-spacing: 0; }
+.spower-head[aria-expanded="true"] .spower-label::after { content: " ▴"; }
+.spower-val { font: 600 14px var(--font-mono); color: var(--sodium-hi); font-variant-numeric: tabular-nums; }
+.spower-next { margin-left: auto; font: 11px var(--font-mono); color: var(--dim); }
+.spower-detail { border-top: 1px solid var(--line); padding: 6px 10px 9px; }
+.spower-detail dl { margin: 0; display: grid; gap: 4px; }
+.spower-detail dl > div { display: grid; grid-template-columns: 128px minmax(0, 1fr); gap: 8px; align-items: baseline; font-size: 12px; }
+.spower-detail dt { color: var(--dim); }
+.spower-detail dd { margin: 0; display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: baseline; min-width: 0; }
+.spower-detail dd b { font: 600 12px var(--font-mono); color: var(--paper); font-variant-numeric: tabular-nums; }
+.spower-detail dd span { color: var(--faint); font-size: 11.5px; overflow-wrap: anywhere; }
+.spower-proj { margin: 0; font: 11px var(--font-mono); color: var(--sodium-hi); }
+@media (max-width: 520px) { .spower-detail dl > div { grid-template-columns: minmax(0, 1fr); gap: 0; } .spower-next { margin-left: 0; } }
+/* <<< EXP-CLICK-POWER */
+/* -- */
+/* >>> EXP-CREW-AUTOMATION */
+.ops { display: grid; gap: 8px; }
+.ops-sum, .ops-foot { margin: 0; font-size: 13px; color: var(--paper); max-width: 72ch; }
+.ops-foot { color: var(--dim); font-size: 12.5px; }
+.ops-lines { display: grid; gap: 6px; }
+.ops-line { display: grid; grid-template-columns: 9.5em minmax(60px, 1fr) 7em; gap: 4px 10px; align-items: center; font: 12px var(--font-mono); }
+.ops-line .ops-what { color: var(--dim); }
+.ops-line .ops-val { text-align: right; font-variant-numeric: tabular-nums; }
+.ops-line .ops-need { grid-column: 2 / -1; color: var(--faint); font-size: 11.5px; }
+.ops-line.short .bar > i { background: var(--warn); }
+.ops-line.short .ops-need { color: var(--warn); }
+.ops-note { color: var(--dim); }
+.ops-note.short { color: var(--warn); }
+.ops-req { display: grid; gap: 10px; }
+@media (max-width: 560px) {
+  .ops-line { grid-template-columns: 1fr auto; }
+  .ops-line .bar { grid-column: 1 / -1; grid-row: 2; }
+  .ops-line .ops-need { grid-column: 1 / -1; }
+}
+/* <<< EXP-CREW-AUTOMATION */
+/* -- */
+/* >>> EXP-UPGRADE-CATEGORIES */
+.seg.cats { flex-wrap: wrap; justify-self: start; max-width: 100%; }
+.seg.cats button { padding: 6px 10px; border-bottom: 1px solid var(--line-2); margin-bottom: -1px; }
+.cats-group { display: grid; gap: 6px; }
+.cats-note { margin: 0; font-size: 13px; color: var(--dim); max-width: 72ch; }
+.cats-sum { margin: 0 0 4px; font: 12px/1.45 var(--font-mono); color: var(--paper); font-variant-numeric: tabular-nums; }
+.cats-elsewhere { margin: 0; }
+.cats-installed { padding: 0 12px 12px; display: grid; gap: 4px; }
+.cats-installed h4 { margin: 6px 0 0; font: 700 10px var(--font-sign); letter-spacing: 0.16em; text-transform: uppercase; color: var(--faint); }
+.cats-installed ul { margin: 0; padding-left: 18px; color: var(--dim); font-size: 13px; columns: 2 220px; }
+/* <<< EXP-UPGRADE-CATEGORIES */
+/* -- */
+/* >>> EXP-FACILITY-TIERS */
+.tier-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; color: var(--dim); }
+.tier-line .tier-text { flex: 1 1 220px; }
+.tier-btn { display: inline-flex; align-items: baseline; gap: 6px; padding: 3px 8px; font-size: 12px; }
+.tier-btn .sub { font: 11px var(--font-mono); opacity: 0.85; }
+/* <<< EXP-FACILITY-TIERS */
+/* -- */
+/* >>> EXP-RESOURCE-LEDGER */
+.rl-book { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; }
+.rl-entry { padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); scroll-margin-top: 8px; }
+.rl-entry:focus { outline: 1px solid var(--sodium-deep); }
+.rl-entry h4 { margin: 0 0 6px; font: 700 11px var(--font-sign); letter-spacing: 0.16em; text-transform: uppercase; color: var(--sodium); }
+.rl-entry dl { margin: 0; display: grid; gap: 5px; }
+.rl-entry dl > div { display: grid; grid-template-columns: 9.5em minmax(0, 1fr); gap: 2px 10px; align-items: baseline; }
+.rl-entry dt { font: 11px var(--font-mono); color: var(--dim); }
+.rl-entry dd { margin: 0; display: grid; gap: 1px; min-width: 0; }
+.rl-entry dd b { font: 600 13px var(--font-mono); color: var(--paper); font-variant-numeric: tabular-nums; }
+.rl-entry dd span { font-size: 12px; color: var(--dim); line-height: 1.35; }
+.res.res-link { cursor: pointer; }
+.res.res-link:hover, .res.res-link:focus-visible { border-color: var(--sodium-deep); }
+/* <<< EXP-RESOURCE-LEDGER */
+/* -- */
+/* >>> EXP-ATTENTION-BALANCE */
+/* <<< EXP-ATTENTION-BALANCE */
+/* -- */
+/* >>> EXP-DEV-MENU */
+.dev-status { margin: 0; padding: 8px 10px; border: 1px dashed var(--warn); color: var(--paper); font-size: 13px; }
+.dev-sec { display: grid; gap: 8px; }
+.dev-row { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: end; }
+.dev-field { display: grid; gap: 2px; font: 11px var(--font-mono); color: var(--dim); }
+.dev-field select, .dev-num { min-width: 0; max-width: 100%; padding: 5px 6px; background: var(--ink-2); color: var(--paper); border: 1px solid var(--line-2); font: 13px var(--font-mono); }
+.dev-num { width: 9em; }
+.dev-toggle[aria-pressed="true"] { border-color: var(--warn); color: var(--warn); }
+.dev-prod { margin: 0; display: grid; gap: 4px; }
+.dev-prod > div { display: grid; grid-template-columns: 11em minmax(0, 1fr); gap: 2px 10px; }
+.dev-prod dt { font: 11px var(--font-mono); color: var(--dim); }
+.dev-prod dd { margin: 0; font: 12px/1.4 var(--font-mono); color: var(--paper); overflow-wrap: anywhere; }
+.dev-exps { display: grid; border-top: 1px solid var(--line); }
+.dev-exp { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.dev-exp p { margin: 2px 0; font-size: 12.5px; color: var(--dim); max-width: 70ch; }
+.dev-exp code { font: 11px var(--font-mono); color: var(--faint); }
+.dev-exp small { font: 11px var(--font-mono); color: var(--faint); }
+.dev-exp.off b { color: var(--dim); }
+.dev-exp .btn[aria-pressed="true"] { border-color: var(--ok); color: var(--ok); }
+.dev-badge { align-self: center; }
+.dev-inf { margin-left: 4px; color: var(--warn); font-weight: 700; }
+@media (max-width: 560px) {
+  .dev-prod > div { grid-template-columns: 1fr; }
+}
+/* <<< EXP-DEV-MENU */
+/* -- */
 </style>
 </head>
 <body>
@@ -1171,6 +1277,88 @@ const DOCS = [
 
 const DOC_KIND_LABEL = { terminal: 'Terminal record', note: 'Recovered note', transcript: 'Radio transcript', report: 'Operations report', handwriting: 'Your handwriting' };
 
+// ---------------------------------------------------------------------------
+// EXPERIMENTS (EXP-CORE)
+// Experimental changes register here and plug into named hook points, so each
+// one can be switched off, or deleted from this file, without touching the
+// others. With every experiment off or absent the game behaves exactly as the
+// baseline build. Flags are developer settings: they live in their own storage
+// key and never in the save. See docs/experiments/README.md.
+// ---------------------------------------------------------------------------
+const Exp = {
+  defs: {},          // id -> { id, name, summary, defaultOn }
+  ids: [],           // registration order
+  overrides: {},     // id -> boolean, chosen in the developer menu (persisted separately from saves)
+  session: {},       // id -> boolean, chosen with ?exp= in the URL (this page load only)
+  hooks: {},         // hook name -> [{ id, fn, priority }]
+  ext: { state: {}, run: {} },  // save namespaces owned by experiments: key -> sanitizer
+  storageKey: 'the-hum.experiments',
+  define(def) {
+    if (!this.defs[def.id]) this.ids.push(def.id);
+    this.defs[def.id] = { defaultOn: true, ...def };
+  },
+  on(id) {
+    if (!this.defs[id]) return false;
+    if (id in this.session) return this.session[id];
+    if (id in this.overrides) return this.overrides[id];
+    return this.defs[id].defaultOn;
+  },
+  /** Registers a handler tied to an experiment. Handlers of disabled experiments are skipped by run() and ask(). */
+  hook(name, id, fn, priority = 0) {
+    const list = this.hooks[name] || (this.hooks[name] = []);
+    list.push({ id, fn, priority });
+    list.sort((a, b) => a.priority - b.priority);
+  },
+  run(name, ...args) {
+    const list = this.hooks[name];
+    if (list) for (const h of list) if (this.on(h.id)) h.fn(...args);
+  },
+  /** Runs every handler, enabled or not. For work that must happen either way, such as keeping saves valid. */
+  runAll(name, ...args) {
+    const list = this.hooks[name];
+    if (list) for (const h of list) h.fn(...args);
+  },
+  /** Returns the first answer (anything but undefined) from an enabled handler. */
+  ask(name, ...args) {
+    const list = this.hooks[name];
+    if (list) for (const h of list) if (this.on(h.id)) { const v = h.fn(...args); if (v !== undefined) return v; }
+    return undefined;
+  },
+  /** A short string that changes whenever any flag changes, for interface rebuild checks. */
+  sig() { return this.ids.map((id) => (this.on(id) ? '1' : '0')).join(''); },
+  load() {
+    try {
+      const raw = JSON.parse(Store.get(this.storageKey) || '{}');
+      if (isObj(raw)) for (const k in raw) if (typeof raw[k] === 'boolean') this.overrides[k] = raw[k];
+    } catch (e) { /* unreadable flags are ignored; defaults apply */ }
+    // ?exp=none, ?exp=all, ?exp=EXP-A,-EXP-B (on, off) for tests. Not saved.
+    const m = /[?&]exp=([^&#]*)/.exec(window.location.search || '');
+    if (m) {
+      for (const tok of decodeURIComponent(m[1]).split(',')) {
+        if (tok === 'none' || tok === 'all') for (const id of this.ids) this.session[id] = tok === 'all';
+        else if (tok.startsWith('-')) this.session[tok.slice(1)] = false;
+        else if (tok) this.session[tok.replace(/^\+/, '')] = true;
+      }
+    }
+  },
+  set(id, value) {
+    if (!this.defs[id]) return;
+    delete this.session[id];
+    this.overrides[id] = !!value;
+    Store.set(this.storageKey, JSON.stringify(this.overrides));
+    this.runAll('flagsChanged', id, !!value);
+  },
+  /** Returns every flag to its default and forgets developer choices. */
+  reset() {
+    this.overrides = {};
+    this.session = {};
+    Store.remove(this.storageKey);
+    this.runAll('flagsChanged', null, null);
+  },
+};
+/** Content (such as an upgrade) tagged with an experiment exists only while that experiment is on. */
+const contentOn = (x) => !x || !x.exp || Exp.on(x.exp);
+
 // Generated facility tier upgrades (×2 output at 10 / 25 / 50 owned; beacons ×1.5).
 const TIER_UPGRADES = [];
 for (const f of FACILITIES) {
@@ -1295,6 +1483,8 @@ function defaultRun() {
     nextAnomalyAt: 0,
     flags: {},
     stats: { salvage: 0, surveys: 0, anomalies: 0, incidents: 0, averted: 0, expeditions: 0, drinks: 0, waterFinds: 0, time: 0 },
+    ext: {},        // per-run data owned by experiments (see Exp.ext)
+    dormant: {},    // ids this build does not know, kept so removed content can come back intact
   };
 }
 /** The whole save. Only data needed to rebuild the game lives here. */
@@ -1316,6 +1506,8 @@ function defaultState() {
     settings: { volume: 0.6, muted: false, ambience: true, sfx: true, crt: true, flicker: true, shake: true, distortion: true,
       motion: 'auto', numbers: 'suffix' },
     log: [],
+    ext: {},
+    dormant: {},
     run: defaultRun(),
   };
 }
@@ -1384,7 +1576,11 @@ function reqText(req) {
   return s[0].toUpperCase() + s.slice(1) + '.';
 }
 const facVisible = (f) => S.run.level >= f.level && reqMet(f.req);
-const upgradeVisible = (u) => !has(u.id) && reqMet(u.req);
+/** Purchasable now, wherever it is listed. */
+const upgradeAvailable = (u) => contentOn(u) && !has(u.id) && reqMet(u.req);
+/** The tab that lists an upgrade. Experiments may list some upgrades somewhere other than the Upgrades tab. */
+const upgradeHome = (u) => Exp.ask('upgradeHome', u) || 'upgrades';
+const upgradeVisible = (u) => upgradeAvailable(u) && upgradeHome(u) === 'upgrades';
 
 function sanityBand(s) {
   if (s >= 60) return { id: 'steady', name: 'Steady', cls: 'ok', salvage: 1, echo: 1 };
@@ -1403,11 +1599,26 @@ function attentionBand(a) {
 // and by every number the interface shows.
 // ---------------------------------------------------------------------------
 function derive() {
-  const r = S.run, L = LEVELS[r.level], c = condMods();
+  const r = S.run;
+  const X = { r, L: LEVELS[r.level], c: condMods(), on: lightsOut() ? 0 : 1 };
   const D = { fac: {} };
-  const on = lightsOut() ? 0 : 1;
-  D.lightsOut = on === 0;
+  D.lightsOut = X.on === 0;
+  deriveMultipliers(D, X);
+  deriveProduction(D, X);
+  Exp.run('derive:production', D, X);
+  deriveTotals(D, X);
+  deriveSurvey(D, X);
+  Exp.run('derive:survey', D, X);
+  deriveNoise(D, X);
+  Exp.run('derive:noise', D, X);
+  D.attnTarget = D.noise > 0 ? 100 * D.noise / (D.noise + D.absorb) : 0;
+  deriveSanity(D, X);
+  return D;
+}
 
+/** Crew efficiency and the global, facility, water, Echo and survey multipliers. */
+function deriveMultipliers(D, X) {
+  const r = X.r, L = X.L, c = X.c;
   // Crew
   let crewEff = 1;
   if (has('bunks')) crewEff *= 1.25;
@@ -1419,8 +1630,8 @@ function derive() {
   const jobs = r.crew.jobs;
   const idle = crewIdle();
   D.idle = idle;
-  const phantom = researched('phantom') ? idle * 0.5 : 0;
-  const scavengers = (jobs.scavenge + phantom) * crewEff;
+  X.phantom = researched('phantom') ? idle * 0.5 : 0;
+  const scavengers = (jobs.scavenge + X.phantom) * crewEff;
 
   // Global multipliers
   const recur = Math.pow(1.25, memRank('recur'));
@@ -1456,18 +1667,19 @@ function derive() {
   let em = recur * (c.echo || 1);
   if (relic('photo')) em *= 1.1;
   D.echoMult = em;
-  const passiveEcho = em * D.attnEcho * (researched('deeplisten') ? 2 : 1);
+  X.passiveEcho = em * D.attnEcho * (researched('deeplisten') ? 2 : 1);
 
-  // Surveys
-  let flat = CONFIG.survey.baseSalvage * L.surveyMult * D.dvMult * D.achMult * recur;
-  if (has('flashlight')) flat *= 2;
-  if (has('boots')) flat *= 3;
-  if (has('pedometer')) flat *= 4;
-  if (researched('pattern')) flat *= 2;
-  if (memRank('muscle')) flat *= 3;
-  if (r.doctrine === 'doc_wet') flat *= 0.5;
-  if (relic('vhs')) flat *= 1.1;
-  D.surveyFlat = flat;
+  // Surveys: every multiplier on a survey's salvage, applied to the base reward
+  let sm = L.surveyMult * D.dvMult * D.achMult * recur;
+  if (has('flashlight')) sm *= 2;
+  if (has('boots')) sm *= 3;
+  if (has('pedometer')) sm *= 4;
+  if (researched('pattern')) sm *= 2;
+  if (memRank('muscle')) sm *= 3;
+  if (r.doctrine === 'doc_wet') sm *= 0.5;
+  if (relic('vhs')) sm *= 1.1;
+  D.surveyMult = sm;
+  D.surveyFlat = CONFIG.survey.baseSalvage * sm;
   let rps = 1;
   if (has('wheel')) rps *= 2;
   if (has('chalk')) rps *= 2;
@@ -1482,8 +1694,11 @@ function derive() {
   if (has('clipboard')) surveyPct += 0.05;
   if (has('carbon')) surveyPct += 0.07;
   D.surveyPct = surveyPct;
+}
 
-  // Facilities (nominal = as if the lights were on)
+/** Facility and crew output, as if the lights were on. Results go into X for deriveTotals(). */
+function deriveProduction(D, X) {
+  const r = X.r, jobs = r.crew.jobs, crewEff = D.crewEff, fm = D.facMult, wm = D.waterMult;
   const dampMult = has('foamglue') ? 1.5 : 1;
   let facSal = 0, facWater = 0, facEcho = 0, facSurveys = 0, absorbFac = 0, rawNoise = 0;
   for (const f of FACILITIES) {
@@ -1493,7 +1708,7 @@ function derive() {
     let each = 0;
     if (f.kind === 'salvage') each = f.out * tm * fm;
     else if (f.kind === 'water') each = f.out * tm * wm;
-    else if (f.kind === 'echo') each = f.out * tm * passiveEcho;
+    else if (f.kind === 'echo') each = f.out * tm * X.passiveEcho;
     else if (f.kind === 'survey') each = f.out * tm;
     else if (f.kind === 'dampener') each = f.out * dampMult;
     const total = off ? 0 : each * n;
@@ -1505,35 +1720,45 @@ function derive() {
     else if (f.kind === 'dampener') absorbFac += total;
     if (!off) rawNoise += n * f.noise;
   }
+  Object.assign(X, { facSal, facWater, facEcho, facSurveys, absorbFac, rawNoise });
 
   // Crew output (nominal)
-  const crewSal = (jobs.scavenge + phantom) * CONFIG.crew.scavengeFlat * crewEff * D.dvMult * D.achMult * recur;
-  const crewSurveys = jobs.chart * CONFIG.crew.chartRate * crewEff;
-  const crewWater = jobs.dowse * CONFIG.crew.dowseRate * crewEff * wm;
-  const crewEcho = jobs.archive * CONFIG.crew.archiveRate * crewEff * passiveEcho;
+  X.crewSal = (jobs.scavenge + X.phantom) * CONFIG.crew.scavengeFlat * crewEff * D.dvMult * D.achMult * D.recur;
+  X.crewSurveys = jobs.chart * CONFIG.crew.chartRate * crewEff;
+  X.crewWater = jobs.dowse * CONFIG.crew.dowseRate * crewEff * wm;
+  X.crewEcho = jobs.archive * CONFIG.crew.archiveRate * crewEff * X.passiveEcho;
   D.crewAbsorb = jobs.watch * CONFIG.crew.watchAbsorb * crewEff * (has('nightwatch') ? 2 : 1);
   D.jobOut = {
-    scavenge: crewSal, chart: crewSurveys, dowse: crewWater, watch: D.crewAbsorb, archive: crewEcho,
+    scavenge: X.crewSal, chart: X.crewSurveys, dowse: X.crewWater, watch: D.crewAbsorb, archive: X.crewEcho,
   };
+}
 
-  const autoSurveys = facSurveys + crewSurveys;
-  const autoSal = autoSurveys * flat * CONFIG.survey.autoShare;
-  D.spsNominal = facSal + crewSal + autoSal;
-  D.facSalvage = facSal * on;
-  D.crewSalvage = crewSal * on;
+/** Per-second totals, with the lights applied. */
+function deriveTotals(D, X) {
+  const on = X.on;
+  const autoSurveys = X.facSurveys + X.crewSurveys;
+  const autoSal = autoSurveys * D.surveyFlat * CONFIG.survey.autoShare;
+  D.spsNominal = X.facSal + X.crewSal + autoSal;
+  D.facSalvage = X.facSal * on;
+  D.crewSalvage = X.crewSal * on;
   D.autoSalvage = autoSal * on;
   D.sps = D.spsNominal * on;
-  D.aws = (facWater + crewWater) * on;
-  D.eps = (facEcho + crewEcho) * on;
+  D.aws = (X.facWater + X.crewWater) * on;
+  D.eps = (X.facEcho + X.crewEcho) * on;
   D.autoSurveys = autoSurveys * on;
-  D.roomsPerSec = D.autoSurveys * rps;
+  D.roomsPerSec = D.autoSurveys * D.roomsPerSurvey;
+}
 
-  // Manual survey yield
-  const sb = sanityBand(r.sanity);
+/** What one manual survey recovers. */
+function deriveSurvey(D, X) {
+  const sb = sanityBand(X.r.sanity);
   D.sanityBand = sb;
-  D.manualSalvage = (flat + surveyPct * D.spsNominal) * sb.salvage * (D.lightsOut ? 0.5 : 1);
+  D.manualSalvage = (D.surveyFlat + D.surveyPct * D.spsNominal) * sb.salvage * (D.lightsOut ? 0.5 : 1);
+}
 
-  // Noise and attention
+/** Operational noise and how much of it the Backrooms absorbs. */
+function deriveNoise(D, X) {
+  const r = X.r, c = X.c;
   let nm = 1;
   if (r.doctrine === 'doc_industry') nm *= 1.3;
   if (r.doctrine === 'doc_quiet') nm *= 0.55;
@@ -1542,13 +1767,15 @@ function derive() {
   if (relic('badge')) nm *= 0.95;
   nm *= (c.noise || 1);
   D.noiseMult = nm;
-  D.noise = rawNoise * nm * on;
-  let absorb = CONFIG.attention.baseAbsorb + (researched('hum') ? 1 : 0) + absorbFac + D.crewAbsorb + (relic('tile') ? 0.5 : 0);
-  absorb *= (L.absorbMult || 1);
+  D.noise = X.rawNoise * nm * X.on;
+  let absorb = CONFIG.attention.baseAbsorb + (researched('hum') ? 1 : 0) + X.absorbFac + D.crewAbsorb + (relic('tile') ? 0.5 : 0);
+  absorb *= (X.L.absorbMult || 1);
   D.absorb = absorb;
-  D.attnTarget = D.noise > 0 ? 100 * D.noise / (D.noise + absorb) : 0;
+}
 
-  // Sanity
+/** How fast sanity drains or recovers at the current attention. */
+function deriveSanity(D, X) {
+  const r = X.r, c = X.c;
   let drain = Math.max(0, r.attention - CONFIG.sanity.drainStart) * CONFIG.sanity.drainPerPoint;
   if (has('earplugs')) drain *= 0.65;
   if (memRank('lucid')) drain *= 0.6;
@@ -1556,11 +1783,10 @@ function derive() {
   let regen = r.attention < CONFIG.sanity.drainStart ? CONFIG.sanity.regen : 0;
   if (has('breakroom')) regen += 0.06;
   if (relic('tube')) regen += 0.05;
-  if (L.sanityRegen) regen += L.sanityRegen;
+  if (X.L.sanityRegen) regen += X.L.sanityRegen;
   D.sanityDrain = drain;
   D.sanityRegen = regen;
   D.sanityNet = regen - drain;
-  return D;
 }
 
 // ---------------------------------------------------------------------------
@@ -1680,6 +1906,7 @@ function step(dt, offline) {
   if (rt.autobuyAcc >= 1) { rt.autobuyAcc = 0; autobuy(); }
   rt.checkAcc += dt;
   if (rt.checkAcc >= 0.5) { rt.checkAcc = 0; checkProgress(); }
+  Exp.run('step', dt, offline);
 }
 
 function updateTimers() {
@@ -1961,6 +2188,28 @@ function noteOffline(text) {
 // ---------------------------------------------------------------------------
 // 4. PLAYER ACTIONS
 // ---------------------------------------------------------------------------
+/** Every purchase checks and pays through here. Currencies: salvage, aw, echoes, dv. */
+const Wallet = {
+  balance(cur) {
+    const r = S.run;
+    return cur === 'aw' ? r.aw : cur === 'echoes' ? S.echoes : cur === 'dv' ? S.dv : r.salvage;
+  },
+  /** What purchases may treat as available. Developer tools can lift it. */
+  budget(cur) {
+    const v = Exp.ask('wallet:budget', cur);
+    return v !== undefined ? v : this.balance(cur);
+  },
+  can(cur, amount) { return this.budget(cur) >= amount; },
+  pay(cur, amount) {
+    if (Exp.ask('wallet:free', cur, amount)) return;
+    const r = S.run;
+    if (cur === 'aw') r.aw -= amount;
+    else if (cur === 'echoes') S.echoes -= amount;
+    else if (cur === 'dv') S.dv -= amount;
+    else r.salvage -= amount;
+  },
+};
+
 function facilityCost(f, owned, n) {
   const g = f.growth;
   return f.cost * Math.pow(g, owned) * (Math.pow(g, n) - 1) / (g - 1);
@@ -1978,11 +2227,11 @@ function maxAffordable(f, owned, budget) {
 /** Quantity and exact price for the current buy mode. */
 function buyQuote(f) {
   const owned = count(f.id);
-  let n = rt.buyMode === 'max' ? maxAffordable(f, owned, S.run.salvage) : rt.buyMode;
+  let n = rt.buyMode === 'max' ? maxAffordable(f, owned, Wallet.budget('salvage')) : rt.buyMode;
   const affordable = n > 0;
   if (!affordable) n = 1;
   const cost = Math.ceil(facilityCost(f, owned, n));
-  return { n, cost, ok: affordable && S.run.salvage >= cost };
+  return { n, cost, ok: affordable && Wallet.can('salvage', cost) };
 }
 
 function survey() {
@@ -1997,7 +2246,7 @@ function survey() {
   r.stats.surveys++;
   S.life.surveys++;
   if (!S.seen.firstSurvey) S.seen.firstSurvey = true;
-  if (Math.random() < CONFIG.survey.waterChance) {
+  if (Math.random() < CONFIG.survey.waterChance * (D.manualWaterMult || 1)) {
     const w = randInt(1, 3) * (1 + r.level) * (condMods().aw || 1);
     gainWater(w);
     if (!r.flags.water) {
@@ -2009,11 +2258,12 @@ function survey() {
     }
     r.stats.waterFinds++;
   }
-  if (r.rooms >= 25 && Math.random() < CONFIG.survey.echoChance * D.sanityBand.echo) {
+  if (r.rooms >= 25 && Math.random() < CONFIG.survey.echoChance * D.sanityBand.echo * (D.manualEchoMult || 1)) {
     const e = LEVELS[r.level].echoMult * D.echoMult * D.attnEcho;
     gainEchoes(e);
     log(`Something in the wallpaper repeats wrong. You write it down. +${fmtEcho(e)} Echoes.`, 'echo', 'ECHO');
   }
+  Exp.run('survey:manual', D);
   Sound.play('step');
   View.advance();
   UI.floatGain(D.manualSalvage);
@@ -2025,7 +2275,7 @@ function buyFacility(id) {
   if (!f || !facVisible(f)) return false;
   const q = buyQuote(f);
   if (!q.ok) return false;
-  S.run.salvage -= q.cost;
+  Wallet.pay('salvage', q.cost);
   S.run.facilities[id] = count(id) + q.n;
   Sound.play('buy');
   if (count(id) === q.n) log(`${f.name} commissioned.`, 'gain', 'BUILT');
@@ -2034,14 +2284,13 @@ function buyFacility(id) {
 
 function upgradeCurrency(u) { return u.cost.aw != null ? 'aw' : 'salvage'; }
 function upgradePrice(u) { return u.cost.aw != null ? u.cost.aw : u.cost.salvage; }
-function canAffordUpgrade(u) {
-  const cur = upgradeCurrency(u);
-  return (cur === 'aw' ? S.run.aw : S.run.salvage) >= upgradePrice(u);
-}
+function canAffordUpgrade(u) { return Wallet.can(upgradeCurrency(u), upgradePrice(u)); }
 function buyUpgrade(id) {
+  const custom = Exp.ask('upgrade:buy', id);   // repeatable upgrades from experiments buy themselves
+  if (custom !== undefined) return custom;
   const u = UPG[id];
-  if (!u || has(id) || !reqMet(u.req) || !canAffordUpgrade(u)) return false;
-  if (upgradeCurrency(u) === 'aw') S.run.aw -= upgradePrice(u); else S.run.salvage -= upgradePrice(u);
+  if (!u || !upgradeAvailable(u) || !canAffordUpgrade(u)) return false;
+  Wallet.pay(upgradeCurrency(u), upgradePrice(u));
   S.run.upgrades[id] = true;
   rt.structureDirty = true;
   Sound.play('buy');
@@ -2054,8 +2303,8 @@ function drinkCost() { return CONFIG.sanity.drinkBase + CONFIG.sanity.drinkPerLe
 function drinkRestore() { return has('cot') ? 60 : CONFIG.sanity.drinkRestore; }
 function drink(auto) {
   const r = S.run, cost = drinkCost();
-  if (r.aw < cost || r.sanity >= 99.5 || blackedOut()) return false;
-  r.aw -= cost;
+  if (!Wallet.can('aw', cost) || r.sanity >= 99.5 || blackedOut()) return false;
+  Wallet.pay('aw', cost);
   r.sanity = Math.min(100, r.sanity + drinkRestore());
   r.stats.drinks++;
   if (!auto) Sound.play('drink');
@@ -2096,8 +2345,8 @@ function hire() {
   const r = S.run;
   if (!crewUnlocked()) return false;
   const cost = hireCost();
-  if (r.aw < cost) return false;
-  r.aw -= cost;
+  if (!Wallet.can('aw', cost)) return false;
+  Wallet.pay('aw', cost);
   r.crew.total++;
   if (has('whistle') && jobUnlocked(r.crew.defaultJob)) r.crew.jobs[r.crew.defaultJob]++;
   log(pick(WANDERER_ARRIVALS), 'note', 'ARRIVAL');
@@ -2140,13 +2389,13 @@ function expeditionSalvage(e, sps) {
 }
 function canLaunch(e) {
   const r = S.run;
-  return r.level >= e.level && !r.expeditions[e.id] && crewIdle() >= e.crew && r.aw >= e.water;
+  return r.level >= e.level && !r.expeditions[e.id] && crewIdle() >= e.crew && Wallet.can('aw', e.water);
 }
 function launchExpedition(id) {
   const e = EXP[id];
   if (!e || !canLaunch(e)) return false;
   const r = S.run, D = rt.D || derive();
-  r.aw -= e.water;
+  Wallet.pay('aw', e.water);
   const dur = expeditionDuration(e);
   r.expeditions[id] = { start: S.time, end: S.time + dur, crew: e.crew, sps: D.spsNominal, hazard: expeditionHazard(e) };
   if (!r.flags.expedition) { r.flags.expedition = true; rt.structureDirty = true; }
@@ -2206,12 +2455,12 @@ function researchAvailable(R) { return R.req.every(researched); }
 function canResearch(R) {
   if (!researchAvailable(R)) return false;
   if (!R.repeatable && researched(R.id)) return false;
-  return S.echoes >= researchCost(R);
+  return Wallet.can('echoes', researchCost(R));
 }
 function doResearch(id) {
   const R = RES[id];
   if (!R || !canResearch(R)) return false;
-  S.echoes -= researchCost(R);
+  Wallet.pay('echoes', researchCost(R));
   if (R.repeatable) S.deepTheory++;
   else S.research[id] = true;
   rt.structureDirty = true;
@@ -2231,11 +2480,11 @@ function adoptDoctrine(id) {
 }
 
 function memoryCost(M) { return M.repeatable ? Math.ceil(M.baseCost * Math.pow(M.growth, memRank(M.id))) : M.cost; }
-function canBuyMemory(M) { return (M.repeatable || !memRank(M.id)) && S.dv >= memoryCost(M); }
+function canBuyMemory(M) { return (M.repeatable || !memRank(M.id)) && Wallet.can('dv', memoryCost(M)); }
 function buyMemory(id) {
   const M = MEM[id];
   if (!M || !canBuyMemory(M)) return false;
-  S.dv -= memoryCost(M);
+  Wallet.pay('dv', memoryCost(M));
   S.memories[id] = memRank(id) + 1;
   rt.structureDirty = true;
   Sound.play('research');
@@ -2330,6 +2579,44 @@ function numObj(v, defaults) {
   return out;
 }
 
+const ID_RE = /^[A-Za-z0-9_-]{1,48}$/;
+/**
+ * A flag set of known ids. Well-formed ids this build does not know (content from an experiment that has been
+ * removed) are kept in `dormant[key]`, and dormant ids this build does know are restored.
+ */
+function flagSetKeep(v, ids, oldDormant, dormant, key) {
+  const out = flagSet(v, ids);
+  const known = new Set(ids);
+  const keep = new Set();
+  if (isObj(v)) for (const id of Object.keys(v).slice(0, 500)) if (v[id] === true && !known.has(id) && ID_RE.test(id)) keep.add(id);
+  const old = isObj(oldDormant) && Array.isArray(oldDormant[key]) ? oldDormant[key] : [];
+  for (const id of old.slice(0, 500)) {
+    if (typeof id !== 'string' || !ID_RE.test(id)) continue;
+    if (known.has(id)) out[id] = true; else keep.add(id);
+  }
+  if (keep.size) dormant[key] = [...keep].slice(0, 500);
+  return out;
+}
+/** Experiment data: each experiment validates its own namespace; data of experiments not in this build is kept untouched. */
+function sanitizeExt(v, scope) {
+  const out = {};
+  if (!isObj(v)) return out;
+  const owners = Exp.ext[scope];
+  for (const key of Object.keys(v).slice(0, 40)) {
+    if (!ID_RE.test(key)) continue;
+    if (owners[key]) {
+      const clean = owners[key](v[key]);
+      if (clean !== undefined) out[key] = clean;
+    } else {
+      try {
+        const json = JSON.stringify(v[key]);
+        if (json && json.length <= 20000) out[key] = JSON.parse(json);
+      } catch (e) { /* not serialisable: drop */ }
+    }
+  }
+  return out;
+}
+
 /** Upgrades older save formats one version at a time. Version 1 is current. */
 function migrate(raw) {
   return raw;
@@ -2354,7 +2641,7 @@ function sanitizeState(raw) {
   d.echoes = num(raw.echoes, 0);
   d.dv = num(raw.dv, 0);
   d.dvTotal = Math.max(num(raw.dvTotal, 0), d.dv);
-  d.research = flagSet(raw.research, RESEARCH.filter((R) => !R.repeatable).map((R) => R.id));
+  d.research = flagSetKeep(raw.research, RESEARCH.filter((R) => !R.repeatable).map((R) => R.id), raw.dormant, d.dormant, 'research');
   d.deepTheory = int(raw.deepTheory, 0, 0, 10000);
   if (isObj(raw.memories)) {
     for (const M of MEMORIES) {
@@ -2363,9 +2650,10 @@ function sanitizeState(raw) {
     }
   }
   d.relics = countMap(raw.relics, RELICS.map((x) => x.id), 1e6);
-  d.achievements = flagSet(raw.achievements, ACHIEVEMENTS.map((x) => x.id));
-  d.docs = flagSet(raw.docs, DOCS.map((x) => x.id));
-  d.docsRead = flagSet(raw.docsRead, DOCS.map((x) => x.id));
+  d.achievements = flagSetKeep(raw.achievements, ACHIEVEMENTS.map((x) => x.id), raw.dormant, d.dormant, 'achievements');
+  d.docs = flagSetKeep(raw.docs, DOCS.map((x) => x.id), raw.dormant, d.dormant, 'docs');
+  d.docsRead = flagSetKeep(raw.docsRead, DOCS.map((x) => x.id), raw.dormant, d.dormant, 'docsRead');
+  d.ext = sanitizeExt(raw.ext, 'state');
   if (isObj(raw.seen)) {
     for (const k of Object.keys(raw.seen).slice(0, 200)) {
       if (/^[A-Za-z0-9_]{1,40}$/.test(k) && raw.seen[k] === true) d.seen[k] = true;
@@ -2404,7 +2692,7 @@ function sanitizeRun(raw, T) {
   r.rooms = num(raw.rooms, 0);
   r.exitFound = bool(raw.exitFound, false) && r.level === LEVELS.length - 1;
   r.facilities = countMap(raw.facilities, FACILITIES.map((f) => f.id), 1e6);
-  r.upgrades = flagSet(raw.upgrades, UPGRADES.map((u) => u.id));
+  r.upgrades = flagSetKeep(raw.upgrades, UPGRADES.map((u) => u.id), raw.dormant, r.dormant, 'upgrades');
   r.autobuy = flagSet(raw.autobuy, FACILITIES.map((f) => f.id));
   const c = isObj(raw.crew) ? raw.crew : {};
   r.crew.total = int(c.total, 0, 0, 1e6);
@@ -2444,6 +2732,7 @@ function sanitizeRun(raw, T) {
   r.pendingIncident = null; // a threat never survives a reload: you were away
   r.flags = flagSet(raw.flags, ['water', 'expedition']);
   r.stats = numObj(raw.stats, r.stats);
+  r.ext = sanitizeExt(raw.ext, 'run');
   return r;
 }
 
@@ -3117,13 +3406,14 @@ const TABS = [
   { id: 'archive', label: 'Archive', key: '7', unlocked: () => true },
   { id: 'settings', label: 'Settings', key: '8', unlocked: () => true },
 ];
-const tabVisible = (t) => t.id === 'facilities' || t.id === 'archive' || t.id === 'settings' || !!S.seen['tab_' + t.id];
+const tabVisible = (t) => (t.visible ? t.visible() : t.id === 'facilities' || t.id === 'archive' || t.id === 'settings' || !!S.seen['tab_' + t.id]);
+const tabUnlocked = (t) => { const v = Exp.ask('tabUnlocked', t); return v !== undefined ? v : t.unlocked(); };
 
 // ---------------------------------------------------------------- panels
 const Panels = {};
 
 Panels.facilities = {
-  sig: () => FACILITIES.filter(facVisible).map((f) => f.id).join() + '|' + memRank('procure') + '|' + rt.buyMode,
+  sig: () => FACILITIES.filter(facVisible).map((f) => f.id).join() + '|' + memRank('procure') + '|' + rt.buyMode + '|' + Exp.sig(),
   build(p) {
     const seg = el('div', { class: 'seg', role: 'group', 'aria-label': 'Purchase quantity' });
     for (const m of [1, 10, 25, 'max']) {
@@ -3131,7 +3421,7 @@ Panels.facilities = {
     }
     p.append(el('div', { class: 'panel-head' },
       el('div', null, el('h2', { text: 'Facilities' }),
-        el('p', { class: 'panel-sub', text: 'Facilities run whether you watch or not, and while you are away. Most of them make noise.' })),
+        el('p', { class: 'panel-sub', text: Exp.ask('facilities:sub') || 'Facilities run whether you watch or not, and while you are away. Most of them make noise.' })),
       seg));
     const rows = el('div', { class: 'rows' });
     this.rows = {};
@@ -3149,6 +3439,7 @@ Panels.facilities = {
     }
     p.append(rows);
     if (memRank('procure')) p.append(el('p', { class: 'panel-sub', text: 'Auto-buy purchases one unit at a time whenever you hold at least twice its price, so it never spends your last salvage.' }));
+    Exp.run('facilities:afterRows', p);
   },
   row(f) {
     const count_ = el('span', { class: 'count' });
@@ -3165,14 +3456,16 @@ Panels.facilities = {
       auto.checked = !!S.run.autobuy[f.id];
       act.append(el('label', { class: 'toggle-line', for: 'auto-' + f.id }, auto, 'Auto-buy'));
     }
+    const body = el('div', { class: 'row-body' },
+      el('div', { class: 'row-title' }, el('h3', { text: f.name }), count_, status),
+      stats,
+      el('p', { class: 'flavor', text: f.flavor }));
     const row = el('article', { class: 'row' },
       el('div', { class: 'row-icon' }, icon(f.icon), el('span', { class: 'code', text: f.code })),
-      el('div', { class: 'row-body' },
-        el('div', { class: 'row-title' }, el('h3', { text: f.name }), count_, status),
-        stats,
-        el('p', { class: 'flavor', text: f.flavor })),
+      body,
       act);
-    this.rows[f.id] = { row, count: count_, stats, status, buy, qty, cost, wait, auto };
+    this.rows[f.id] = { row, body, act, count: count_, stats, status, buy, qty, cost, wait, auto };
+    Exp.run('facilities:row', f, this.rows[f.id]);
     return row;
   },
   update() {
@@ -3182,15 +3475,17 @@ Panels.facilities = {
       if (!R) continue;
       const fd = D.fac[f.id];
       setText(R.count, '×' + fmt(count(f.id)));
-      let line;
-      if (f.kind === 'salvage') {
-        const share = D.spsNominal > 0 ? fd.total / D.spsNominal : 0;
-        line = `+${fmtRate(fd.each)} salvage/s each · ${fmtRate(fd.total)}/s total (${pct(share)})`;
-      } else if (f.kind === 'water') line = `+${fmtRate(fd.each)} water/s each · ${fmtRate(fd.total)}/s total`;
-      else if (f.kind === 'survey') line = `${fmtRate(fd.each)} surveys/s each · maps ${fmtRate(fd.total * D.roomsPerSurvey)} rooms/s · +${fmtRate(fd.total * D.surveyFlat * CONFIG.survey.autoShare)} salvage/s`;
-      else if (f.kind === 'echo') line = `+${fmtRate(fd.each, 4)} Echoes/s each · ${fmtRate(fd.total, 3)}/s total`;
-      else line = `absorbs ${fmtRate(fd.each)} noise each · ${fmtRate(fd.total)} total`;
-      if (f.noise > 0) line += ` · noise ${fmtRate(f.noise * D.noiseMult, 3)}/s each`;
+      let line = Exp.ask('facilities:line', f, fd, D);
+      if (line === undefined) {
+        if (f.kind === 'salvage') {
+          const share = D.spsNominal > 0 ? fd.total / D.spsNominal : 0;
+          line = `+${fmtRate(fd.each)} salvage/s each · ${fmtRate(fd.total)}/s total (${pct(share)})`;
+        } else if (f.kind === 'water') line = `+${fmtRate(fd.each)} water/s each · ${fmtRate(fd.total)}/s total`;
+        else if (f.kind === 'survey') line = `${fmtRate(fd.each)} surveys/s each · maps ${fmtRate(fd.total * D.roomsPerSurvey)} rooms/s · +${fmtRate(fd.total * D.surveyFlat * CONFIG.survey.autoShare)} salvage/s`;
+        else if (f.kind === 'echo') line = `+${fmtRate(fd.each, 4)} Echoes/s each · ${fmtRate(fd.total, 3)}/s total`;
+        else line = `absorbs ${fmtRate(fd.each)} noise each · ${fmtRate(fd.total)} total`;
+        if (f.noise > 0) line += ` · noise ${fmtRate(f.noise * D.noiseMult, 3)}/s each`;
+      }
       setText(R.stats, line);
       if (fd.off) {
         setHidden(R.status, false);
@@ -3203,13 +3498,15 @@ Panels.facilities = {
       setDis(R.buy, !q.ok);
       setAttr(R.buy, 'aria-label', `Buy ${q.n} ${f.name} for ${fmt(q.cost)} salvage`);
       if (R.auto && R.auto.checked !== !!S.run.autobuy[f.id]) R.auto.checked = !!S.run.autobuy[f.id];
+      Exp.run('facilities:rowUpdate', f, R, D);
     }
   },
 };
 
 Panels.upgrades = {
-  sig: () => UPGRADES.filter(upgradeVisible).map((u) => u.id).join() + '|' + Object.keys(S.run.upgrades).length,
+  sig: () => UPGRADES.filter(upgradeVisible).map((u) => u.id).join() + '|' + Object.keys(S.run.upgrades).length + '|' + Exp.sig() + '|' + (Exp.ask('upgrades:sig') || ''),
   build(p) {
+    if (Exp.ask('upgrades:build', p)) return;   // an experiment laid the panel out itself
     p.append(el('div', { class: 'panel-head' }, el('div', null,
       el('h2', { text: 'Upgrades' }),
       el('p', { class: 'panel-sub', text: 'One-off requisitions. Most cost salvage; some cost almond water. All are lost when you noclip.' }))));
@@ -3222,50 +3519,59 @@ Panels.upgrades = {
     if (!avail.length) p.append(el('p', { class: 'empty', text: 'Nothing to requisition right now. Map more rooms, build more facilities, or go deeper.' }));
     else {
       const grid = el('div', { class: 'slips' });
-      for (const u of avail) {
-        const cur = upgradeCurrency(u);
-        const sub = el('span', { class: 'sub' });
-        const btn = el('button', { type: 'button', class: 'btn btn-stack primary', 'data-action': 'buy-upg', 'data-id': u.id },
-          el('span', { text: 'Requisition' }), el('span', { class: 'sub', text: costLabel(upgradePrice(u), cur) }), sub);
-        this.btns.push({ u, btn, sub, cur });
-        grid.append(el('article', { class: 'slip' },
-          el('div', { class: 'slip-head' }, el('span', { text: u.cat }), el('span', { text: cur === 'aw' ? 'Water' : 'Salvage' })),
-          el('h3', { text: u.name }),
-          el('p', { class: 'effect', text: u.effect }),
-          el('p', { class: 'flavor', text: u.flavor }),
-          btn));
-      }
+      for (const u of avail) grid.append(this.slip(u, this.btns));
       p.append(grid);
     }
-    const hidden = UPGRADES.filter((u) => !has(u.id) && !reqMet(u.req)).length;
+    const hidden = UPGRADES.filter((u) => contentOn(u) && !has(u.id) && !reqMet(u.req) && upgradeHome(u) === 'upgrades').length;
     if (hidden) p.append(el('p', { class: 'panel-sub', text: `${hidden} more requisitions will become available as the operation grows and you go deeper.` }));
-    const owned = UPGRADES.filter((u) => has(u.id));
+    const owned = UPGRADES.filter((u) => contentOn(u) && has(u.id) && upgradeHome(u) === 'upgrades');
     if (owned.length) {
       const list = el('ul');
       for (const u of owned) list.append(el('li', { text: `${u.name}: ${u.effect}` }));
       p.append(el('details', { class: 'installed' }, el('summary', { text: `Installed (${owned.length})` }), list));
     }
   },
-  update() {
-    for (const b of this.btns) {
+  /** A requisition slip with its buy button. Other tabs that list upgrades use it too. */
+  slip(u, refs) {
+    const cur = upgradeCurrency(u);
+    const sub = el('span', { class: 'sub' });
+    const btn = el('button', { type: 'button', class: 'btn btn-stack primary', 'data-action': 'buy-upg', 'data-id': u.id },
+      el('span', { text: 'Requisition' }), el('span', { class: 'sub', text: costLabel(upgradePrice(u), cur) }), sub);
+    const card = el('article', { class: 'slip' },
+      el('div', { class: 'slip-head' }, el('span', { text: u.cat }), el('span', { text: cur === 'aw' ? 'Water' : 'Salvage' })),
+      el('h3', { text: u.name }),
+      el('p', { class: 'effect', text: u.effect }),
+      el('p', { class: 'flavor', text: u.flavor }),
+      btn);
+    const ref = { u, btn, sub, cur, card };
+    refs.push(ref);
+    Exp.run('upgrades:slip', ref);
+    return card;
+  },
+  /** Refreshes slips made by slip(). */
+  updateSlips(refs) {
+    for (const b of refs) {
       const ok = canAffordUpgrade(b.u);
       setDis(b.btn, !ok);
-      const have = b.cur === 'aw' ? S.run.aw : S.run.salvage;
+      const have = Wallet.balance(b.cur);
       const rate = b.cur === 'aw' ? rt.D.aws : rt.D.sps;
       setText(b.sub, ok ? '' : affordIn(upgradePrice(b.u), have, rate));
+      Exp.run('upgrades:slipUpdate', b);
     }
   },
+  update() { this.updateSlips(this.btns); },
 };
 
 Panels.crew = {
-  sig: () => `${crewUnlocked()}|${has('whistle')}|${S.run.level}|${S.run.crew.missing.length > 0}`,
+  sig: () => `${crewUnlocked()}|${has('whistle')}|${S.run.level}|${S.run.crew.missing.length > 0}|${Exp.sig()}|${Exp.ask('crew:sig') || ''}`,
   build(p) {
     p.append(el('div', { class: 'panel-head' }, el('div', null,
       el('h2', { text: 'Crew' }),
       el('p', { class: 'panel-sub', text: 'Other lost people. They cost almond water to take in, and each one can work a job, watch for trouble, or go on expeditions.' }))));
     this.refs = null;
+    Exp.run('crew:top', p);
     if (!crewUnlocked()) {
-      p.append(el('p', { class: 'empty', text: 'Requisition the Shortwave Radio in Upgrades. It lets lost people find their way to you.' }));
+      p.append(el('p', { class: 'empty', text: Exp.ask('crew:lockedText') || 'Requisition the Shortwave Radio in Upgrades. It lets lost people find their way to you.' }));
       return;
     }
     const R = {};
@@ -3302,19 +3608,23 @@ Panels.crew = {
         n,
         el('button', { type: 'button', class: 'btn small', 'data-action': 'assign', 'data-job': j.id, 'data-delta': '1', 'aria-label': `Assign one ${j.name}` }, '+'),
         el('button', { type: 'button', class: 'btn small', 'data-action': 'assign', 'data-job': j.id, 'data-delta': '5', 'aria-label': `Assign 5 ${j.name}s` }, '+5'));
+      const body = el('div', { class: 'row-body' }, el('div', { class: 'row-title' }, el('h3', { text: j.name })),
+        el('p', { class: 'row-stats muted', text: j.desc(CONFIG.crew) }), out);
       rows.append(el('div', { class: 'row' },
         el('div', { class: 'row-icon' }, icon('crew')),
-        el('div', { class: 'row-body' }, el('div', { class: 'row-title' }, el('h3', { text: j.name })),
-          el('p', { class: 'row-stats muted', text: j.desc(CONFIG.crew) }), out),
+        body,
         el('div', { class: 'row-act' }, ctl)));
-      R.jobs[j.id] = { n, out, btns: ctl.querySelectorAll('button') };
+      R.jobs[j.id] = { n, out, body, btns: ctl.querySelectorAll('button') };
+      Exp.run('crew:jobRow', j, R.jobs[j.id]);
     }
     p.append(rows);
     R.missingList = el('p', { class: 'panel-sub' });
     p.append(R.missingList);
+    Exp.run('crew:afterRows', p);
     this.refs = R;
   },
   update() {
+    Exp.run('crew:update', rt.D);
     const R = this.refs;
     if (!R) return;
     const c = S.run.crew, D = rt.D;
@@ -3325,19 +3635,22 @@ Panels.crew = {
     setText(R.eff, '×' + D.crewEff.toFixed(2));
     const cost = hireCost();
     setText(R.hireCost, `${fmt(cost)} almond water`);
-    setText(R.hireWait, S.run.aw >= cost ? '' : affordIn(cost, S.run.aw, D.aws));
-    setDis(R.hire, S.run.aw < cost);
+    setText(R.hireWait, Wallet.can('aw', cost) ? '' : affordIn(cost, S.run.aw, D.aws));
+    setDis(R.hire, !Wallet.can('aw', cost));
     const idle = crewIdle();
     for (const id in R.jobs) {
       const J = R.jobs[id];
       setText(J.n, fmt(c.jobs[id]));
-      let out;
-      if (id === 'scavenge') out = `Now: +${fmtRate(D.jobOut.scavenge)} salvage/s, facility salvage ×${D.scavengeBoost.toFixed(2)}`;
-      else if (id === 'chart') out = `Now: ${fmtRate(D.jobOut.chart)} surveys/s, mapping ${fmtRate(D.jobOut.chart * D.roomsPerSurvey)} rooms/s`;
-      else if (id === 'dowse') out = `Now: +${fmtRate(D.jobOut.dowse)} water/s`;
-      else if (id === 'watch') out = `Now: absorbing ${fmtRate(D.jobOut.watch)} noise`;
-      else out = `Now: +${fmtRate(D.jobOut.archive, 3)} Echoes/s`;
+      let out = Exp.ask('crew:jobLine', id, D);
+      if (out === undefined) {
+        if (id === 'scavenge') out = `Now: +${fmtRate(D.jobOut.scavenge)} salvage/s, facility salvage ×${D.scavengeBoost.toFixed(2)}`;
+        else if (id === 'chart') out = `Now: ${fmtRate(D.jobOut.chart)} surveys/s, mapping ${fmtRate(D.jobOut.chart * D.roomsPerSurvey)} rooms/s`;
+        else if (id === 'dowse') out = `Now: +${fmtRate(D.jobOut.dowse)} water/s`;
+        else if (id === 'watch') out = `Now: absorbing ${fmtRate(D.jobOut.watch)} noise`;
+        else out = `Now: +${fmtRate(D.jobOut.archive, 3)} Echoes/s`;
+      }
       setText(J.out, out);
+      Exp.run('crew:jobUpdate', id, J, D);
       setDis(J.btns[0], c.jobs[id] < 1); setDis(J.btns[1], c.jobs[id] < 1);
       setDis(J.btns[2], idle < 1); setDis(J.btns[3], idle < 1);
     }
@@ -3567,19 +3880,23 @@ Panels.noclip = {
 };
 
 Panels.archive = {
-  sig: () => `${rt.archiveTab}|${Object.keys(S.docs).length}|${rt.openDoc}|${Object.keys(S.achievements).length}|${relicsFound()}|${JSON.stringify(S.relics).length}`,
+  sig: () => `${rt.archiveTab}|${Object.keys(S.docs).length}|${rt.openDoc}|${Object.keys(S.achievements).length}|${relicsFound()}|${JSON.stringify(S.relics).length}|${Exp.sig()}`,
   build(p) {
     p.append(el('div', { class: 'panel-head' }, el('div', null,
       el('h2', { text: 'Archive' }),
       el('p', { class: 'panel-sub', text: 'Recovered documents, relics, achievements, statistics and the field manual.' }))));
     const sub = el('div', { class: 'subtabs', role: 'group', 'aria-label': 'Archive sections' });
     const unread = DOCS.filter((d) => S.docs[d.id] && !S.docsRead[d.id]).length;
-    for (const [id, label] of [['docs', `Documents${unread ? ` (${unread} new)` : ''}`], ['relics', 'Relics'], ['ach', 'Achievements'], ['stats', 'Statistics'], ['manual', 'Field manual']]) {
+    const subs = [['docs', `Documents${unread ? ` (${unread} new)` : ''}`], ['relics', 'Relics'], ['ach', 'Achievements'], ['stats', 'Statistics'], ['manual', 'Field manual']];
+    Exp.run('archive:subtabs', subs);
+    if (!subs.some(([id]) => id === rt.archiveTab)) rt.archiveTab = 'docs';
+    for (const [id, label] of subs) {
       sub.append(el('button', { type: 'button', 'data-action': 'subtab', 'data-id': id, 'aria-pressed': String(rt.archiveTab === id) }, label));
     }
     p.append(sub);
     this.stats = null;
-    if (rt.archiveTab === 'docs') this.buildDocs(p);
+    if (Exp.ask('archive:build', rt.archiveTab, p)) { /* built by an experiment */ }
+    else if (rt.archiveTab === 'docs') this.buildDocs(p);
     else if (rt.archiveTab === 'relics') this.buildRelics(p);
     else if (rt.archiveTab === 'ach') this.buildAch(p);
     else if (rt.archiveTab === 'stats') this.buildStats(p);
@@ -3726,15 +4043,29 @@ Panels.archive = {
       sec('Controls', [], [
         'S: survey · D: document anomaly · W: drink almond water · L: kill the lights · M: mute',
         '1–8: switch tabs · Escape: close a dialog',
-      ])));
+      ]),
+      ...this.extraManual(sec)));
+  },
+  /** Field-manual sections contributed by experiments. */
+  extraManual(sec) {
+    const extra = [];
+    Exp.run('manual', (title, paras, items) => extra.push(sec(title, paras, items)));
+    return extra;
   },
   update() {
     if (this.stats && (rt.uiTick % 8 === 0)) this.fillStats();
+    Exp.run('archive:update');
   },
 };
 
 Panels.settings = {
-  sig: () => 'settings',
+  sig: () => 'settings|' + Exp.sig(),
+  /** Settings sections contributed by experiments. */
+  extraSections() {
+    const extra = [];
+    Exp.run('settings:sections', (node) => extra.push(node));
+    return extra;
+  },
   build(p) {
     const s = S.settings;
     const check = (id, key, label, help) => {
@@ -3777,6 +4108,7 @@ Panels.settings = {
           framed ? null : el('button', { type: 'button', class: 'btn', 'data-action': 'download' }, 'Download file'),
           el('button', { type: 'button', class: 'btn', 'data-action': 'import' }, 'Import pasted save')),
         this.saveBox, this.saveMsg,
+        ...this.extraSections(),
         el('h3', { class: 'section-title', text: 'Danger' }),
         el('div', { class: 'setting' }, el('div', { class: 'lbl' }, 'Erase this save', el('small', { text: 'Deletes everything, including Déjà Vu and achievements. You will be asked to confirm.' })),
           el('button', { type: 'button', class: 'btn danger', 'data-action': 'reset' }, 'Erase…'))));
@@ -3832,6 +4164,7 @@ const UI = {
     $('anomalyHit').addEventListener('click', () => { documentAnomaly(); this.update(); });
     $('btnSave').addEventListener('click', () => save(true));
     $('btnMute').addEventListener('click', () => toggleMute());
+    Exp.runAll('ui:init');
     this.selectTab(rt.tab);
     this.built = true;
   },
@@ -4008,7 +4341,7 @@ const UI = {
     else if (sbd.id === 'unravelling') sNote += 'Surveys −35%, Echo finds +60%, some anomalies are not real.';
     else if (sbd.id === 'frayed') sNote += 'Surveys −15%, Echo finds +25%.';
     else sNote += r.attention >= CONFIG.sanity.drainStart ? 'Draining while attention is 25 or more.' : 'Recovering while attention stays below 25.';
-    setText($('sanityNote'), sNote);
+    setText($('sanityNote'), Exp.ask('ui:sanityNote', D, sNote) || sNote);
     const ab = attentionBand(r.attention);
     setText($('attnVal'), Math.floor(r.attention));
     setText($('attnState'), ab.name);
@@ -4025,14 +4358,14 @@ const UI = {
       : D.noise <= 0 ? 'No noise yet.'
         : `Noise ${fmtRate(D.noise)} vs absorption ${fmtRate(D.absorb)}: heading to ${Math.round(D.attnTarget)}. Echoes ×${D.attnEcho.toFixed(2)}.`;
     if (r.attention >= CONFIG.incidents.threshold) aNote += ' Incidents possible.';
-    setText($('attnNote'), aNote);
+    setText($('attnNote'), Exp.ask('ui:attentionNote', D, aNote) || aNote);
 
     // Actions
     const bd = $('btnDrink');
     setHidden(bd, !(r.flags.water || r.aw > 0));
     const dc = drinkCost();
-    setText($('drinkSub'), r.sanity >= 99.5 ? 'Sanity is full' : r.aw < dc ? `Needs ${fmt(dc)} water (have ${fmt(r.aw)})` : `+${drinkRestore()} sanity · ${fmt(dc)} water`);
-    setDis(bd, r.aw < dc || r.sanity >= 99.5 || blackedOut());
+    setText($('drinkSub'), r.sanity >= 99.5 ? 'Sanity is full' : !Wallet.can('aw', dc) ? `Needs ${fmt(dc)} water (have ${fmt(r.aw)})` : `+${drinkRestore()} sanity · ${fmt(dc)} water`);
+    setDis(bd, !Wallet.can('aw', dc) || r.sanity >= 99.5 || blackedOut());
     const bl = $('btnLights');
     setHidden(bl, !lightsUnlocked());
     let lSub = `Halts production ${CONFIG.lights.duration}s · attention −${CONFIG.lights.drop}`;
@@ -4054,7 +4387,7 @@ const UI = {
 
     // Tabs
     for (const t of TABS) {
-      if (!S.seen['tab_' + t.id] && t.unlocked() && t.id !== 'facilities' && t.id !== 'archive' && t.id !== 'settings') {
+      if (!t.visible && !S.seen['tab_' + t.id] && tabUnlocked(t) && t.id !== 'facilities' && t.id !== 'archive' && t.id !== 'settings') {
         S.seen['tab_' + t.id] = true;
         if (!rt.offline) this.toast('New section', `${t.label} is open.`, '');
       }
@@ -4065,6 +4398,7 @@ const UI = {
       if (t.id === 'research') dot = dot || RESEARCH.some(canResearch);
       if (t.id === 'archive') dot = DOCS.some((d) => S.docs[d.id] && !S.docsRead[d.id]);
       if (t.id === 'noclip') dot = dot || (canNoclip() && !S.seen.noclipReadySeen);
+      dot = dot || (vis && !!Exp.ask('tabDot', t.id));
       setHidden(this.tabBtns[t.id].dot, !dot || rt.tab === t.id);
     }
     if (rt.tab === 'noclip' && canNoclip()) S.seen.noclipReadySeen = true;
@@ -4096,6 +4430,7 @@ const UI = {
     const use = mb.querySelector('use');
     const href = muted ? '#i-mute' : '#i-sound';
     if (use.getAttribute('href') !== href) use.setAttribute('href', href);
+    Exp.runAll('ui:update', D);
     Sound.mood();
   },
   renderLog() {
@@ -4268,6 +4603,8 @@ function objective() {
   const r = S.run;
   if (blackedOut()) return 'Wait. It will pass.';
   if (r.pendingIncident) return 'Something is coming. Kill the lights before it arrives.';
+  const extra = Exp.ask('objective');
+  if (extra !== undefined) return extra;
   if (r.rooms < 3) return 'Survey the rooms around you. Each survey recovers salvage.';
   if (!count('cart')) return 'Build a Salvage Cart in Facilities. It recovers salvage on its own.';
   if (!has('flashlight') && r.rooms >= 5 && r.level === 0) return 'Requisition the Flashlight in Upgrades.';
@@ -4336,6 +4673,7 @@ function confirmReset() {
 /** Swaps in a whole new state (import, reset) and resets everything derived from the old one. */
 function replaceState(st) {
   S = st;
+  Exp.runAll('afterLoad');
   rt.anomaly = null;
   rt.D = derive();
   rt.openDoc = null;
@@ -4393,10 +4731,1294 @@ function onKey(e) {
   else if (k === 'w') { if (!e.repeat) drink(false); }
   else if (k === 'l') killLights();
   else if (k === 'm') toggleMute();
-  else if (/^[1-8]$/.test(k)) { const t = TABS.find((x) => x.key === k); if (t) UI.selectTab(t.id); }
+  else if (/^[1-9]$/.test(k)) { const t = TABS.find((x) => x.key === k); if (t) UI.selectTab(t.id); }
   else handled = false;
   if (handled) { e.preventDefault(); UI.update(); }
 }
+
+// ===========================================================================
+// EXPERIMENT MODULES
+// Each experiment lives between its own markers, so its code can be removed
+// or reverted on its own. Keep the separator lines between slots unchanged:
+// they let version control revert one experiment without touching another.
+// Registry and rollback steps: docs/experiments/README.md.
+// ===========================================================================
+//
+// >>> EXP-CLICK-POWER
+// Click-power progression. Survey power is the salvage one survey you make by
+// hand recovers. Hand tools add to its base, which every survey multiplier then
+// scales. Automatic surveys (beacons, cartographers) never receive hand tools,
+// notes or drills. Registry entry and rollback: docs/experiments/EXP-CLICK-POWER.md
+(function clickPowerExperiment() {
+  const ID = 'EXP-CLICK-POWER';
+  Exp.define({
+    id: ID,
+    name: 'Click-power progression',
+    summary: 'Survey power stat with a breakdown, Work Gloves as the first upgrade, and hand tools that raise the salvage of every survey you make by hand.',
+  });
+
+  const DRILLS_MAX = 25;
+  const DRILLS_STEP = 0.1;
+  const drillRank = () => (S.run.ext.click ? S.run.ext.click.drills : 0);
+  Exp.ext.run.click = (v) => (isObj(v) ? { drills: int(v.drills, 0, 0, DRILLS_MAX) } : undefined);
+  const SATCHEL_PER_FACILITY = 0.05;
+
+  // `hand` adds to the base salvage of a survey you make yourself.
+  const LADDER = [
+    { id: 'gloves', name: 'Work Gloves', cost: { salvage: 10 }, req: { rooms: 2 }, hand: 1,
+      effect: '+1 base salvage on every survey you make by hand.',
+      flavor: 'Canvas, stiff, one finger already worn through. Somebody broke them in for you.' },
+    { id: 'prybar', name: 'Pry Bar', cost: { salvage: 75 }, req: { rooms: 15 }, hand: 2,
+      effect: '+2 base salvage on every survey you make by hand.',
+      flavor: 'Ceiling tiles, outlet covers, the panel behind the vending machine. Everything comes loose.' },
+    { id: 'satchel', name: 'Canvas Satchel', cost: { salvage: 500 }, req: { facTotal: 10 },
+      effect: `+${SATCHEL_PER_FACILITY} base salvage on every survey you make by hand, for each facility you own.`,
+      flavor: 'Room for whatever the machines missed. They miss more as there are more of them.' },
+    { id: 'cutters', name: 'Bolt Cutters', cost: { salvage: 5000 }, req: { level: 1 }, hand: 5,
+      effect: '+5 base salvage on every survey you make by hand.',
+      flavor: 'The Annex keeps its crates chained shut. The chains are not attached to anything.' },
+    { id: 'sounder', name: 'Echo Sounder', cost: { salvage: 30000 }, req: { level: 1 },
+      effect: 'Surveys you make by hand find Echoes twice as often and almond water 50% more often.',
+      flavor: 'A pocket transducer. Hold it to the wallpaper and listen for the room underneath.' },
+    { id: 'spreader', name: 'Hydraulic Spreader', cost: { salvage: 2e6 }, req: { level: 3 }, hand: 25,
+      effect: '+25 base salvage on every survey you make by hand.',
+      flavor: 'Rated for car doors. The Poolrooms tiles part like curtains, then close behind you.' },
+    { id: 'drills', name: 'Survey Drills', req: { rooms: 100 },
+      get cost() { return { salvage: Math.ceil(1000 * Math.pow(5, drillRank())) }; },
+      get effect() {
+        const n = drillRank();
+        return `Rank ${n + 1}: every survey you make by hand recovers +${Math.round(DRILLS_STEP * 100)}% more salvage (now +${Math.round(n * DRILLS_STEP * 100)}%). Repeatable.`;
+      },
+      flavor: 'Walk the same ten rooms until your hands know where the copper is.' },
+  ];
+  for (const u of LADDER) {
+    u.exp = ID;
+    u.cat = 'Survey';
+    UPGRADES.push(u);
+    UPG[u.id] = u;
+  }
+  // Upgrades that change the salvage of a survey you make by hand, in the order a player meets them.
+  const SALVAGE_LADDER = ['gloves', 'flashlight', 'prybar', 'satchel', 'drills', 'notebook', 'cutters', 'boots', 'clipboard', 'pedometer', 'spreader', 'carbon'];
+  const AFFECTS = new Set(SALVAGE_LADDER);
+
+  // ------------------------------------------------------------- the reward
+  Exp.hook('derive:survey', ID, (D) => {
+    let hand = 0;
+    for (const u of LADDER) if (u.hand && has(u.id)) hand += u.hand;
+    if (has('satchel')) hand += SATCHEL_PER_FACILITY * totalFacilities();
+    const drill = 1 + DRILLS_STEP * drillRank();
+    D.manualHand = hand;
+    D.manualBase = CONFIG.survey.baseSalvage + hand;
+    D.manualShare = D.surveyPct * D.spsNominal;
+    D.manualDrill = drill;
+    D.manualCondition = D.sanityBand.salvage * (D.lightsOut ? 0.5 : 1);
+    D.manualSalvage = (D.manualBase * D.surveyMult + D.manualShare) * drill * D.sanityBand.salvage * (D.lightsOut ? 0.5 : 1);
+    if (has('sounder')) {
+      D.manualEchoMult = 2;
+      D.manualWaterMult = 1.5;
+    }
+  });
+
+  // Survey Drills is repeatable: it keeps its rank in this experiment's own save namespace.
+  Exp.hook('upgrade:buy', ID, (id) => {
+    if (id !== 'drills') return undefined;
+    const u = UPG.drills;
+    if (!upgradeAvailable(u) || drillRank() >= DRILLS_MAX || !canAffordUpgrade(u)) return false;
+    Wallet.pay('salvage', upgradePrice(u));
+    S.run.ext.click = { drills: drillRank() + 1 };
+    rt.structureDirty = true;
+    Sound.play('buy');
+    log(`Survey Drills, rank ${drillRank()}. Surveys you make by hand recover +${Math.round(drillRank() * DRILLS_STEP * 100)}% salvage.`, 'gain', 'TRAINING');
+    return true;
+  });
+  Exp.hook('upgradeHome', ID, (u) => (u.id === 'drills' && drillRank() >= DRILLS_MAX ? 'none' : undefined));
+
+  // The Upgrades tab opens after two rooms so the first upgrade is findable straight away.
+  Exp.hook('tabUnlocked', ID, (t) => (t.id === 'upgrades' && S.run.rooms >= 2 ? true : undefined));
+  Exp.hook('objective', ID, () => {
+    const r = S.run;
+    if (r.rooms >= 2 && r.rooms < 60 && !has('gloves')) return 'Requisition Work Gloves in Upgrades. They add +1 salvage to every survey you make by hand.';
+    return undefined;
+  }, 10);
+
+  // ------------------------------------------------------------- previews
+  /** Survey power if `u` were bought (one more rank, for drills). State is restored afterwards. */
+  function projectedPower(u) {
+    const r = S.run;
+    if (u.id === 'drills') {
+      const prev = r.ext.click;
+      r.ext.click = { drills: drillRank() + 1 };
+      const v = derive().manualSalvage;
+      if (prev) r.ext.click = prev; else delete r.ext.click;
+      return v;
+    }
+    const had = r.upgrades[u.id];
+    r.upgrades[u.id] = true;
+    const v = derive().manualSalvage;
+    if (had === undefined) delete r.upgrades[u.id]; else r.upgrades[u.id] = had;
+    return v;
+  }
+  /** The cheapest survey upgrade you can buy now, or else the next one that is still locked. */
+  function nextUpgrade() {
+    let best = null;
+    for (const id of SALVAGE_LADDER) {
+      const u = UPG[id];
+      if (!u || !contentOn(u) || !reqMet(u.req)) continue;
+      if (id === 'drills' ? drillRank() >= DRILLS_MAX : has(id)) continue;
+      if (!best || upgradePrice(u) < upgradePrice(best)) best = u;
+    }
+    if (best) return { u: best, locked: false };
+    for (const id of SALVAGE_LADDER) {
+      const u = UPG[id];
+      if (u && contentOn(u) && id !== 'drills' && !has(id) && !reqMet(u.req)) return { u, locked: true };
+    }
+    return null;
+  }
+  /** Every multiplier on a survey, by source. Anything unlisted shows as "Other", so the parts always multiply to the real value. */
+  function multiplierParts(D) {
+    const r = S.run, L = LEVELS[r.level];
+    const parts = [];
+    if (L.surveyMult !== 1) parts.push([`Level ${r.level}`, L.surveyMult]);
+    if (D.dvMult !== 1) parts.push(['Déjà Vu', D.dvMult]);
+    if (D.achMult !== 1) parts.push(['Achievements', D.achMult]);
+    if (D.recur !== 1) parts.push(['Recurrence', D.recur]);
+    if (has('flashlight')) parts.push(['Flashlight', 2]);
+    if (has('boots')) parts.push(['Rubber Boots', 3]);
+    if (has('pedometer')) parts.push(['Backwards Pedometer', 4]);
+    if (researched('pattern')) parts.push(['Wallpaper Pattern Analysis', 2]);
+    if (memRank('muscle')) parts.push(['Muscle Memory', 3]);
+    if (r.doctrine === 'doc_wet') parts.push(['Wet Doctrine', 0.5]);
+    if (relic('vhs')) parts.push(['VHS relic', 1.1]);
+    const product = parts.reduce((m, p) => m * p[1], 1);
+    const rest = D.surveyMult / product;
+    if (Math.abs(rest - 1) > 1e-9) parts.push(['Other', rest]);
+    return parts;
+  }
+  const lowerFirst = (s) => (s ? s[0].toLowerCase() + s.slice(1) : s);
+  /** "+8 → +9 (+10%)": the percentage keeps small gains visible when both sides round to the same number. */
+  const change = (a, b) => `+${fmt(a)} → +${fmt(b)}${a > 0 ? ` (+${Math.round((b / a - 1) * 100)}%)` : ''}`;
+
+  // ------------------------------------------------------------- interface
+  let ui = null;
+  Exp.hook('ui:init', ID, () => {
+    const val = el('span', { class: 'spower-val num' });
+    const next = el('span', { class: 'spower-next' });
+    const head = el('button', { type: 'button', class: 'spower-head', id: 'spowerHead', 'aria-expanded': 'false', 'aria-controls': 'spowerDetail' },
+      el('span', { class: 'spower-label', text: 'Survey power' }), val, next);
+    const detail = el('div', { class: 'spower-detail', id: 'spowerDetail', hidden: true });
+    const box = el('section', { class: 'spower', id: 'surveyPower', 'aria-label': 'Survey power', hidden: true }, head, detail);
+    $('btnSurvey').after(box);
+    ui = { box, head, val, next, detail, dirty: true };
+    head.addEventListener('click', () => {
+      const open = detail.hidden;
+      detail.hidden = !open;
+      head.setAttribute('aria-expanded', String(open));
+      ui.dirty = true;
+      UI.update();
+    });
+  });
+  function renderDetail(D) {
+    ui.dirty = false;
+    const rows = [];
+    const base = ['1 to start'];
+    for (const u of LADDER) if (u.hand && has(u.id)) base.push(`${u.name} +${u.hand}`);
+    if (has('satchel')) base.push(`Canvas Satchel +${fmtRate(SATCHEL_PER_FACILITY * totalFacilities())} (${fmt(totalFacilities())} facilities)`);
+    rows.push(['Base salvage', fmtRate(D.manualBase), base.join(' · ')]);
+    const parts = multiplierParts(D);
+    rows.push(['Multipliers', `×${fmtRate(D.surveyMult)}`, parts.length ? parts.map(([k, v]) => `${k} ×${fmtRate(v)}`).join(' · ') : 'none yet']);
+    if (D.surveyPct > 0) rows.push(['Share of output', `+${fmtRate(D.manualShare)}`, `${Math.round(D.surveyPct * 100)}% of ${fmtRate(D.spsNominal)} salvage/s from your notes`]);
+    if (D.manualDrill !== 1) rows.push(['Survey Drills', `×${D.manualDrill.toFixed(2)}`, `rank ${drillRank()}`]);
+    if (D.manualCondition !== 1) {
+      const why = [];
+      if (D.sanityBand.salvage !== 1) why.push(`${D.sanityBand.name} sanity ×${D.sanityBand.salvage}`);
+      if (D.lightsOut) why.push('lights out ×0.5');
+      rows.push(['Condition', `×${fmtRate(D.manualCondition)}`, why.join(', ')]);
+    }
+    rows.push(['Per survey', `+${fmtRate(D.manualSalvage)}`, `and ${fmtRooms(D.roomsPerSurvey)} ${D.roomsPerSurvey === 1 ? 'room' : 'rooms'} mapped`]);
+    rows.push(['Automatic surveys', `+${fmtRate(D.surveyFlat * CONFIG.survey.autoShare)} each`, `${pct(CONFIG.survey.autoShare)} of 1 base × the multipliers. Hand tools, notes and drills apply only to your own surveys.`]);
+    ui.detail.replaceChildren(el('dl', null, rows.map(([k, v, note]) => el('div', null,
+      el('dt', { text: k }), el('dd', null, el('b', { class: 'num', text: v }), note ? el('span', { text: note }) : null)))));
+  }
+  Exp.hook('ui:update', ID, (D) => {
+    if (!ui) return;
+    const on = Exp.on(ID);
+    setHidden(ui.box, !on);
+    if (!on) return;
+    setText(ui.val, `+${fmt(D.manualSalvage)} salvage per survey`);
+    const n = nextUpgrade();
+    let nextText = 'Every survey upgrade is owned';
+    if (n && n.locked) nextText = `Next: ${n.u.name}, ${lowerFirst(reqText(n.u.req)).replace(/\.$/, '')}`;
+    else if (n) nextText = `Next: ${n.u.name}, ${costLabel(upgradePrice(n.u), upgradeCurrency(n.u))}: ${change(D.manualSalvage, projectedPower(n.u))}`;
+    setText(ui.next, nextText);
+    if (!ui.detail.hidden && (ui.dirty || rt.uiTick % 4 === 0)) renderDetail(D);
+  });
+
+  // Requisition slips for survey upgrades show what they would do to survey power.
+  Exp.hook('upgrades:slip', ID, (ref) => {
+    if (!AFFECTS.has(ref.u.id)) return;
+    ref.power = el('p', { class: 'spower-proj num' });
+    ref.card.insertBefore(ref.power, ref.btn);
+  });
+  Exp.hook('upgrades:slipUpdate', ID, (ref) => {
+    if (!ref.power) return;
+    setText(ref.power, `Survey power ${change(rt.D.manualSalvage, projectedPower(ref.u))}`);
+    if (ref.u.id === 'drills') {
+      setText(ref.card.querySelector('h3'), `Survey Drills · rank ${drillRank() + 1}`);
+      setText(ref.card.querySelector('.effect'), ref.u.effect);
+      setText(ref.btn.children[1], costLabel(upgradePrice(ref.u), 'salvage'));
+    }
+  });
+
+  Exp.hook('manual', ID, (add) => add('Survey power', [
+    'Survey power is the salvage one survey you make by hand recovers. It is shown under the Survey button; select it for the full breakdown.',
+    'Hand tools (Work Gloves, Pry Bar, Canvas Satchel, Bolt Cutters, Hydraulic Spreader) add to the base reward. Every survey multiplier (Flashlight, Rubber Boots, deeper levels, Déjà Vu and others) then scales that base. Notes add a share of your salvage per second, and Survey Drills add +10% per rank.',
+    `Automatic surveys by beacons and cartographers recover ${pct(CONFIG.survey.autoShare)} of 1 base × the same multipliers. They never receive hand tools, notes or drills.`,
+  ]));
+})();
+// <<< EXP-CLICK-POWER
+//
+// ---------------------------------------------------------------------------
+//
+// >>> EXP-CREW-AUTOMATION
+// Crew-run operation. Crew members run the machines: each one on a production job
+// keeps a number of machines of that job's kind at full speed, and a machine nobody
+// runs works at a quarter of its output. Upgrades for ordinary passive work (crew
+// upgrades and the facility-wide shift upgrades) are listed in the Crew tab, with
+// their effects unchanged. Registry entry and rollback: docs/experiments/EXP-CREW-AUTOMATION.md
+(function crewOperationsExperiment() {
+  const ID = 'EXP-CREW-AUTOMATION';
+  Exp.define({
+    id: ID,
+    name: 'Crew-run operation',
+    summary: 'Crew run the machines. Each crew member keeps several machines of their job at full speed; a machine nobody runs works at 25%. Crew and shift upgrades are listed in the Crew tab.',
+  });
+
+  const OPS = {
+    perCrew: 4,        // machines one crew member keeps running, before crew efficiency and staffing upgrades
+    unattended: 0.25,  // share of its output a machine produces when nobody runs it
+    self: 10,          // machines you keep running yourself
+  };
+  // The job that runs each kind of machine. Dampeners are passive foam and need nobody.
+  const LINES = [
+    { kind: 'salvage', job: 'scavenge', what: 'salvage machines', one: 'salvage machine' },
+    { kind: 'water', job: 'dowse', what: 'condensers', one: 'condenser' },
+    { kind: 'survey', job: 'chart', what: 'beacons', one: 'beacon' },
+    { kind: 'echo', job: 'archive', what: 'arrays', one: 'array' },
+  ];
+  const LINE = Object.fromEntries(LINES.map((l) => [l.job, l]));
+  const RUN_BY = Object.fromEntries(LINES.map((l) => [l.kind, l]));
+
+  // Upgrades for ordinary passive work, listed in the Crew tab. Their effects do not change.
+  const CREW_HOME = new Set(['radio', 'bunks', 'whistle', 'canteens', 'lanterns', 'nightwatch', 'ledger', 'shifts', 'overtime']);
+  // New upgrades: how many machines each crew member keeps running.
+  const STAFFING = [
+    { id: 'roster', name: 'Duty Roster', cost: { salvage: 3000 }, req: { crew: 5 }, staff: 1.5,
+      effect: 'Each crew member keeps 50% more machines running.',
+      flavor: 'Names, shifts and a column headed "seen today". Fill it in honestly.' },
+    { id: 'gangs', name: 'Work Gangs', cost: { salvage: 4e5 }, req: { level: 2, crew: 12 }, staff: 1.5,
+      effect: 'Each crew member keeps 50% more machines running.',
+      flavor: 'Teams of four. Always four. If a fifth turns up, nobody remembers hiring them.' },
+    { id: 'nightcrew', name: 'Night Crew', cost: { salvage: 2e7 }, req: { level: 4 }, staff: 2,
+      effect: 'Each crew member keeps twice as many machines running.',
+      flavor: 'The second shift starts when the first one stops. Nobody has seen them change over.' },
+  ];
+  for (const u of STAFFING) {
+    u.exp = ID;
+    u.cat = 'Crew';
+    UPGRADES.push(u);
+    UPG[u.id] = u;
+  }
+  const staffMult = () => STAFFING.reduce((m, u) => (has(u.id) ? m * u.staff : m), 1);
+
+  // ------------------------------------------------------------- save data
+  // S.ext.crew marks a save the experiment has converted. run.ext.crew.legacy is a
+  // one-run allowance: machines the previous shift keeps running (see convertSave()).
+  Exp.ext.state.crew = (v) => (isObj(v) ? { since: int(v.since, 1, 1, 1e6) } : undefined);
+  Exp.ext.run.crew = (v) => {
+    if (!isObj(v) || !isObj(v.legacy)) return undefined;
+    const legacy = {};
+    for (const id in v.legacy) if (FAC[id] && FAC[id].kind !== 'dampener') legacy[id] = int(v.legacy[id], 0, 0, 1e9);
+    return { legacy };
+  };
+
+  /**
+   * Converts a save made before crew ran the machines. Machines the current crew cannot
+   * run stay staffed by "the previous shift" until the next noclip, so production at the
+   * moment of conversion is exactly what it was. Crew, jobs and resources are untouched.
+   * Runs once per save: S.ext.crew records that it happened.
+   */
+  function convertSave() {
+    if (!Exp.on(ID) || S.ext.crew) return;
+    S.ext.crew = { since: S.iteration };
+    delete S.run.ext.crew;
+    const ops = derive().ops;
+    if (!ops) return;
+    const legacy = {};
+    let n = 0;
+    for (const L of LINES) for (const f of ops.lines[L.job].facs) if (f.idle > 0) { legacy[f.id] = f.idle; n += f.idle; }
+    if (!n) return;
+    S.run.ext.crew = { legacy };
+    rt.structureDirty = true;
+    log(`Crew now run the machines. ${fmt(n)} of your machines have nobody on them yet, so the previous shift keeps them running until you noclip. Assign crew in the Crew tab.`, 'terminal', 'CREW');
+  }
+  Exp.hook('afterLoad', ID, convertSave);
+  Exp.hook('flagsChanged', ID, () => { convertSave(); rt.structureDirty = true; });
+
+  // ------------------------------------------------------------- production
+  Exp.hook('derive:production', ID, (D, X) => {
+    const r = X.r, jobs = r.crew.jobs;
+    const each = OPS.perCrew * D.crewEff * staffMult();
+    const legacy = (r.ext.crew && r.ext.crew.legacy) || {};
+    let self = OPS.self;
+    const ops = { each, lines: {}, machines: 0, staffed: 0, idle: 0, selfUsed: 0, legacyUsed: 0, crewOut: { salvage: 0, water: 0, survey: 0, echo: 0 }, noCrew: { salvage: 0, water: 0, survey: 0, echo: 0 } };
+    // Output per machine with no crew at all: no scavenger bonus on salvage machines.
+    const bare = (f, fd) => (f.kind === 'salvage' ? fd.each / D.scavengeBoost : fd.each);
+    const sum = { salvage: 0, water: 0, survey: 0, echo: 0 };
+    for (const L of LINES) {
+      const crew = jobs[L.job] + (L.job === 'scavenge' ? X.phantom : 0);
+      const capacity = Math.floor(crew * each + 1e-9);
+      // The most productive machines are run first.
+      const facs = FACILITIES.filter((f) => f.kind === L.kind && count(f.id) > 0)
+        .sort((a, b) => D.fac[b.id].each - D.fac[a.id].each)
+        .map((f) => ({ id: f.id, n: count(f.id), off: D.fac[f.id].off, byCrew: 0, bySelf: 0, byLegacy: 0, idle: 0 }));
+      let room = capacity;
+      for (const m of facs) if (!m.off) { m.byCrew = Math.min(m.n, room); room -= m.byCrew; }
+      for (const m of facs) if (!m.off) { m.bySelf = Math.min(m.n - m.byCrew, self); self -= m.bySelf; }
+      for (const m of facs) if (!m.off) { m.byLegacy = Math.min(m.n - m.byCrew - m.bySelf, legacy[m.id] || 0); }
+      const line = { job: L.job, kind: L.kind, crew, capacity, spare: room, machines: 0, staffed: 0, idle: 0, facs };
+      for (const m of facs) {
+        const fd = D.fac[m.id];
+        const staffed = m.byCrew + m.bySelf + m.byLegacy;
+        // Without crew, the machines you and the previous shift run would still run; the rest would idle.
+        if (!m.off) ops.noCrew[L.kind] += bare(FAC[m.id], fd) * (m.bySelf + m.byLegacy + (m.n - m.bySelf - m.byLegacy) * OPS.unattended);
+        m.idle = m.off ? 0 : m.n - staffed;
+        fd.staffed = m.off ? 0 : staffed;
+        fd.byCrew = m.byCrew;
+        fd.total = m.off ? 0 : fd.each * (staffed + m.idle * OPS.unattended);
+        sum[L.kind] += fd.total;
+        ops.crewOut[L.kind] += m.off ? 0 : fd.each * m.byCrew;
+        line.machines += m.n;
+        line.staffed += m.off ? 0 : staffed;
+        line.idle += m.idle;
+        ops.selfUsed += m.bySelf;
+        ops.legacyUsed += m.byLegacy;
+      }
+      ops.lines[L.job] = line;
+      ops.machines += line.machines;
+      ops.staffed += line.staffed;
+      ops.idle += line.idle;
+    }
+    ops.facOut = { ...sum };
+    X.facSal = sum.salvage;
+    X.facWater = sum.water;
+    X.facSurveys = sum.survey;
+    X.facEcho = sum.echo;
+    D.ops = ops;
+  });
+
+  // ------------------------------------------------------------- where upgrades live
+  Exp.hook('upgradeHome', ID, (u) => (CREW_HOME.has(u.id) || u.exp === ID ? 'crew' : undefined));
+  const crewUpgrades = () => UPGRADES.filter((u) => upgradeAvailable(u) && upgradeHome(u) === 'crew')
+    .sort((a, b) => (upgradeCurrency(a) !== upgradeCurrency(b) ? (upgradeCurrency(a) === 'salvage' ? -1 : 1) : upgradePrice(a) - upgradePrice(b)));
+  Exp.hook('tabDot', ID, (tab) => (tab === 'crew' && crewUpgrades().some(canAffordUpgrade) ? true : undefined));
+  Exp.hook('objective', ID, () => {
+    const r = S.run;
+    // Same place in the order as the original radio objective, which named no tab.
+    if (r.rooms < 3 || !count('cart') || (!has('flashlight') && r.rooms >= 5 && r.level === 0)) return undefined;
+    if (r.flags.water && !has('radio')) return 'Requisition the Shortwave Radio in the Crew tab to bring other wanderers to you.';
+    return undefined;
+  }, 20);
+
+  // ------------------------------------------------------------- Facilities tab
+  Exp.hook('facilities:sub', ID, () => `Machines run whether you watch or not, and while you are away. Each runs at full speed with a crew member on it; one with nobody on it works at ${pct(OPS.unattended)}. Dampeners need nobody. Most machines make noise.`);
+  Exp.hook('facilities:line', ID, (f, fd, D) => {
+    const L = RUN_BY[f.kind];
+    if (!L || !D.ops) return undefined;
+    const staffed = fd.off ? '' : ` · ${fmt(fd.staffed)}/${fmt(fd.n)} running`;
+    let line;
+    if (f.kind === 'salvage') {
+      const share = D.spsNominal > 0 ? fd.total / D.spsNominal : 0;
+      line = `+${fmtRate(fd.each)} salvage/s each${staffed} · ${fmtRate(fd.total)}/s total (${pct(share)})`;
+    } else if (f.kind === 'water') line = `+${fmtRate(fd.each)} water/s each${staffed} · ${fmtRate(fd.total)}/s total`;
+    else if (f.kind === 'survey') line = `${fmtRate(fd.each)} surveys/s each${staffed} · maps ${fmtRate(fd.total * D.roomsPerSurvey)} rooms/s · +${fmtRate(fd.total * D.surveyFlat * CONFIG.survey.autoShare)} salvage/s`;
+    else line = `+${fmtRate(fd.each, 4)} Echoes/s each${staffed} · ${fmtRate(fd.total, 3)}/s total`;
+    if (f.noise > 0) line += ` · noise ${fmtRate(f.noise * D.noiseMult, 3)}/s each`;
+    return line;
+  });
+  Exp.hook('facilities:row', ID, (f, R) => {
+    if (!RUN_BY[f.kind]) return;
+    R.crewNote = el('p', { class: 'row-stats ops-note' });
+    R.stats.after(R.crewNote);
+  });
+  Exp.hook('facilities:rowUpdate', ID, (f, R, D) => {
+    if (!R.crewNote) return;
+    const on = Exp.on(ID) && D.ops;
+    setHidden(R.crewNote, !on);
+    if (!on) return;
+    const fd = D.fac[f.id], L = RUN_BY[f.kind];
+    if (fd.off || !fd.n) { setText(R.crewNote, ''); return; }
+    const idle = fd.n - fd.staffed;
+    setText(R.crewNote, idle > 0
+      ? `${plural(idle, 'machine')} with nobody on ${idle === 1 ? 'it' : 'them'}, working at 25%. ${JOB[L.job].name}s run ${L.what} (Crew tab).`
+      : `All running. ${JOB[L.job].name}s run ${L.what}.`);
+    R.crewNote.classList.toggle('short', idle > 0);
+  });
+
+  // ------------------------------------------------------------- Crew tab
+  let view = null;   // elements built for the current Crew panel
+  Exp.hook('crew:sig', ID, () => crewUpgrades().map((u) => u.id).join() + '|' + UPGRADES.filter((u) => contentOn(u) && has(u.id) && upgradeHome(u) === 'crew').length);
+  Exp.hook('crew:lockedText', ID, () => 'Requisition the Shortwave Radio above. It lets lost people find their way to you, and they run your machines.');
+  Exp.hook('crew:top', ID, (p) => {
+    view = { slips: [], lines: {}, jobNotes: {} };
+    if (!crewUnlocked()) {
+      p.append(requisitions(view.slips, true));
+      return;
+    }
+    const sum = el('p', { class: 'ops-sum' });
+    const lines = el('div', { class: 'ops-lines' });
+    for (const L of LINES) {
+      const bar = el('div', { class: 'bar' }, el('i'));
+      const label = el('span', { class: 'ops-what' });
+      const val = el('span', { class: 'ops-val num' });
+      const need = el('span', { class: 'ops-need' });
+      const row = el('div', { class: 'ops-line' }, label, bar, val, need);
+      lines.append(row);
+      view.lines[L.job] = { row, bar: bar.firstChild, label, val, need };
+    }
+    const foot = el('p', { class: 'ops-foot' });
+    view.sum = sum;
+    view.foot = foot;
+    p.append(el('section', { class: 'ops', 'aria-label': 'Operation' },
+      el('h3', { class: 'section-title', text: 'Operation' }), sum, lines, foot));
+  });
+  Exp.hook('crew:jobRow', ID, (j, ref) => {
+    if (!LINE[j.id]) return;
+    const note = el('p', { class: 'row-stats ops-note' });
+    ref.body.append(note);
+    view.jobNotes[j.id] = note;
+  });
+  Exp.hook('crew:jobLine', ID, (id, D) => {
+    const L = LINE[id];
+    if (!L || !D.ops) return undefined;
+    const ln = D.ops.lines[id];
+    const runs = `running ${fmt(ln.staffed)}/${fmt(ln.machines)} ${L.what}`;
+    if (id === 'scavenge') return `Now: ${runs}, machine salvage ×${D.scavengeBoost.toFixed(2)}, +${fmtRate(D.jobOut.scavenge)} salvage/s by hand`;
+    if (id === 'chart') return `Now: ${runs}, ${fmtRate(D.jobOut.chart)} surveys/s by hand`;
+    if (id === 'dowse') return `Now: ${runs}, +${fmtRate(D.jobOut.dowse)} water/s by hand`;
+    return `Now: ${runs}, +${fmtRate(D.jobOut.archive, 3)} Echoes/s by hand`;
+  });
+  Exp.hook('crew:jobUpdate', ID, (id, J, D) => {
+    const note = view && view.jobNotes[id];
+    if (!note || !D.ops) return;
+    setText(note, needText(D, id));
+    note.classList.toggle('short', D.ops.lines[id].idle > 0);
+  });
+  Exp.hook('crew:afterRows', ID, (p) => {
+    p.append(requisitions(view.slips, false));
+    const owned = UPGRADES.filter((u) => contentOn(u) && has(u.id) && upgradeHome(u) === 'crew');
+    if (owned.length) {
+      const list = el('ul');
+      for (const u of owned) list.append(el('li', { text: `${u.name}: ${u.effect}` }));
+      p.append(el('details', { class: 'installed' }, el('summary', { text: `Crew requisitions installed (${owned.length})` }), list));
+    }
+  });
+  Exp.hook('crew:update', ID, (D) => {
+    if (!view) return;
+    Panels.upgrades.updateSlips(view.slips);
+    if (!view.sum || !D.ops) return;
+    const o = D.ops;
+    setText(view.sum, `Your crew run ${fmt(o.staffed - o.selfUsed - o.legacyUsed)} of ${plural(o.machines, 'machine')}, up to ${fmtEach(o.each)} each. Crew work makes ${pct(crewShare(D))} of your salvage.`);
+    for (const L of LINES) {
+      const v = view.lines[L.job], ln = o.lines[L.job];
+      setHidden(v.row, ln.machines === 0);
+      if (!ln.machines) continue;
+      setText(v.label, `${L.what[0].toUpperCase()}${L.what.slice(1)}`);
+      setWidth(v.bar, ln.staffed / ln.machines);
+      setText(v.val, `${fmt(ln.staffed)}/${fmt(ln.machines)}`);
+      setText(v.need, ln.idle > 0 ? `${JOB[L.job].name}s · ${fmt(ln.idle)} idle` : `${JOB[L.job].name}s · all running`);
+      v.row.classList.toggle('short', ln.idle > 0);
+    }
+    const parts = [`A machine nobody runs works at ${pct(OPS.unattended)}. You run ${o.selfUsed < OPS.self ? `${fmt(o.selfUsed)} (you can run ${OPS.self})` : fmt(OPS.self)} yourself.`];
+    if (o.legacyUsed > 0) parts.push(`The previous shift keeps ${plural(o.legacyUsed, 'machine')} running until you noclip.`);
+    setText(view.foot, parts.join(' '));
+  });
+
+  const fmtEach = (x) => (Math.abs(x - Math.round(x)) < 1e-9 ? fmt(Math.round(x)) : x.toFixed(1));
+  /**
+   * Share of passive salvage per second that crew work adds: the operation as it is, compared
+   * with the same machines and no crew at all (no scavenger bonus, no hand work, and every
+   * machine you and the previous shift do not run at 25%). Surveys by hand are not counted.
+   */
+  function crewShare(D) {
+    const o = D.ops;
+    const without = o.noCrew.salvage + o.noCrew.survey * D.surveyFlat * CONFIG.survey.autoShare;
+    return D.spsNominal > 0 ? clamp(1 - without / D.spsNominal, 0, 1) : 0;
+  }
+  /** "2 more Cartographers would run every beacon", or what the spare crew could take on. */
+  function needText(D, job) {
+    const L = LINE[job], ln = D.ops.lines[job];
+    if (!ln.machines) return `No ${L.what} yet.`;
+    if (ln.idle > 0) {
+      const more = Math.ceil((ln.idle - 1e-9) / D.ops.each);
+      return `${plural(ln.idle, L.one)} idle. ${more} more ${more === 1 ? JOB[job].name : JOB[job].name + 's'} would run ${ln.idle === 1 ? 'it' : 'them all'}.`;
+    }
+    return ln.spare > 0 ? `All running. Room for ${plural(ln.spare, `more ${L.one}`, `more ${L.what}`)}.` : 'All running.';
+  }
+
+  function requisitions(refs, locked) {
+    const list = crewUpgrades().filter((u) => !locked || u.id === 'radio');
+    const box = el('section', { class: 'ops-req', 'aria-label': 'Crew requisitions' }, el('h3', { class: 'section-title', text: 'Crew requisitions' }));
+    if (!list.length) {
+      const later = UPGRADES.filter((u) => contentOn(u) && !has(u.id) && !reqMet(u.req) && upgradeHome(u) === 'crew').length;
+      box.append(el('p', { class: 'panel-sub', text: later ? `${plural(later, 'more requisition')} for the crew will become available as the operation grows.` : 'Every crew requisition is installed.' }));
+      return box;
+    }
+    const grid = el('div', { class: 'slips' });
+    for (const u of list) grid.append(Panels.upgrades.slip(u, refs));
+    box.append(grid);
+    return box;
+  }
+
+  Exp.hook('manual', ID, (add) => add('Crew run the machines', [
+    `Every salvage machine, condenser, beacon and array needs someone on it to run at full speed. A machine nobody runs works at ${pct(OPS.unattended)}. Dampeners are passive and need nobody.`,
+    `Scavengers run salvage machines, Dowsers run condensers, Cartographers run beacons and Archivists run arrays. Each crew member keeps up to ${OPS.perCrew} machines running, multiplied by crew efficiency and the staffing requisitions. Crew take the most productive machines first. You keep ${OPS.self} machines running yourself.`,
+    'The Crew tab shows how many machines each job runs and how many more crew would run them all. Crew requisitions, including the shift upgrades that raise every machine’s salvage, are listed there.',
+  ]));
+})();
+// <<< EXP-CREW-AUTOMATION
+//
+// ---------------------------------------------------------------------------
+//
+// >>> EXP-UPGRADE-CATEGORIES
+// Upgrade categories. The Upgrades tab groups requisitions by what they actually do,
+// with a compact category control and a live summary of the numbers each group
+// affects. Only the layout changes: every upgrade, price and effect stays the same.
+// Registry entry and rollback: docs/experiments/EXP-UPGRADE-CATEGORIES.md
+(function upgradeCategoriesExperiment() {
+  const ID = 'EXP-UPGRADE-CATEGORIES';
+  Exp.define({
+    id: ID,
+    name: 'Upgrade categories',
+    summary: 'Groups the Upgrades tab by what each requisition does, with a category control and a live summary of the numbers each group changes.',
+  });
+
+  // Categories follow each upgrade's `cat`, which already describes its gameplay effect.
+  const CATS = [
+    { cat: 'Survey', label: 'Survey', note: 'Surveys you make by hand: salvage per survey, rooms mapped and finds.',
+      summary: (D) => `Survey power +${fmt(D.manualSalvage)} salvage · ${fmtRooms(D.roomsPerSurvey)} ${D.roomsPerSurvey === 1 ? 'room' : 'rooms'} per survey` },
+    { cat: 'Facility', label: 'Machines', note: 'Facility output: one machine type at a time, or every salvage machine.',
+      summary: (D) => `Machines make ${fmtRate(D.facSalvage)} salvage/s (${pct(D.sps > 0 ? D.facSalvage / D.sps : 0)} of passive salvage) · facility multiplier ×${fmtRate(D.facMult)}` },
+    { cat: 'Crew', label: 'Crew', note: 'Wanderers: taking them in, their efficiency and their jobs.',
+      summary: (D) => (crewUnlocked() ? `${plural(S.run.crew.total, 'wanderer')}, ${fmt(crewIdle())} idle · crew efficiency ×${D.crewEff.toFixed(2)}` : 'No crew yet: the Shortwave Radio brings them.') },
+    { cat: 'Sanity', label: 'Sanity', note: 'Keeping your nerve: sanity recovery and drain, and drinking almond water.',
+      summary: (D) => `Sanity ${Math.round(S.run.sanity)} (${D.sanityBand.name}) · ${D.sanityNet >= 0 ? '+' : '−'}${fmtRate(Math.abs(D.sanityNet), 3)}/s · a drink costs ${fmt(drinkCost())} water and restores ${fmt(drinkRestore())}` },
+    { cat: 'Risk', label: 'Noise & risk', note: 'Attention: noise absorption, incident warnings and damage, and Kill the Lights.',
+      summary: (D) => `Noise ${fmtRate(D.noise, 3)} vs absorption ${fmtRate(D.absorb)} · attention ${Math.round(S.run.attention)}, heading to ${Math.round(D.attnTarget)}` },
+    { cat: 'Expedition', label: 'Expeditions', note: 'Expedition time, rewards and safety.',
+      summary: () => { const n = Object.keys(S.run.expeditions).length; return n ? `${plural(n, 'expedition')} out now` : 'No expeditions out'; } },
+  ];
+  const CAT = Object.fromEntries(CATS.map((c) => [c.cat, c]));
+  const catOf = (u) => (CAT[u.cat] ? u.cat : 'Other');
+  const labelOf = (cat) => (CAT[cat] ? CAT[cat].label : 'Other');
+  const HOME_LABEL = { crew: 'the Crew tab', facilities: 'each facility’s row in Facilities' };
+
+  let pick = 'all';         // selected category; interface state only, never saved
+  let view = null;
+  const listed = () => UPGRADES.filter(upgradeVisible);
+  const byPrice = (a, b) => {
+    const ca = upgradeCurrency(a), cb = upgradeCurrency(b);
+    if (ca !== cb) return ca === 'salvage' ? -1 : 1;
+    return upgradePrice(a) - upgradePrice(b);
+  };
+
+  Exp.hook('upgrades:sig', ID, () => pick);
+  Exp.hook('upgrades:build', ID, (p) => {
+    const panel = Panels.upgrades;
+    panel.btns = [];
+    view = { sums: [] };
+    p.append(el('div', { class: 'panel-head' }, el('div', null,
+      el('h2', { text: 'Upgrades' }),
+      el('p', { class: 'panel-sub', text: 'One-off requisitions, grouped by what they do. Most cost salvage; some cost almond water. All are lost when you noclip.' }))));
+    const avail = listed().sort(byPrice);
+    const count = {};
+    for (const u of avail) count[catOf(u)] = (count[catOf(u)] || 0) + 1;
+    const cats = [...CATS.map((c) => c.cat), 'Other'].filter((c) => count[c]);
+    if (pick !== 'all' && !count[pick]) pick = 'all';
+
+    const seg = el('div', { class: 'seg cats', role: 'group', 'aria-label': 'Upgrade categories' });
+    const segBtn = (id, text) => el('button', { type: 'button', 'data-cat': id, 'aria-pressed': String(pick === id) }, text);
+    seg.append(segBtn('all', `All ${avail.length}`));
+    for (const c of cats) seg.append(segBtn(c, `${labelOf(c)} ${count[c]}`));
+    seg.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-cat]');
+      if (!b) return;
+      pick = b.dataset.cat;
+      rt.structureDirty = true;
+      UI.update();
+      const again = document.querySelector(`#panel-upgrades .cats [data-cat="${CSS.escape(pick)}"]`);
+      if (again) again.focus();
+    });
+    if (avail.length) p.append(seg);
+
+    // Upgrades of these categories that live in another tab, so they are not hunted for here.
+    const elsewhere = {};
+    for (const u of UPGRADES) {
+      const home = upgradeHome(u);
+      if (home !== 'upgrades' && HOME_LABEL[home] && upgradeAvailable(u)) (elsewhere[home] = elsewhere[home] || new Set()).add(labelOf(catOf(u)).toLowerCase());
+    }
+    const pointers = Object.keys(elsewhere).map((h) => `${[...elsewhere[h]].join(' and ')} requisitions are in ${HOME_LABEL[h]}`);
+    if (pointers.length) p.append(el('p', { class: 'panel-sub cats-elsewhere', text: `Also available: ${pointers.join('; ')}.` }));
+
+    if (!avail.length) p.append(el('p', { class: 'empty', text: 'Nothing to requisition right now. Map more rooms, build more facilities, or go deeper.' }));
+    for (const c of cats) {
+      if (pick !== 'all' && pick !== c) continue;
+      const sum = el('p', { class: 'cats-sum num' });
+      const def = CAT[c];
+      view.sums.push({ node: sum, def });
+      const grid = el('div', { class: 'slips' });
+      for (const u of avail) if (catOf(u) === c) grid.append(panel.slip(u, panel.btns));
+      p.append(el('section', { class: 'cats-group', 'aria-label': labelOf(c) },
+        el('h3', { class: 'section-title', text: labelOf(c) }),
+        def ? el('p', { class: 'cats-note', text: def.note }) : null,
+        def ? sum : null,
+        grid));
+    }
+
+    const hidden = UPGRADES.filter((u) => contentOn(u) && !has(u.id) && !reqMet(u.req) && upgradeHome(u) === 'upgrades');
+    if (hidden.length) {
+      const per = {};
+      for (const u of hidden) per[catOf(u)] = (per[catOf(u)] || 0) + 1;
+      const parts = Object.keys(per).map((c) => `${per[c]} ${labelOf(c).toLowerCase()}`);
+      p.append(el('p', { class: 'panel-sub', text: `${plural(hidden.length, 'more requisition')} (${parts.join(', ')}) will become available as the operation grows and you go deeper.` }));
+    }
+    const owned = UPGRADES.filter((u) => contentOn(u) && has(u.id) && upgradeHome(u) === 'upgrades');
+    if (owned.length) {
+      const groups = el('div', { class: 'cats-installed' });
+      for (const c of [...CATS.map((x) => x.cat), 'Other']) {
+        const mine = owned.filter((u) => catOf(u) === c);
+        if (!mine.length) continue;
+        groups.append(el('h4', { text: labelOf(c) }), el('ul', null, mine.map((u) => el('li', { text: `${u.name}: ${u.effect}` }))));
+      }
+      p.append(el('details', { class: 'installed' }, el('summary', { text: `Installed (${owned.length})` }), groups));
+    }
+    updateSums(rt.D || derive());
+    return true;
+  });
+
+  function updateSums(D) {
+    if (!view) return;
+    for (const s of view.sums) setText(s.node, s.def.summary(D));
+  }
+  Exp.hook('ui:update', ID, (D) => {
+    if (!Exp.on(ID) || rt.tab !== 'upgrades' || !view) return;
+    updateSums(D);
+  });
+
+  Exp.hook('manual', ID, (add) => add('Upgrades by category', [
+    'The Upgrades tab groups requisitions by what they do: Survey (surveys you make by hand), Machines (facility output), Crew, Sanity, Noise & risk, and Expeditions. Each group shows the numbers it changes, as they are now.',
+    'Requisitions that belong somewhere else are listed there instead, and the Upgrades tab says where.',
+  ]));
+})();
+// <<< EXP-UPGRADE-CATEGORIES
+//
+// ---------------------------------------------------------------------------
+//
+// >>> EXP-FACILITY-TIERS
+// Facility tiers on their facilities. The 30 tier upgrades (×2 to one facility type
+// at 10, 25 and 50 owned) are listed on that facility's row in Facilities instead of
+// the Upgrades tab. Prices, requirements and effects are unchanged.
+// Registry entry and rollback: docs/experiments/EXP-FACILITY-TIERS.md
+(function facilityTiersExperiment() {
+  const ID = 'EXP-FACILITY-TIERS';
+  Exp.define({
+    id: ID,
+    name: 'Facility tiers on facility rows',
+    summary: 'Lists each facility’s tier upgrades on its own row in Facilities instead of in the Upgrades tab.',
+  });
+
+  const tiersOf = (f) => TIER_UPGRADES.filter((u) => u.fac === f.id && contentOn(u));
+  Exp.hook('upgradeHome', ID, (u) => (u.fac && u.tier != null ? 'facilities' : undefined));
+
+  /** The tier to show next: the cheapest one you can install now, or else the next one still locked. */
+  function nextTier(f) {
+    const open = tiersOf(f).filter((u) => !has(u.id));
+    const ready = open.filter((u) => reqMet(u.req)).sort((a, b) => upgradePrice(a) - upgradePrice(b));
+    if (ready.length) return { u: ready[0], ready: true };
+    return open.length ? { u: open[0], ready: false } : null;
+  }
+
+  Exp.hook('facilities:row', ID, (f, R) => {
+    if (!f.tiers.length) return;
+    const text = el('span', { class: 'tier-text' });
+    const cost = el('span', { class: 'sub' });
+    const btn = el('button', { type: 'button', class: 'btn small tier-btn', 'data-action': 'buy-upg' }, el('span', { text: 'Install' }), cost);
+    R.tier = { line: el('p', { class: 'row-stats tier-line' }, text, btn), text, btn, cost };
+    (R.crewNote || R.stats).after(R.tier.line);   // after the staffing note when crew run the machines
+  });
+  Exp.hook('facilities:rowUpdate', ID, (f, R) => {
+    if (!R.tier) return;
+    const T = R.tier;
+    const list = tiersOf(f);
+    const owned = list.filter((u) => has(u.id)).length;
+    const mult = tierMult(f);
+    const head = `Tiers ${owned}/${list.length}${owned ? ` · output ×${fmt(mult)}` : ''}`;
+    const n = nextTier(f);
+    if (!n) {
+      setText(T.text, `${head}. Every tier is installed.`);
+      setHidden(T.btn, true);
+      return;
+    }
+    const step = f.kind === 'survey' ? 1.5 : 2;
+    if (!n.ready) {
+      setText(T.text, `${head}. Next: ${n.u.name}, ×${step} output, at ${fmt(n.u.req.n)} owned (you have ${fmt(count(f.id))}).`);
+      setHidden(T.btn, true);
+      return;
+    }
+    setText(T.text, `${head}. Next: ${n.u.name}, ×${step} output.`);
+    setHidden(T.btn, false);
+    if (T.btn.dataset.id !== n.u.id) T.btn.dataset.id = n.u.id;
+    setText(T.cost, costLabel(upgradePrice(n.u), 'salvage'));
+    setDis(T.btn, !canAffordUpgrade(n.u));
+    setAttr(T.btn, 'aria-label', `Install ${n.u.name} for ${fmt(upgradePrice(n.u))} salvage: ${f.name}s produce ×${step}`);
+  });
+
+  // The Facilities tab is marked when a tier can be installed, as the Upgrades tab was.
+  Exp.hook('tabDot', ID, (tab) => (tab === 'facilities' && FACILITIES.some((f) => { const n = facVisible(f) && nextTier(f); return n && n.ready && canAffordUpgrade(n.u); }) ? true : undefined));
+
+  Exp.hook('manual', ID, (add) => add('Facility tiers', [
+    'Each facility type has three tiers, installed from its row in Facilities once you own 10, 25 and 50 of it. Each tier doubles that type’s output (beacons ×1.5). The row shows how many are installed and what the next one needs.',
+  ]));
+})();
+// <<< EXP-FACILITY-TIERS
+//
+// ---------------------------------------------------------------------------
+//
+// >>> EXP-RESOURCE-LEDGER
+// Resource ledger. An Archive section that lays out every resource and meter:
+// what you hold, what comes in per second and from where, what one survey by hand
+// brings, what it is spent on, and the next threshold. Every number is read from
+// the same calculations the simulation uses. Selecting a resource in the header
+// opens its entry. Registry entry and rollback: docs/experiments/EXP-RESOURCE-LEDGER.md
+(function resourceLedgerExperiment() {
+  const ID = 'EXP-RESOURCE-LEDGER';
+  Exp.define({
+    id: ID,
+    name: 'Resource ledger',
+    summary: 'Adds a Resources section to the Archive that explains every resource and meter, and lets you open it from the resource readouts in the header.',
+  });
+
+  const perSec = (v, dp) => `${v >= 0 ? '+' : '−'}${fmtRate(Math.abs(v), dp)}/s`;
+  const on = (D) => (D.lightsOut ? 0 : 1);
+  // Each entry: id, title, when it is shown, and rows of [label, value(D), meaning(D)].
+  const ENTRIES = [
+    { id: 'salvage', title: 'Salvage', show: () => true, rows: [
+      ['Held', () => fmt(S.run.salvage), () => 'Spent on facilities and most requisitions. Lost when you noclip.'],
+      ['Per second', (D) => perSec(D.sps), (D) => (D.lightsOut ? 'Nothing comes in while the lights are out.' : 'All passive salvage: the three lines below.')],
+      ['· from machines', (D) => perSec(D.facSalvage), (D) => (D.ops && D.ops.lines.scavenge.machines ? `Salvage machines in Facilities. ${fmt(D.ops.lines.scavenge.staffed)} of ${fmt(D.ops.lines.scavenge.machines)} are running; the rest work at 25%.` : 'Salvage machines in Facilities.')],
+      ['· from crew', (D) => perSec(D.crewSalvage), () => (researched('phantom') ? 'Scavengers working by hand, and idle wanderers at half efficiency (Phantom Labour).' : 'Scavengers working by hand.')],
+      ['· from automatic surveys', (D) => perSec(D.autoSalvage), () => `Beacons and cartographers. Each automatic survey recovers ${pct(CONFIG.survey.autoShare)} of a survey's base salvage.`],
+      ['Per survey by hand', (D) => `+${fmtRate(D.manualSalvage)}`, () => 'One survey you make yourself, with the Survey button or the S key.'],
+      ['Facility multiplier', (D) => `×${fmtRate(D.facMult)}`, () => 'Everything that multiplies machine salvage: levels reached, Déjà Vu, achievements, shift upgrades, the scavenger bonus, research and conditions.'],
+      ['This iteration', () => fmt(S.run.stats.salvage), () => `Salvage recovered since your last noclip. Déjà Vu = (this ÷ ${fmt(CONFIG.prestige.divisor)}) ^ ${CONFIG.prestige.exponent}.`],
+    ] },
+    { id: 'aw', title: 'Almond water', show: () => S.run.flags.water || S.run.aw > 0, rows: [
+      ['Held', () => fmt(S.run.aw), () => 'Spent on drinks, taking in wanderers, expeditions and some requisitions.'],
+      ['Per second', (D) => perSec(D.aws), () => 'Condensers and dowsers.'],
+      ['· from condensers', (D) => perSec(D.fac.condenser.total * on(D)), (D) => (D.ops && D.ops.lines.dowse.machines ? `${fmt(D.ops.lines.dowse.staffed)} of ${fmt(D.ops.lines.dowse.machines)} condensers are running; the rest work at 25%.` : 'Humidity Condensers in Facilities.')],
+      ['· from dowsers', (D) => perSec(D.jobOut.dowse * on(D)), () => 'Dowsers working by hand.'],
+      ['Found by surveys', (D) => `${pct(CONFIG.survey.waterChance * (D.manualWaterMult || 1))} of rooms`, () => { const m = (1 + S.run.level) * (condMods().aw || 1); return `Surveys by hand only, ${fmt(m)}–${fmt(3 * m)} water each on this level.`; }],
+      ['A drink', () => `${fmt(drinkCost())} water`, () => `Restores ${fmt(drinkRestore())} sanity. Costs more on deeper levels.`],
+      ['Next wanderer', () => (crewUnlocked() ? `${fmt(hireCost())} water` : '—'), () => (crewUnlocked() ? `Each one costs ${pct(CONFIG.crew.growth - 1)} more than the last.` : 'Needs the Shortwave Radio.')],
+    ] },
+    { id: 'echo', title: 'Echoes', show: () => !!S.seen.echoes, rows: [
+      ['Held', () => fmtEcho(S.echoes), () => 'Spent on research. Kept when you noclip.'],
+      ['Per second', (D) => perSec(D.eps, 4), () => 'Resonance Arrays and archivists.'],
+      ['· from arrays', (D) => perSec(D.fac.array.total * on(D), 4), (D) => (D.ops && D.ops.lines.archive.machines ? `${fmt(D.ops.lines.archive.staffed)} of ${fmt(D.ops.lines.archive.machines)} arrays are running; the rest work at 25%.` : 'Resonance Arrays in Facilities.')],
+      ['· from archivists', (D) => perSec(D.jobOut.archive * on(D), 4), () => 'Archivists working by hand.'],
+      ['Found by surveys', (D) => (S.run.rooms >= 25 ? `${(CONFIG.survey.echoChance * D.sanityBand.echo * (D.manualEchoMult || 1) * 100).toFixed(2)}% of rooms` : 'after 25 rooms'), () => 'Surveys by hand only. More likely at low sanity.'],
+      ['Attention bonus', (D) => `×${D.attnEcho.toFixed(2)}`, () => 'Attention multiplies every Echo gain, including documented anomalies.'],
+    ] },
+    { id: 'rooms', title: 'Rooms and levels', show: () => true, rows: [
+      ['Mapped this iteration', () => fmt(S.run.rooms), () => 'Every room you or your automation have mapped since your last noclip.'],
+      ['On this level', () => `${fmt(Math.floor(S.run.levelRooms))} / ${fmt(exitRooms(S.run.level))}`, () => (S.run.level === LEVELS.length - 1 ? 'Rooms to map to find the exit.' : `Rooms to map to find the way down to Level ${S.run.level + 1}.`)],
+      ['Per survey by hand', (D) => fmtRooms(D.roomsPerSurvey), () => 'Rooms one survey of yours maps.'],
+      ['Automatic', (D) => `${fmtRate(D.roomsPerSec)} rooms/s`, (D) => `${fmtRate(D.autoSurveys, 3)} automatic surveys/s from beacons and cartographers.`],
+      ['Next level', (D) => { const need = exitRooms(S.run.level) - S.run.levelRooms; return S.run.exitFound ? 'exit found' : D.roomsPerSec > 0 ? `~${fmtTime(Math.max(0, need) / D.roomsPerSec)}` : '—'; }, () => 'At the automatic rate alone. Your own surveys make it sooner.'],
+    ] },
+    { id: 'crew', title: 'Wanderers', show: () => crewUnlocked(), rows: [
+      ['Wanderers', () => fmt(S.run.crew.total), () => 'Everyone you have taken in this iteration.'],
+      ['Working', () => fmt(crewAssigned()), () => 'On a job in the Crew tab.'],
+      ['Idle', () => fmt(crewIdle()), () => (researched('phantom') ? 'Free for jobs or expeditions. Phantom Labour has them scavenge at half efficiency.' : 'Free for jobs or expeditions.')],
+      ['Away / missing', () => `${fmt(crewOnExpeditions())} / ${fmt(S.run.crew.missing.length)}`, () => 'On expeditions, or taken by an incident. Missing wanderers always come back.'],
+      ['Efficiency', (D) => `×${D.crewEff.toFixed(2)}`, (D) => (D.ops ? `Multiplies every job's output and the machines each crew member runs (${fmtRate(D.ops.each)} now).` : 'Multiplies every job’s output.')],
+    ] },
+    { id: 'sanity', title: 'Sanity', show: () => true, rows: [
+      ['Sanity', (D) => `${Math.round(S.run.sanity)} · ${D.sanityBand.name}`, (D) => (D.sanityBand.salvage < 1 ? `Surveys by hand recover ${pct(1 - D.sanityBand.salvage)} less salvage; Echo finds are more likely.` : 'No effect at this level.')],
+      ['Change', (D) => perSec(D.sanityNet, 3), (D) => `Recovers ${fmtRate(D.sanityRegen, 3)}/s, drains ${fmtRate(D.sanityDrain, 3)}/s. Attention above ${CONFIG.sanity.drainStart} drains it.`],
+    ] },
+    { id: 'attention', title: 'Attention', show: () => true, rows: [
+      ['Attention', () => `${Math.round(S.run.attention)}`, () => 'How closely something is listening. 75 and above, incidents can happen.'],
+      ['Heading to', (D) => `${Math.round(D.attnTarget)}`, () => `100 × noise ÷ (noise + absorption). Attention closes ${pct(CONFIG.attention.rate)} of the gap each second.`],
+      ['Noise', (D) => fmtRate(D.noise, 3), (D) => (D.lightsOut ? 'None while the lights are out.'
+        // D.noiseSteps exists when footsteps make noise (EXP-ATTENTION-BALANCE); the ledger works either way.
+        : D.noiseSteps != null ? `Machines ${fmtRate(D.noiseMachines, 3)}, your footsteps ${fmtRate(D.noiseSteps, 3)}. Footsteps fade within seconds of your last survey.`
+          : 'Made by facilities, more with some doctrines and upgrades.')],
+      ['Absorption', (D) => fmtRate(D.absorb), () => `Base ${fmt(CONFIG.attention.baseAbsorb)}, plus dampeners, watchers, research and relics; ×1.5 in the Poolrooms.`],
+    ] },
+    { id: 'dv', title: 'Déjà Vu', show: () => S.dvTotal > 0 || S.iteration > 1 || S.run.level >= CONFIG.prestige.minLevel, rows: [
+      ['Held', () => fmt(S.dv), () => 'Spent on Memories in the Noclip tab. Kept forever.'],
+      ['Earned in total', () => fmt(S.dvTotal), (D) => `Adds +${fmt((D.dvMult - 1) * 100)}% to salvage and water production, even after you spend it.`],
+      ['On noclip now', () => fmt(dvPreview()), () => (canNoclip() ? 'What you would keep if you noclipped now.' : `Noclip opens at Level ${CONFIG.prestige.minLevel}.`)],
+    ] },
+  ];
+
+  let view = null;
+  let focus = null;    // entry to bring into view when the section opens
+  Exp.hook('archive:subtabs', ID, (subs) => {
+    const i = subs.findIndex(([id]) => id === 'stats');
+    subs.splice(i < 0 ? subs.length : i, 0, ['ledger', 'Resources']);
+  });
+  Exp.hook('archive:build', ID, (tab, p) => {
+    if (tab !== 'ledger') return undefined;
+    view = { cells: [] };
+    p.append(el('p', { class: 'panel-sub', text: 'What each resource and meter means, where it comes from and where it goes. Per-second rates count only while the lights are on.' }));
+    const wrap = el('div', { class: 'rl-book' });
+    let target = null;
+    for (const E of ENTRIES) {
+      if (!E.show()) continue;
+      const dl = el('dl');
+      for (const [label, value, note] of E.rows) {
+        const dd = el('b', { class: 'num' }), nn = el('span');
+        dl.append(el('div', null, el('dt', { text: label }), el('dd', null, dd, nn)));
+        view.cells.push({ dd, nn, value, note });
+      }
+      const sec = el('section', { class: 'rl-entry', id: 'ledger-' + E.id, tabindex: '-1', 'aria-label': E.title }, el('h4', { text: E.title }), dl);
+      if (focus === E.id) target = sec;
+      wrap.append(sec);
+    }
+    p.append(wrap);
+    fill(rt.D || derive());
+    if (target) {
+      const t = target;
+      setTimeout(() => { t.scrollIntoView({ block: 'start' }); t.focus({ preventScroll: true }); }, 0);
+    }
+    focus = null;
+    return true;
+  });
+  function fill(D) {
+    for (const c of view.cells) { setText(c.dd, c.value(D)); setText(c.nn, c.note(D)); }
+  }
+  Exp.hook('archive:update', ID, () => { if (view && rt.archiveTab === 'ledger' && rt.tab === 'archive') fill(rt.D); });
+
+  // The resource readouts in the header open their ledger entry.
+  const CHIP = { salvage: 'salvage', aw: 'aw', echo: 'echo', crew: 'crew', dv: 'dv' };
+  function open(id) {
+    if (!Exp.on(ID)) return;
+    focus = id;
+    rt.archiveTab = 'ledger';
+    UI.selectTab('archive');   // rebuilds the Archive panel, which brings the entry into view
+  }
+  Exp.hook('ui:init', ID, () => {
+    for (const id in CHIP) {
+      const R = UI.res[id];
+      if (!R) continue;
+      R.chip.addEventListener('click', () => open(CHIP[id]));
+      R.chip.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && Exp.on(ID)) { e.preventDefault(); open(CHIP[id]); } });
+    }
+  });
+  Exp.hook('ui:update', ID, () => {
+    const live = Exp.on(ID);
+    for (const id in CHIP) {
+      const R = UI.res[id];
+      if (!R) continue;
+      R.chip.classList.toggle('res-link', live);
+      if (live) {
+        setAttr(R.chip, 'role', 'button');
+        setAttr(R.chip, 'tabindex', '0');
+        setAttr(R.chip, 'title', 'Open in the resource ledger');
+      } else if (R.chip.hasAttribute('role')) {
+        R.chip.removeAttribute('role'); R.chip.removeAttribute('tabindex'); R.chip.removeAttribute('title');
+      }
+    }
+  });
+
+  Exp.hook('manual', ID, (add) => add('Resource ledger', [
+    'Archive → Resources explains every resource and meter: what you hold, what comes in per second and from where, what one survey by hand brings, what it is spent on, and the next threshold. Select a resource in the header to open its entry.',
+  ]));
+})();
+// <<< EXP-RESOURCE-LEDGER
+//
+// ---------------------------------------------------------------------------
+//
+// >>> EXP-ATTENTION-BALANCE
+// Footsteps and readable Attention. The audit (docs/experiments/EXP-ATTENTION-BALANCE.md)
+// found the Attention formula working as designed, but the player's main early action,
+// surveying by hand, made no noise at all, so the meter could not respond to how you
+// play until machines filled the floor. Each survey you make by hand now adds a little
+// footstep noise that fades within seconds. The meters say what Attention and Sanity
+// each are, and where the noise comes from. Machine noise, absorption, thresholds and
+// every other rule are unchanged.
+(function attentionBalanceExperiment() {
+  const ID = 'EXP-ATTENTION-BALANCE';
+  Exp.define({
+    id: ID,
+    name: 'Footsteps and readable Attention',
+    summary: 'Surveys you make by hand make a little noise that fades within seconds, so Attention responds to how you play from the start. The meters explain what Attention and Sanity are and what feeds them.',
+  });
+
+  const STEP = {
+    noise: 0.004,      // footstep noise one survey by hand adds, before noise multipliers
+    halfLife: 10,      // seconds for footstep noise to halve
+  };
+  const fade = Math.LN2 / STEP.halfLife;
+  let steps = 0;       // footstep noise now; runtime only, since it fades within a minute
+
+  Exp.hook('survey:manual', ID, () => { steps += STEP.noise; });
+  Exp.hook('step', ID, (dt) => { steps *= Math.exp(-fade * dt); if (steps < 1e-9) steps = 0; });
+  Exp.hook('afterLoad', ID, () => { steps = 0; });
+  Exp.hook('flagsChanged', ID, () => { steps = 0; });
+
+  // Footsteps join the operation's noise, under the same multipliers and silenced with the lights.
+  Exp.hook('derive:noise', ID, (D, X) => {
+    D.noiseMachines = D.noise;
+    D.noiseSteps = steps * D.noiseMult * X.on;
+    D.noise += D.noiseSteps;
+  });
+
+  // ------------------------------------------------------------- the meters
+  Exp.hook('ui:attentionNote', ID, (D) => {
+    const r = S.run;
+    let note = 'How closely it listens. ';
+    if (D.lightsOut) note += 'Lights out: no noise.';
+    else if (D.noise <= 0) note += 'No noise yet. Your footsteps make a little; machines make more.';
+    else {
+      const feet = D.noiseSteps > 0.0005, machines = D.noiseMachines > 0;
+      const from = feet && machines ? ` (machines ${fmtRate(D.noiseMachines, 3)}, footsteps ${fmtRate(D.noiseSteps, 3)})`
+        : feet ? ' from your footsteps' : ' from machines';
+      note += `Noise ${fmtRate(D.noise, 3)}${from} vs absorption ${fmtRate(D.absorb)}: heading to ${Math.round(D.attnTarget)}. Echoes ×${D.attnEcho.toFixed(2)}.`;
+    }
+    if (r.attention >= CONFIG.incidents.threshold) note += ' Incidents possible.';
+    return note;
+  });
+  Exp.hook('ui:sanityNote', ID, (D, base) => (blackedOut() ? undefined : `Your nerve. ${base}`));
+
+  Exp.hook('manual', ID, (add) => add('Attention and sanity', [
+    'Attention is outside you: how closely the Backrooms are listening to your operation. Sanity is inside you: your state of mind. Attention moves sanity, but they are different meters with different fixes.',
+    `Attention drifts toward 100 × noise ÷ (noise + absorption). Machines make steady noise. Every survey you make by hand adds a little footstep noise (${STEP.noise}) that halves every ${STEP.halfLife} seconds, so surveying hard is heard and stopping lets it fade. Noise multipliers such as It Remembers You and the doctrines apply to footsteps too, and there is no noise while the lights are out.`,
+  ], [
+    `Below ${CONFIG.sanity.drainStart} attention, sanity recovers. From ${CONFIG.sanity.drainStart}, it drains a little more for every point. From ${CONFIG.incidents.threshold}, incidents can happen.`,
+    'To lower attention: survey more slowly, build dampeners, assign watchers, research the Hum, or kill the lights. To restore sanity: let attention fall, or drink almond water.',
+  ]));
+})();
+// <<< EXP-ATTENTION-BALANCE
+//
+// ---------------------------------------------------------------------------
+//
+// >>> EXP-DEV-MENU
+// Developer menu. A testing convenience, not a security boundary: anyone with the
+// page can turn it on. It is off until you opt in (Settings → Developer tools, or
+// #dev in the address for one visit). Its settings live in this browser under
+// `the-hum.dev`, never in the save. Saves it changes are marked in `ext.dev`.
+// Registry entry and rollback: docs/experiments/EXP-DEV-MENU.md
+(function developerMenuExperiment() {
+  const ID = 'EXP-DEV-MENU';
+  Exp.define({
+    id: ID,
+    name: 'Developer menu',
+    summary: 'Opt-in testing tools: infinite resources, resource injection, level, research, requisition and crew controls, meters and events, live production figures, and the experiment switches.',
+  });
+
+  const KEY = 'the-hum.dev';
+  const CURS = [['salvage', 'Salvage'], ['aw', 'Almond water'], ['echoes', 'Echoes'], ['dv', 'Déjà Vu']];
+  const dev = { enabled: false, session: false, infinite: { salvage: false, aw: false, echoes: false, dv: false } };
+  let allowed = false;     // the player agreed, this page load, that developer actions change the save
+  let freeNow = false;     // a single "install for free" is in progress
+  try {
+    const raw = JSON.parse(Store.get(KEY) || '{}');
+    if (isObj(raw)) {
+      dev.enabled = raw.enabled === true;
+      if (isObj(raw.infinite)) for (const [c] of CURS) dev.infinite[c] = raw.infinite[c] === true;
+    }
+  } catch (e) { /* unreadable developer settings: start with everything off */ }
+  if (/(^|[#,&])dev($|[,&])/.test(window.location.hash || '')) dev.session = true;
+
+  const active = () => Exp.on(ID) && (dev.enabled || dev.session);
+  const infinite = (cur) => active() && dev.infinite[cur];
+  const persist = () => Store.set(KEY, JSON.stringify({ enabled: dev.enabled, infinite: dev.infinite }));
+
+  // ------------------------------------------------------------- the mark on changed saves
+  Exp.ext.state.dev = (v) => (isObj(v) ? {
+    actions: int(v.actions, 0, 0, 1e9), first: num(v.first, 0, 0, 8.64e15), last: num(v.last, 0, 0, 8.64e15),
+    kinds: Array.isArray(v.kinds) ? v.kinds.filter((k) => typeof k === 'string').slice(0, 24).map((k) => k.slice(0, 40)) : [],
+  } : undefined);
+  function mark(kind) {
+    const now = Date.now();
+    const m = S.ext.dev || (S.ext.dev = { actions: 0, first: now, last: now, kinds: [] });
+    m.actions++;
+    m.last = now;
+    if (!m.kinds.includes(kind) && m.kinds.length < 24) m.kinds.push(kind);
+  }
+  const markText = () => {
+    const m = S.ext.dev;
+    if (!m || !m.actions) return 'This save has not been changed with developer tools.';
+    return `This save has been changed with developer tools: ${plural(m.actions, 'action')} since ${new Date(m.first).toLocaleString()} (${m.kinds.join(', ')}).`;
+  };
+
+  // ------------------------------------------------------------- infinite resources
+  // Purchases go through the normal code; only the deduction is skipped. Balances are never raised.
+  Exp.hook('wallet:budget', ID, (cur) => (freeNow || infinite(cur) ? Infinity : undefined));
+  Exp.hook('wallet:free', ID, (cur) => {
+    if (!(freeNow || infinite(cur))) return undefined;
+    mark(freeNow ? 'free requisition' : `infinite ${cur}`);
+    return true;
+  });
+
+  /** Runs a change to the save, after a one-time confirmation for this page load. `kind` labels the mark; null leaves none. */
+  function change(kind, fn) {
+    const go = () => { allowed = true; fn(); if (kind) mark(kind); rt.structureDirty = true; UI.update(true); };
+    if (allowed) { go(); return; }
+    UI.modal({
+      title: 'Change this save with developer tools?',
+      body: [
+        el('p', { text: 'Developer actions change your save for real: resources, levels, research and the rest stay changed after you turn the tools off. The save will be marked as changed with developer tools.' }),
+        el('p', { class: 'muted', text: 'To keep a clean copy, export your save from Settings first. You will not be asked again until you reload.' }),
+      ],
+      actions: [{ label: 'Cancel' }, { label: 'Change this save', cls: 'primary', onClick: go }],
+    });
+  }
+
+  // ------------------------------------------------------------- the Dev tab
+  TABS.push({ id: 'dev', label: 'Dev', key: '9', unlocked: () => true, visible: () => active() });
+  const form = { amount: 1000, level: 0, rooms: 500, research: '', upgrade: '', fac: '', facN: 10, crew: 5, attention: 50, sanity: 50, minutes: 60 };
+  let view = null;
+
+  const field = (label, key, attrs) => {
+    const input = el('input', { type: 'number', class: 'dev-num', 'aria-label': label, ...attrs });
+    input.value = String(form[key]);
+    input.addEventListener('input', () => { const v = Number(input.value); if (Number.isFinite(v)) form[key] = v; });
+    return el('label', { class: 'dev-field' }, el('span', { text: label }), input);
+  };
+  const select = (label, key, options) => {
+    const s = el('select', { 'aria-label': label });
+    for (const [v, t] of options) s.append(el('option', { value: v, text: t }));
+    if (options.some(([v]) => v === form[key])) s.value = form[key]; else if (options.length) form[key] = s.value = options[0][0];
+    s.addEventListener('change', () => { form[key] = s.value; });
+    return el('label', { class: 'dev-field' }, el('span', { text: label }), s);
+  };
+  const button = (text, onClick, cls) => {
+    const b = el('button', { type: 'button', class: 'btn small' + (cls ? ' ' + cls : '') }, text);
+    b.addEventListener('click', onClick);
+    return b;
+  };
+  const section = (title, note, ...rows) => el('section', { class: 'dev-sec', 'aria-label': title },
+    el('h3', { class: 'section-title', text: title }), note ? el('p', { class: 'panel-sub', text: note }) : null, ...rows);
+  const row = (...kids) => el('div', { class: 'dev-row' }, ...kids);
+  const amt = () => Math.max(0, Math.abs(Number(form.amount) || 0));
+
+  Panels.dev = {
+    sig: () => [active(), S.run.level, Exp.sig(), Object.keys(S.research).length, Object.keys(S.run.upgrades).length,
+      FACILITIES.filter(facVisible).length, CURS.map(([c]) => dev.infinite[c]).join()].join('|'),
+    build(p) {
+      view = { prod: [], status: null };
+      p.append(el('div', { class: 'panel-head' }, el('div', null,
+        el('h2', { text: 'Developer tools' }),
+        el('p', { class: 'panel-sub', text: 'For testing. Each action says what it changes. A browser-side convenience, not a lock: anyone with the page can turn it on.' }))));
+      view.status = el('p', { class: 'dev-status' });
+      p.append(view.status);
+
+      // Infinite resources
+      const toggles = CURS.map(([cur, name]) => {
+        const b = el('button', { type: 'button', class: 'btn small dev-toggle', 'aria-pressed': String(dev.infinite[cur]) }, `${name}: ${dev.infinite[cur] ? 'infinite' : 'normal'}`);
+        b.addEventListener('click', () => {
+          const turnOn = !dev.infinite[cur];
+          const apply = () => { dev.infinite[cur] = turnOn; persist(); rt.structureDirty = true; UI.update(true); };
+          if (turnOn && !allowed) change(null, apply); else apply();   // purchases mark the save, not the switch
+        });
+        return b;
+      });
+      p.append(section('Infinite resources',
+        'Purchases go through without spending: prices still show, requirements still apply and the normal purchase code runs. Balances are not raised, and turning this off takes nothing away. Déjà Vu buys permanent Memories. With MAX selected, Facilities buys up to 10,000 at once.',
+        row(...toggles)));
+
+      // Resources
+      const res = [];
+      for (const [cur, name] of CURS) {
+        res.push(button(`+ ${name}`, () => change(`add ${cur}`, () => addRes(cur, amt()))));
+        res.push(button(`− ${name}`, () => change(`remove ${cur}`, () => addRes(cur, -amt()))));
+      }
+      p.append(section('Add or remove resources',
+        'Changes what you hold. Added salvage does not count toward Déjà Vu; added Déjà Vu is spendable but not "earned", so it does not raise the production bonus.',
+        row(field('Amount', 'amount', { min: 0, step: 'any' })), row(...res)));
+
+      // Levels and rooms
+      form.level = String(Math.min(LEVELS.length - 1, S.run.level + 1));
+      p.append(section('Levels and rooms', 'Uses the game’s own level change and room mapping, with their messages and unlocks.',
+        row(select('Level', 'level', LEVELS.map((L, i) => [String(i), `Level ${i}: ${L.name}`])),
+          button('Go to level', () => change('level', () => { const i = clamp(Math.floor(Number(form.level)), 0, LEVELS.length - 1); if (i !== S.run.level) enterLevel(i); })),
+          button('Find the exit', () => change('exit', () => { if (S.run.level < LEVELS.length - 1) enterLevel(LEVELS.length - 1); if (!S.run.exitFound) findExit(); }))),
+        row(field('Rooms', 'rooms', { min: 0, step: 1 }),
+          button('Map rooms', () => change('rooms', () => addRooms(Math.max(0, Math.floor(Number(form.rooms) || 0))))))));
+
+      // Research, requisitions, machines
+      const resOpts = RESEARCH.filter((R) => R.repeatable || !researched(R.id)).map((R) => [R.id, R.repeatable ? `${R.name} (rank ${S.deepTheory + 1})` : R.name]);
+      const upgOpts = UPGRADES.filter((u) => upgradeAvailable(u) && upgradeHome(u) !== 'none').map((u) => [u.id, `${u.name} (${u.cat})`]);
+      const facOpts = FACILITIES.filter(facVisible).map((f) => [f.id, f.name]);
+      p.append(section('Research, requisitions and machines',
+        'Completed research is kept across noclips, like earned research. Free requisitions use the normal purchase, so their requirements still apply; meet them with the controls above.',
+        resOpts.length ? row(select('Research', 'research', resOpts),
+          button('Complete', () => change('research', () => completeResearch(form.research))),
+          button('Complete all', () => change('research', () => { for (const R of RESEARCH) if (!R.repeatable) S.research[R.id] = true; }))) : el('p', { class: 'panel-sub', text: 'All research is complete.' }),
+        upgOpts.length ? row(select('Requisition', 'upgrade', upgOpts),
+          button('Install for free', () => change('free requisition', () => installFree(form.upgrade)))) : el('p', { class: 'panel-sub', text: 'No requisition can be installed right now.' }),
+        facOpts.length ? row(select('Machine', 'fac', facOpts), field('Count', 'facN', { min: 1, step: 1 }),
+          button('Add machines', () => change('machines', () => { const f = FAC[form.fac]; if (f && facVisible(f)) S.run.facilities[f.id] = count(f.id) + Math.max(0, Math.floor(Number(form.facN) || 0)); }))) : null));
+
+      // Crew
+      p.append(section('Crew', 'Wanderers arrive idle; assign them in the Crew tab. Installs the Shortwave Radio if needed.',
+        row(field('Wanderers', 'crew', { min: 1, step: 1 }),
+          button('Add wanderers', () => change('crew', () => { S.run.upgrades.radio = true; S.run.crew.total += Math.max(0, Math.floor(Number(form.crew) || 0)); })))));
+
+      // Meters, events, time
+      p.append(section('Meters, events and time', 'Events are the game’s own: an anomaly to document, an incident with its warning, a blackout. Time away runs the offline simulation and shows its report.',
+        row(field('Attention', 'attention', { min: 0, max: 100, step: 1 }),
+          button('Set attention', () => change('attention', () => { const v = clamp(Number(form.attention) || 0, 0, 100); S.run.attention = v; S.run.peakAttention = Math.max(S.run.peakAttention, v); })),
+          field('Sanity', 'sanity', { min: 0, max: 100, step: 1 }),
+          button('Set sanity', () => change('sanity', () => { const v = clamp(Number(form.sanity) || 0, 0, 100); S.run.sanity = v; S.run.minSanity = Math.min(S.run.minSanity, v); }))),
+        row(button('Spawn an anomaly', () => change('event', () => { if (!rt.anomaly) spawnAnomaly(); })),
+          button('Schedule an incident', () => change('event', () => { if (!S.run.pendingIncident) scheduleIncident(); })),
+          button('Black out', () => change('event', () => { if (!blackedOut()) blackout(); })),
+          button('Clear incident and blackout', () => change('event', () => { S.run.pendingIncident = null; S.run.blackoutUntil = 0; Sound.setWarning(false); })),
+          button('Recharge Kill the Lights', () => change('event', () => { S.run.lightsReadyAt = 0; }))),
+        row(field('Minutes away', 'minutes', { min: 1, step: 1 }),
+          button('Simulate time away', () => change('time', () => { const rep = catchUp(Math.max(1, Number(form.minutes) || 1) * 60); if (rep) UI.offlineReport(rep); })))));
+
+      // Live production
+      const dl = el('dl', { class: 'dev-prod' });
+      for (const [label, value] of PROD) {
+        const dd = el('dd', { class: 'num' });
+        dl.append(el('div', null, el('dt', { text: label }), dd));
+        view.prod.push({ dd, value });
+      }
+      p.append(section('Production now', 'Read live from the same calculation the simulation uses (derive()).', dl));
+
+      // Experiments
+      const list = el('div', { class: 'dev-exps' });
+      for (const id of Exp.ids) {
+        const d = Exp.defs[id], on = Exp.on(id);
+        const src = id in Exp.session ? 'this page load (address)' : id in Exp.overrides ? 'set here' : 'default';
+        const b = el('button', { type: 'button', class: 'btn small', 'aria-pressed': String(on), 'aria-label': `${d.name}: ${on ? 'on' : 'off'}. Turn ${on ? 'off' : 'on'}` }, on ? 'On' : 'Off');
+        b.addEventListener('click', () => {
+          const flip = () => { Exp.set(id, !on); rt.structureDirty = true; UI.update(true); };
+          if (id === ID && on) {
+            UI.modal({
+              title: 'Turn off the developer menu?',
+              body: [el('p', { text: 'This tab and every developer tool disappear, including infinite resources. To bring it back, open the game with ?exp=EXP-DEV-MENU in the address and turn it on here.' })],
+              actions: [{ label: 'Cancel' }, { label: 'Turn off', cls: 'primary', onClick: flip }],
+            });
+          } else flip();
+        });
+        list.append(el('div', { class: 'dev-exp' + (on ? '' : ' off') },
+          el('div', null, el('b', { text: d.name }), el('code', { text: ` ${id}` }), el('p', { text: d.summary || '' }), el('small', { text: `${on ? 'On' : 'Off'} · ${src}` })),
+          b));
+      }
+      p.append(section('Experiments',
+        'Switching an experiment off restores its original behaviour at once and keeps its saved data for when it comes back. It is not the same as reverting its code (git revert, see docs/experiments/README.md) or restoring an older save (Settings → Import). Choices here are stored in this browser only.',
+        list, row(button('Reset all experiments to their defaults', () => { Exp.reset(); rt.structureDirty = true; UI.update(true); }))));
+
+      p.append(section('Developer settings', null,
+        row(button('Turn off infinite resources', () => { for (const [c] of CURS) dev.infinite[c] = false; persist(); rt.structureDirty = true; UI.update(true); }),
+          button('Turn off developer tools', () => setEnabled(false)))));
+      this.update();
+    },
+    update() {
+      if (!view) return;
+      const on = CURS.filter(([c]) => dev.infinite[c]).map(([, n]) => n);
+      setText(view.status, `Developer tools are on${dev.session && !dev.enabled ? ' for this visit (#dev)' : ''}. Infinite: ${on.length ? on.join(', ') : 'none'}. ${markText()}`);
+      const D = rt.D || derive();
+      for (const x of view.prod) setText(x.dd, x.value(D));
+    },
+  };
+
+  const PROD = [
+    ['Salvage/s', (D) => `${fmtRate(D.sps)} = machines ${fmtRate(D.facSalvage)} + crew ${fmtRate(D.crewSalvage)} + automatic ${fmtRate(D.autoSalvage)}`],
+    ['Per survey by hand', (D) => `${fmtRate(D.manualSalvage)} salvage · ${fmtRooms(D.roomsPerSurvey)} rooms · survey multiplier ×${fmtRate(D.surveyMult)}`],
+    ['Facility multiplier', (D) => `×${fmtRate(D.facMult)} (scavenger bonus ×${D.scavengeBoost.toFixed(2)}, Déjà Vu ×${D.dvMult.toFixed(2)}, achievements ×${D.achMult.toFixed(2)}, Recurrence ×${D.recur.toFixed(2)})`],
+    ['Water/s · Echoes/s', (D) => `${fmtRate(D.aws)} · ${fmtRate(D.eps, 4)} (attention ×${D.attnEcho.toFixed(2)})`],
+    ['Automatic surveys', (D) => `${fmtRate(D.autoSurveys, 3)}/s · ${fmtRate(D.roomsPerSec)} rooms/s`],
+    ['Crew', (D) => `efficiency ×${D.crewEff.toFixed(2)}${D.ops ? ` · running ${fmt(D.ops.staffed)}/${fmt(D.ops.machines)} machines, ${fmtRate(D.ops.each)} each` : ''}`],
+    ['Noise · absorption', (D) => `${fmtRate(D.noise, 3)}${D.noiseSteps != null ? ` (footsteps ${fmtRate(D.noiseSteps, 3)})` : ''} · ${fmtRate(D.absorb)} → attention heads to ${fmtRate(D.attnTarget)}`],
+    ['Sanity', (D) => `${fmtRate(D.sanityNet, 3)}/s (recover ${fmtRate(D.sanityRegen, 3)}, drain ${fmtRate(D.sanityDrain, 3)}) · ${D.sanityBand.name}`],
+    ['Déjà Vu on noclip', () => `${fmt(dvPreview())} (run salvage ${fmt(S.run.stats.salvage)})`],
+  ];
+
+  function addRes(cur, n) {
+    const r = S.run;
+    if (cur === 'salvage') r.salvage = clamp(r.salvage + n, 0, MAX_VALUE);
+    else if (cur === 'aw') r.aw = clamp(r.aw + n, 0, MAX_VALUE);
+    else if (cur === 'echoes') { S.echoes = clamp(S.echoes + n, 0, MAX_VALUE); if (n > 0) S.seen.echoes = true; }
+    else if (cur === 'dv') S.dv = clamp(S.dv + n, 0, MAX_VALUE);
+  }
+  function completeResearch(id) {
+    const R = RES[id];
+    if (!R) return;
+    if (R.repeatable) S.deepTheory++;
+    else S.research[id] = true;
+  }
+  function installFree(id) {
+    freeNow = true;
+    try { buyUpgrade(id); } finally { freeNow = false; }
+  }
+  function setEnabled(on) {
+    dev.enabled = on;
+    if (!on) { dev.session = false; for (const [c] of CURS) dev.infinite[c] = false; }
+    persist();
+    if (!on && rt.tab === 'dev') UI.selectTab('settings');
+    rt.structureDirty = true;
+    UI.update(true);
+  }
+
+  // ------------------------------------------------------------- Settings entry point
+  Exp.hook('settings:sections', ID, (add) => {
+    const input = el('input', { type: 'checkbox', id: 'set-dev' });
+    input.checked = active();
+    input.addEventListener('change', () => setEnabled(input.checked));
+    add(el('h3', { class: 'section-title', text: 'Developer tools' }));
+    add(el('div', { class: 'setting' },
+      el('label', { for: 'set-dev' }, 'Enable developer tools',
+        el('small', { text: 'For testing balance and features: infinite resources, resource and level controls, and the experiment switches, in a Dev tab (key 9). Stored in this browser only, not in your save. You can also add #dev to the address for one visit.' })),
+      input));
+    add(el('p', { class: 'panel-sub', text: markText() }));
+  });
+  // Leave the Dev tab if the tools are switched off while it is open.
+  Exp.hook('flagsChanged', ID, () => { if (!active() && rt.tab === 'dev' && UI.built) UI.selectTab('settings'); });
+
+  // ------------------------------------------------------------- always-visible markers
+  let badge = null;
+  const inf = {};
+  Exp.hook('ui:init', ID, () => {
+    badge = el('span', { class: 'chip warn dev-badge', hidden: true, title: 'Developer tools are on' }, 'DEV');
+    const sys = document.querySelector('.sysctl');
+    if (sys) sys.prepend(badge);
+    const map = { salvage: 'salvage', aw: 'aw', echoes: 'echo', dv: 'dv' };
+    for (const [cur] of CURS) {
+      const R = UI.res[map[cur]];
+      if (!R) continue;
+      inf[cur] = el('span', { class: 'dev-inf', hidden: true, title: 'Infinite (developer tools)' }, '∞');
+      R.chip.querySelector('.res-label').append(inf[cur]);
+    }
+  });
+  Exp.hook('ui:update', ID, () => {
+    if (badge) setHidden(badge, !active());
+    for (const cur in inf) setHidden(inf[cur], !infinite(cur));
+  });
+
+  Exp.hook('manual', ID, (add) => add('Developer tools', [
+    'Settings → Developer tools (or #dev in the address) opens a Dev tab for testing: infinite resources, adding resources, levels, research, requisitions, crew, meters, events, simulated time away, live production figures and the experiment switches. It is off by default and stored in this browser only. Saves it changes are marked as changed with developer tools.',
+  ]));
+})();
+// <<< EXP-DEV-MENU
+//
+// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // 9. BOOT AND MAIN LOOP
@@ -4428,8 +6050,10 @@ function frame(nowMs) {
 }
 
 function boot() {
+  Exp.load();
   const loaded = loadGame();
   S = loaded.state;
+  Exp.runAll('afterLoad');
   applyVisualSettings();
   View.init($('view'));
   UI.init();
@@ -4475,6 +6099,7 @@ function boot() {
       noclip, buyMemory, killLights, drink, documentAnomaly, spawnAnomaly, scheduleIncident, dvPreview, canNoclip,
       facVisible, upgradeVisible, buyQuote, facilityCost, maxAffordable, save, loadGame, sanitizeState, encodeSave, decodeSave,
       replaceState, exitRooms, crewIdle, canLaunch, canResearch, canBuyMemory, hireCost, UI,
+      Exp, Wallet, contentOn, upgradeAvailable, upgradeHome, Panels, TABS, JOBS, FAC, UPG, CONDITIONS, ACHIEVEMENTS,
       setBuyMode(m) { rt.buyMode = m; },
     };
   }

@@ -1,9 +1,12 @@
 // Functional tests for The Hum. Drives the real page in headless Chromium.
 // Run: node tools/functional-test.js   (needs Playwright with a Chromium build)
+// These are the original checks. They run with every experiment switched off (?exp=none), which must
+// behave exactly as the pre-experiment game. Set HUM_QUERY to test another combination.
 const path = require('path');
 let playwright;
 try { playwright = require('playwright'); } catch (e) { playwright = require('/opt/node22/lib/node_modules/playwright'); }
-const URL = 'file://' + path.resolve(__dirname, '..', 'index.html') + '#debug';
+const QUERY = process.env.HUM_QUERY !== undefined ? process.env.HUM_QUERY : '?exp=none';
+const URL = 'file://' + path.resolve(__dirname, '..', 'index.html') + QUERY + '#debug';
 
 let failures = 0, passes = 0;
 function check(name, cond, detail) {
@@ -32,7 +35,9 @@ function check(name, cond, detail) {
   check('survey button is visible and enabled', await page.isEnabled('#btnSurvey'));
 
   console.log('Surveying and purchases');
-  for (let i = 0; i < 20; i++) { await page.click('#btnSurvey'); await page.waitForTimeout(65); }
+  // Surveys closer than 60 ms apart are refused (key-repeat guard). Under load two clicks can reach the page closer
+  // together than they were sent, so each click first clears that timer; the clicks themselves are real.
+  for (let i = 0; i < 20; i++) { await ev(() => { HUM.rt.lastSurveyReal = -1e9; }); await page.click('#btnSurvey'); await page.waitForTimeout(20); }
   const afterClicks = await ev(() => ({ rooms: HUM.S.run.rooms, salvage: HUM.S.run.salvage, surveys: HUM.S.run.stats.surveys }));
   check('20 clicks map 20 rooms', afterClicks.rooms === 20, afterClicks);
   check('salvage recovered from surveys', afterClicks.salvage >= 20, afterClicks);
