@@ -5625,6 +5625,65 @@ function onKey(e) {
 // ---------------------------------------------------------------------------
 //
 // >>> EXP-ATTENTION-BALANCE
+// Footsteps and readable Attention. The audit (docs/experiments/EXP-ATTENTION-BALANCE.md)
+// found the Attention formula working as designed, but the player's main early action,
+// surveying by hand, made no noise at all, so the meter could not respond to how you
+// play until machines filled the floor. Each survey you make by hand now adds a little
+// footstep noise that fades within seconds. The meters say what Attention and Sanity
+// each are, and where the noise comes from. Machine noise, absorption, thresholds and
+// every other rule are unchanged.
+(function attentionBalanceExperiment() {
+  const ID = 'EXP-ATTENTION-BALANCE';
+  Exp.define({
+    id: ID,
+    name: 'Footsteps and readable Attention',
+    summary: 'Surveys you make by hand make a little noise that fades within seconds, so Attention responds to how you play from the start. The meters explain what Attention and Sanity are and what feeds them.',
+  });
+
+  const STEP = {
+    noise: 0.004,      // footstep noise one survey by hand adds, before noise multipliers
+    halfLife: 10,      // seconds for footstep noise to halve
+  };
+  const fade = Math.LN2 / STEP.halfLife;
+  let steps = 0;       // footstep noise now; runtime only, since it fades within a minute
+
+  Exp.hook('survey:manual', ID, () => { steps += STEP.noise; });
+  Exp.hook('step', ID, (dt) => { steps *= Math.exp(-fade * dt); if (steps < 1e-9) steps = 0; });
+  Exp.hook('afterLoad', ID, () => { steps = 0; });
+  Exp.hook('flagsChanged', ID, () => { steps = 0; });
+
+  // Footsteps join the operation's noise, under the same multipliers and silenced with the lights.
+  Exp.hook('derive:noise', ID, (D, X) => {
+    D.noiseMachines = D.noise;
+    D.noiseSteps = steps * D.noiseMult * X.on;
+    D.noise += D.noiseSteps;
+  });
+
+  // ------------------------------------------------------------- the meters
+  Exp.hook('ui:attentionNote', ID, (D) => {
+    const r = S.run;
+    let note = 'How closely it listens. ';
+    if (D.lightsOut) note += 'Lights out: no noise.';
+    else if (D.noise <= 0) note += 'No noise yet. Your footsteps make a little; machines make more.';
+    else {
+      const feet = D.noiseSteps > 0.0005, machines = D.noiseMachines > 0;
+      const from = feet && machines ? ` (machines ${fmtRate(D.noiseMachines, 3)}, footsteps ${fmtRate(D.noiseSteps, 3)})`
+        : feet ? ' from your footsteps' : ' from machines';
+      note += `Noise ${fmtRate(D.noise, 3)}${from} vs absorption ${fmtRate(D.absorb)}: heading to ${Math.round(D.attnTarget)}. Echoes ×${D.attnEcho.toFixed(2)}.`;
+    }
+    if (r.attention >= CONFIG.incidents.threshold) note += ' Incidents possible.';
+    return note;
+  });
+  Exp.hook('ui:sanityNote', ID, (D, base) => (blackedOut() ? undefined : `Your nerve. ${base}`));
+
+  Exp.hook('manual', ID, (add) => add('Attention and sanity', [
+    'Attention is outside you: how closely the Backrooms are listening to your operation. Sanity is inside you: your state of mind. Attention moves sanity, but they are different meters with different fixes.',
+    `Attention drifts toward 100 × noise ÷ (noise + absorption). Machines make steady noise. Every survey you make by hand adds a little footstep noise (${STEP.noise}) that halves every ${STEP.halfLife} seconds, so surveying hard is heard and stopping lets it fade. Noise multipliers such as It Remembers You and the doctrines apply to footsteps too, and there is no noise while the lights are out.`,
+  ], [
+    `Below ${CONFIG.sanity.drainStart} attention, sanity recovers. From ${CONFIG.sanity.drainStart}, it drains a little more for every point. From ${CONFIG.incidents.threshold}, incidents can happen.`,
+    'To lower attention: survey more slowly, build dampeners, assign watchers, research the Hum, or kill the lights. To restore sanity: let attention fall, or drink almond water.',
+  ]));
+})();
 // <<< EXP-ATTENTION-BALANCE
 //
 // ---------------------------------------------------------------------------
