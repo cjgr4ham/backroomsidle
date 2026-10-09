@@ -127,9 +127,31 @@ These are not interchangeable.
 
 `--all` also takes back every experiment and core change outside `docs/` and `tools/` together. It checks that `index.html` is byte-identical to the original game and that no server files remain.
 
-Results of the last run: *the final run is in progress; its results will be recorded here.*
+**Results of the last run** (9 October 2026, started on commit `ada4da2`; the documentation-only commit `420b6d6` landed during the run): **every revert check passed.**
+
+| Reverted | Commits reverted | Slots empty | Its tests, server files and entry gone | Remaining suites | Equivalence |
+| --- | --- | --- | --- | --- | --- |
+| `EXP-ACCOUNT-AUTH` | 3 | yes | yes | 20 suites, 375 checks, all passing. The account UI, cloud-save, leaderboard and served-interface checks report themselves as skipped. | yes |
+| `EXP-ACCOUNT-UI` | 1 | yes | yes | 20 suites, 458 checks, all passing | yes |
+| `EXP-ATTENTION-BALANCE` | 1 | yes | yes | 20 suites, 461 checks, all passing | yes |
+| `EXP-CLICK-POWER` | 3 | yes | yes | 20 suites, 445 checks, all passing | yes |
+| `EXP-CLOUD-SAVE` | 2 | yes | yes | 20 suites, 452 checks, all passing | yes |
+| `EXP-CREW-AUTOMATION` | 3 | yes | yes | 20 suites, 435 checks, all passing. The staffing-switch checks in the independence suite are skipped. | yes |
+| `EXP-DEJA-VU-SHOP` | 3 | yes | yes | 20 suites, 450 checks, all passing | yes |
+| `EXP-DEV-MENU` | 2 | yes | yes | 20 suites, 451 checks, all passing. The infinite-resource checks in other suites are skipped. | yes |
+| `EXP-FACILITY-INDEPENDENCE` | 2 | yes | yes | 20 suites, 466 checks, all passing | yes |
+| `EXP-FACILITY-SALVAGE-SCALING` | 3 | yes | yes | 20 suites, 457 checks, all passing | yes |
+| `EXP-FACILITY-TIERS` | 1 | yes | yes | 20 suites, 468 checks, all passing | yes |
+| `EXP-NOCLIP-LEADERBOARD` | 2 | yes | yes | 20 suites, 456 checks, all passing | yes |
+| `EXP-NOCLIP-STATISTICS` | 2 | yes | yes | 20 suites, 462 checks, all passing | yes |
+| `EXP-RESOURCE-LEDGER` | 3 | yes | yes | 20 suites, 468 checks, all passing | yes |
+| `EXP-UPGRADE-CATEGORIES` | 1 | yes | yes | 20 suites, 468 checks, all passing | yes |
+| **Everything** (all experiments and `EXP-CORE`) | 26 | – | – | `index.html` byte-identical to `ebfa0c6`, no server files left, and the original functional test passes | byte-identical, so not needed |
+
+Each row's remaining checks plus the reverted experiment's own suite add up to the full 480 checks, except where checks that need the reverted experiment report themselves as skipped.
 
 **Other proofs:**
+- **Full suite.** On the final code, `node tools/run-tests.js` passed all 21 suites, 480 checks, with every experiment at its default.
 - **Equivalence check.** `tools/equivalence-check.js` plays 8 seeded sessions in the original build and in this build with every experiment off. The sessions include noclips, offline time and save round trips. The full state and every derived rate match at all 96 checkpoints.
 - **Rebirth suite.** `tools/tests/rebirth.test.js` requires the same noclip with every experiment off and every experiment on. It still passes, because nothing a player has not bought in the Déjà Vu shop changes a noclip.
 
