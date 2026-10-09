@@ -667,6 +667,20 @@ body.reduce-motion .vp-banner { animation: none; opacity: 1; }
 /* <<< EXP-CLOUD-SAVE */
 /* -- */
 /* >>> EXP-NOCLIP-LEADERBOARD */
+.lb { display: grid; gap: 10px; }
+.lb-status, .lb-mine { margin: 0; font-size: 13px; color: var(--paper); max-width: 72ch; }
+.lb-mine { color: var(--sodium-hi); }
+.lb-status:empty, .lb-mine:empty { display: none; }
+.lb-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.lb-list li { display: grid; grid-template-columns: 5ch minmax(0, 1fr) auto; gap: 12px; align-items: baseline; padding: 7px 4px; border-bottom: 1px solid var(--line); font: 13px var(--font-mono); font-variant-numeric: tabular-nums; }
+.lb-list li.you { background: var(--panel-2); box-shadow: inset 3px 0 0 var(--deja); }
+.lb-rank { color: var(--dim); text-align: right; }
+.lb-name { color: var(--paper); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-list li.you .lb-name::after { content: " (you)"; color: var(--deja); }
+.lb-count { color: var(--sodium); }
+.lb-pager { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.lb-page { font: 12px var(--font-mono); color: var(--dim); padding: 0 6px; }
+.lb-source { margin: 0; }
 /* <<< EXP-NOCLIP-LEADERBOARD */
 /* -- */
 </style>
@@ -7233,6 +7247,201 @@ function onKey(e) {
 // ---------------------------------------------------------------------------
 //
 // >>> EXP-NOCLIP-LEADERBOARD
+// Noclip leaderboard. While signed in to The Hum's server, every completed noclip is reported to it, once:
+// the report names this save (a random lineage id kept in ext.lb) and the iteration that ended, and the
+// server counts each pair once. The browser never sends a count. Reports wait in a queue in this browser
+// until the server confirms them, so a lost connection or a closed tab only delays them. Noclips in a save
+// changed with developer tools are never reported. Archive → Leaderboard shows the server's ranking
+// (rank, username, noclips), the player's own rank and pages; a copy without a server says so and shows no
+// list. Registry entry and rollback: docs/experiments/EXP-NOCLIP-LEADERBOARD.md
+(function noclipLeaderboardExperiment() {
+  const ID = 'EXP-NOCLIP-LEADERBOARD';
+  Exp.define({
+    id: ID,
+    name: 'Noclip leaderboard',
+    summary: 'Reports each completed noclip to the server once, and ranks accounts by the noclips the server recorded, in Archive → Leaderboard.',
+  });
+
+  const QUEUE = 'the-hum.noclip-reports';   // reports waiting for the server; not part of the save
+  Exp.ext.state.lb = (v) => (isObj(v) && typeof v.lineage === 'string' && /^[0-9a-f]{32}$/.test(v.lineage) ? { lineage: v.lineage } : undefined);
+  const service = () => (Exp.on(ID) ? Exp.ask('account:service') : undefined);
+  const ready = () => { const s = service(); const st = s && s.state(); return st && st.status === 'signed-in' && s.has(ID) ? { svc: s, user: st.user } : null; };
+  const devMarked = () => !!(S.ext.dev && S.ext.dev.actions > 0);
+  const lb = { me: null, list: null, page: 1, loading: false, error: '', fetchedAt: 0, flushing: false, retryAt: 0, note: '' };
+
+  function lineage() {
+    if (!S.ext.lb) {
+      const b = new Uint8Array(16);
+      crypto.getRandomValues(b);
+      S.ext.lb = { lineage: [...b].map((x) => x.toString(16).padStart(2, '0')).join('') };
+    }
+    return S.ext.lb.lineage;
+  }
+  function queue() { try { const v = JSON.parse(Store.get(QUEUE) || '[]'); return Array.isArray(v) ? v.filter(isObj).slice(0, 200) : []; } catch (e) { return []; } }
+  const setQueue = (q) => Store.set(QUEUE, JSON.stringify(q.slice(-200)));
+  const pendingFor = (key) => queue().filter((x) => x.user === key).length;
+
+  // ------------------------------------------------------------- reporting
+  // The lineage is created on the new run while signed in, so it is saved together with the noclip.
+  Exp.hook('noclip:newRun', ID, () => { if (ready() && !devMarked()) lineage(); });
+  Exp.hook('noclip:done', ID, (ended) => {
+    const r = ready();
+    if (!r || devMarked()) return;
+    const q = queue();
+    q.push({ user: r.user.key, lineage: lineage(), iteration: ended.iteration, at: Date.now(),
+      run: { level: ended.level, exitFound: !!ended.exitFound, time: ended.time, salvage: ended.salvage, gain: ended.gain } });
+    setQueue(q);
+    flush();
+  });
+  /** Sends this account's waiting reports one at a time, oldest first. */
+  async function flush() {
+    const r = ready();
+    if (!r || lb.flushing || Date.now() < lb.retryAt) return;
+    lb.flushing = true;
+    try {
+      for (;;) {
+        const q = queue();
+        const i = q.findIndex((x) => x.user === r.user.key);
+        if (i < 0) break;
+        const item = q[i];
+        const res = await r.svc.api('POST', '/api/noclips', { lineage: item.lineage, iteration: item.iteration, run: item.run, devMarked: false });
+        if (res.ok) {
+          const left = queue().filter((x) => !(x.user === item.user && x.lineage === item.lineage && x.iteration === item.iteration));
+          setQueue(left);
+          lb.me = { noclips: res.data.noclips, rank: res.data.rank };
+          lb.fetchedAt = 0;   // the open list refreshes
+          continue;
+        }
+        if (res.status === 429) { lb.retryAt = Date.now() + 1000 * Math.max(1, Number(res.data.retryAfter) || 30); setTimeout(flush, lb.retryAt - Date.now() + 50); break; }
+        if (res.status === 400 || res.status === 422) {   // refused for good: dropped, with the reason kept for Settings
+          lb.note = res.data.message || 'A noclip report was refused.';
+          setQueue(queue().filter((x) => !(x.user === item.user && x.lineage === item.lineage && x.iteration === item.iteration)));
+          continue;
+        }
+        lb.retryAt = Date.now() + 30000;   // offline or signed out: try again later
+        setTimeout(flush, 30500);
+        break;
+      }
+    } finally { lb.flushing = false; rt.structureDirty = true; }
+  }
+  async function fetchMe() {
+    const r = ready();
+    if (!r) { lb.me = null; return; }
+    const res = await r.svc.api('GET', '/api/leaderboard/me');
+    if (res.ok) lb.me = { noclips: res.data.noclips, rank: res.data.rank };
+  }
+  Exp.hook('account:changed', ID, (s) => { lb.me = null; lb.fetchedAt = 0; if (s.status === 'signed-in') { fetchMe(); flush(); } });
+
+  // ------------------------------------------------------------- Archive → Leaderboard
+  Exp.hook('archive:subtabs', ID, (subs) => subs.push(['lb', 'Leaderboard']));
+  let view = null;
+  Exp.hook('archive:build', ID, (tab, p) => {
+    if (tab !== 'lb') return undefined;
+    view = { status: el('p', { class: 'lb-status' }), mine: el('p', { class: 'lb-mine' }), list: el('ol', { class: 'lb-list' }), pager: el('div', { class: 'lb-pager' }), source: el('p', { class: 'panel-sub lb-source' }) };
+    const prev = el('button', { type: 'button', class: 'btn small', 'data-lb': 'prev' }, '← Previous');
+    const next = el('button', { type: 'button', class: 'btn small', 'data-lb': 'next' }, 'Next →');
+    const mineBtn = el('button', { type: 'button', class: 'btn small', 'data-lb': 'mine' }, 'My rank');
+    const refresh = el('button', { type: 'button', class: 'btn small', 'data-lb': 'refresh' }, 'Refresh');
+    view.pageText = el('span', { class: 'lb-page' });
+    view.pager.append(prev, view.pageText, next, mineBtn, refresh);
+    Object.assign(view, { prev, next, mineBtn, refresh });
+    const box = el('section', { class: 'lb', 'aria-label': 'Leaderboard' },
+      el('h3', { class: 'section-title', text: 'Leaderboard: completed noclips' }), view.status, view.mine, view.list, view.pager, view.source);
+    box.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-lb]');
+      if (!b || b.disabled) return;
+      const a = b.dataset.lb;
+      if (a === 'prev') load(lb.page - 1);
+      else if (a === 'next') load(lb.page + 1);
+      else if (a === 'mine' && lb.me && lb.me.rank) load(Math.ceil(lb.me.rank / ((lb.list && lb.list.perPage) || 25)));
+      else load(lb.page);
+    });
+    p.append(box);
+    lb.fetchedAt = 0;
+    draw();
+    return true;
+  });
+  async function load(page) {
+    const svc = Exp.on(ID) ? Exp.ask('account:service') : undefined;
+    const st = svc && svc.state();
+    if (!svc || !st || !svc.has(ID) || lb.loading) return;
+    lb.loading = true; lb.error = '';
+    const res = await svc.api('GET', `/api/leaderboard?page=${Math.max(1, page | 0)}`);
+    lb.loading = false;
+    lb.fetchedAt = performance.now();
+    if (res.ok && Array.isArray(res.data.entries)) { lb.list = res.data; lb.page = res.data.page; if (res.data.me) lb.me = res.data.me; }
+    else lb.error = (res.data && res.data.message) || 'The leaderboard cannot be loaded right now.';
+    draw();
+  }
+  function draw() {
+    if (!view || !view.list.isConnected) return;
+    const svc = Exp.on(ID) ? Exp.ask('account:service') : undefined;
+    const st = svc ? svc.state() : { status: 'none' };
+    const local = S.life.noclips;
+    const noServer = st.status === 'none' || st.status === 'checking';
+    const noBoard = !noServer && st.status !== 'error' && svc && !svc.has(ID);
+    setHidden(view.list, noServer || noBoard || !lb.list);
+    setHidden(view.pager, noServer || noBoard || !lb.list);
+    if (noServer) {
+      setText(view.status, 'There is no leaderboard in this copy of The Hum. The leaderboard lives on the game’s server, which records each noclip once; this copy runs without one, so nothing is ranked here.');
+      setText(view.mine, `Your own count is kept in your save: ${plural(local, 'noclip')}.`);
+      setText(view.source, '');
+      return;
+    }
+    if (noBoard) { setText(view.status, 'This server does not keep a leaderboard.'); setText(view.mine, ''); setText(view.source, ''); return; }
+    if (st.status === 'error') { setText(view.status, 'The server cannot be reached, so the leaderboard cannot be shown right now.'); setText(view.mine, ''); setText(view.source, ''); return; }
+    const L = lb.list;
+    setText(view.status, lb.error || (lb.loading && !L ? 'Loading the leaderboard…' : L && !L.total ? 'No noclips have been recorded yet. The first one puts you on the board.' : ''));
+    const waiting = st.user ? pendingFor(st.user.key) : 0;
+    let mine;
+    if (st.status !== 'signed-in') mine = `Sign in to appear on the leaderboard. Your save counts ${plural(local, 'noclip')}.`;
+    else if (devMarked()) mine = 'This save was changed with developer tools, so its noclips are not ranked.';
+    else {
+      const me = lb.me;
+      mine = me && me.rank ? `You (${st.user.username}): rank ${fmt(me.rank)}, ${plural(me.noclips, 'noclip')} recorded.` : `You (${st.user.username}) are not ranked yet: complete a noclip while signed in.`;
+      const recorded = me ? me.noclips : 0;
+      if (local > recorded) mine += ` Your save counts ${plural(local, 'noclip')}; only those the server has recorded are ranked (noclips made before signing in or without a server are not).`;
+      if (waiting) mine += ` ${plural(waiting, 'noclip')} waiting to be recorded.`;
+    }
+    setText(view.mine, mine);
+    if (L) {
+      const rows = L.entries.map((e) => el('li', { class: e.you ? 'you' : '' },
+        el('span', { class: 'lb-rank', text: `#${fmt(e.rank)}` }), el('span', { class: 'lb-name', text: e.username }),
+        el('span', { class: 'lb-count', text: plural(e.noclips, 'noclip') })));
+      view.list.replaceChildren(...rows);
+      setText(view.pageText, `Page ${L.page} of ${L.pages}`);
+      setDis(view.prev, L.page <= 1 || lb.loading);
+      setDis(view.next, L.page >= L.pages || lb.loading);
+      setDis(view.mineBtn, !(lb.me && lb.me.rank) || lb.loading);
+    }
+    setText(view.source, `Source: this server’s records, ${fmt(L ? L.total : 0)} ranked ${L && L.total === 1 ? 'account' : 'accounts'}. Each noclip counts once, recorded when the server receives it; ties go to whoever reached the count first. Only usernames and counts are shown.`);
+  }
+  Exp.hook('archive:update', ID, () => {
+    if (!view || rt.archiveTab !== 'lb' || rt.tab !== 'archive') return;
+    if (!lb.loading && (!lb.fetchedAt || performance.now() - lb.fetchedAt > 30000)) { const r = Exp.ask('account:service'); if (r && r.has(ID)) load(lb.page); }
+    if (rt.uiTick % 4 === 0) draw();
+  });
+
+  // ------------------------------------------------------------- lines in other panels
+  Exp.hook('noclip:records', ID, () => {
+    const r = ready();
+    if (!r) return undefined;
+    if (devMarked()) return 'Leaderboard: this save was changed with developer tools, so its noclips are not ranked.';
+    const w = pendingFor(r.user.key);
+    const me = lb.me;
+    return `Leaderboard: ${me ? `${plural(me.noclips, 'noclip')} recorded by the server${me.rank ? `, rank ${fmt(me.rank)}` : ''}` : 'checking…'}${w ? `; ${plural(w, 'noclip')} waiting to be sent` : ''}. See Archive → Leaderboard.`;
+  });
+  Exp.hook('account:sections', ID, (add) => {
+    const n = el('small');
+    add(el('div', { class: 'setting' }, el('div', { class: 'lbl' }, 'Noclip leaderboard', n)));
+    setText(n, lb.me && lb.me.rank ? `Rank ${fmt(lb.me.rank)} with ${plural(lb.me.noclips, 'noclip')} recorded. Archive → Leaderboard.` : 'Noclips you complete while signed in are recorded and ranked. Archive → Leaderboard.' + (lb.note ? ` Last refusal: ${lb.note}` : ''));
+  });
+
+  Exp.hook('manual', ID, (add) => add('The leaderboard', [
+    'Archive → Leaderboard ranks accounts by completed noclips. It is kept by The Hum’s server: each noclip you complete while signed in is reported and counted once. Your browser never sends a total.',
+    'On a tie, whoever reached that count first ranks higher. Noclips made before you signed in, or in a copy without a server, stay in your own save’s count but are not ranked. Noclips in a save changed with developer tools are never ranked.',
+  ]));
+})();
 // <<< EXP-NOCLIP-LEADERBOARD
 //
 // ---------------------------------------------------------------------------
