@@ -269,6 +269,9 @@ const near = (a, b, eps = 1e-9) => Math.abs(a - b) <= eps * Math.max(1, Math.abs
   const free = await ev(() => {
     const H = HUM;
     const near = (a, b) => Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
+    // Only the probe below switches staffing off. The reset above returned every experiment to its default, so
+    // the experiments that answer the same hooks by default (EXP-FACILITY-INDEPENDENCE among them) are turned off.
+    for (const id of H.Exp.ids) if (id !== 'EXP-CREW-AUTOMATION') H.Exp.set(id, false);
     H.Exp.define({ id: 'EXP-PROBE-STAFF', name: 'Probe: no staffing', defaultOn: true });
     H.Exp.hook('crew:staffing', 'EXP-PROBE-STAFF', () => false);
     const D = H.derive();
