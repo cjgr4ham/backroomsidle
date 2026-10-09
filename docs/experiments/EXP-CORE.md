@@ -65,6 +65,26 @@ Behaviour is unchanged while no experiment answers these hooks. The equivalence 
   - JS slots for `EXP-FACILITY-INDEPENDENCE`, `EXP-FACILITY-SALVAGE-SCALING`, `EXP-NOCLIP-STATISTICS`, `EXP-DEJA-VU-SHOP`, `EXP-ACCOUNT-AUTH`, `EXP-ACCOUNT-UI`, `EXP-CLOUD-SAVE` and `EXP-NOCLIP-LEADERBOARD`;
   - CSS slots for those that need styles.
 
+### Third round: the server skeleton
+
+The game file is unchanged by this round, so the equivalence check still applies. The new files are:
+
+- **`server/server.js`.** It serves `index.html` with a Content-Security-Policy that allows only the page's own script, by hash. It also:
+  - sets security headers;
+  - provides the API envelope: JSON only, body limits, the cross-site guard, a per-address rate limit and `REQUIRE_HTTPS`;
+  - answers `/api/health`, which lists the features that loaded;
+  - logs one line per request, never bodies, cookies or tokens.
+- **Features.** The server loads every file in `server/features/` that is present and not listed in `HUM_DISABLE`, after the features it requires. A feature whose requirement is missing is skipped, with a log line. With no features, it only serves the game.
+- **`server/db.js`.** It opens one SQLite file through `node:sqlite`, runs transactions, and applies numbered migrations per feature, recorded in `schema_migrations`. Migrations only add. Removing a feature never drops its tables.
+- **`server/lib.js`.** JSON responses and errors, body reading, cookies, client address and in-memory rate limits.
+- **Other files:**
+  - `server/README.md`: deployment, environment variables, backups and the security model;
+  - `package.json`: Node 22.13 or newer, `npm start`, no dependencies;
+  - `.gitignore`: `data/`.
+- **Tests.**
+  - `tools/tests/server-harness.js` starts the real server on a free port with a temporary database, and includes a cookie-keeping client.
+  - `tools/tests/server-core.test.js` makes 19 checks, using probe features.
+
 ## Save-schema effects
 
 These changes are additive and the save version stays 1.
@@ -78,6 +98,7 @@ These changes are additive and the save version stays 1.
 
 - **Turn it off:** not applicable. Turn the experiments off instead (developer menu, or `?exp=none`). The scaffold then behaves exactly like the baseline.
 - **Revert its code:** revert every experiment commit first (they use its hooks), then `git revert <EXP-CORE commit>`.
+  - The server skeleton commit removes `server/`, `package.json` and `.gitignore`. The database file in `DATA_DIR` is not in the repository, and reverting never touches it.
 - **Restore the original game:** `git checkout ebfa0c6 -- index.html`, or revert as above. Saves made in between stay loadable, because the extra fields are ignored.
 - **Tests after reverting:** `node tools/functional-test.js`.
 

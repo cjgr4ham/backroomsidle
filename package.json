@@ -1,0 +1,11 @@
+{
+  "name": "the-hum",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The Hum, a Backrooms idle game in one HTML file, with an optional server for accounts, cloud saves and a noclip leaderboard.",
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "start": "node server/server.js",
+    "test": "node tools/run-tests.js"
+  }
+}

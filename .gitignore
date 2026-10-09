@@ -1,0 +1,3 @@
+# The server's database and anything else it writes at run time.
+data/
+node_modules/
