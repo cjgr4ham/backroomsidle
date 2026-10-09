@@ -34,6 +34,9 @@ function session(seed) {
   H.rt.autobuyAcc = 0;
   const rnd = Math.random;
   const checkpoints = [];
+  // Content of a switched-off experiment does not exist in the game, so the scripted player never picks it.
+  // (Picking it would only shift the random sequence; tests check separately that it cannot be bought.)
+  const exists = (list) => (H.contentOn ? list.filter(H.contentOn) : list);
   const pickOne = (list) => list[Math.floor(rnd() * list.length)];
   const deriveFields = (D) => {
     const out = {};
@@ -51,18 +54,18 @@ function session(seed) {
   for (let t = 0; t < 2400; t++) {
     const roll = rnd();
     if (roll < 0.5) { H.rt.lastSurveyReal = -1e9; H.survey(); }
-    else if (roll < 0.62) { H.setBuyMode(pickOne([1, 10, 'max'])); H.buyFacility(pickOne(H.FACILITIES).id); }
-    else if (roll < 0.7) H.buyUpgrade(pickOne(H.UPGRADES).id);
+    else if (roll < 0.62) { H.setBuyMode(pickOne([1, 10, 'max'])); H.buyFacility(pickOne(exists(H.FACILITIES)).id); }
+    else if (roll < 0.7) H.buyUpgrade(pickOne(exists(H.UPGRADES)).id);
     else if (roll < 0.74) H.hire();
     else if (roll < 0.8) H.assign(pickOne(['scavenge', 'chart', 'dowse', 'watch', 'archive']), rnd() < 0.7 ? 1 : -1);
-    else if (roll < 0.82) H.launchExpedition(pickOne(H.EXPEDITIONS).id);
-    else if (roll < 0.84) H.doResearch(pickOne(H.RESEARCH).id);
+    else if (roll < 0.82) H.launchExpedition(pickOne(exists(H.EXPEDITIONS)).id);
+    else if (roll < 0.84) H.doResearch(pickOne(exists(H.RESEARCH)).id);
     else if (roll < 0.85) H.drink(false);
     else if (roll < 0.86) H.killLights();
     else if (roll < 0.875) H.documentAnomaly();
     else if (roll < 0.877) { const r = H.S.run; r.level = Math.min(5, r.level + 1); }
     else if (roll < 0.879) H.S.run.salvage *= 3;
-    else if (roll < 0.8795) { H.S.run.level = 3; H.S.run.stats.salvage += 1e7; H.noclip(); H.buyMemory(pickOne(H.MEMORIES).id); }
+    else if (roll < 0.8795) { H.S.run.level = 3; H.S.run.stats.salvage += 1e7; H.noclip(); H.buyMemory(pickOne(exists(H.MEMORIES)).id); }
     else if (roll < 0.8805) H.catchUp(600 + rnd() * 5000);
     else if (roll < 0.8815) H.replaceState(H.sanitizeState(JSON.parse(JSON.stringify(H.S))));
     for (let i = 0; i < 5; i++) H.step(0.1, false);
