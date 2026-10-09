@@ -510,6 +510,24 @@ body.reduce-motion .vp-banner { animation: none; opacity: 1; }
 /* <<< EXP-CLICK-POWER */
 /* -- */
 /* >>> EXP-CREW-AUTOMATION */
+.ops { display: grid; gap: 8px; }
+.ops-sum, .ops-foot { margin: 0; font-size: 13px; color: var(--paper); max-width: 72ch; }
+.ops-foot { color: var(--dim); font-size: 12.5px; }
+.ops-lines { display: grid; gap: 6px; }
+.ops-line { display: grid; grid-template-columns: 9.5em minmax(60px, 1fr) 7em; gap: 4px 10px; align-items: center; font: 12px var(--font-mono); }
+.ops-line .ops-what { color: var(--dim); }
+.ops-line .ops-val { text-align: right; font-variant-numeric: tabular-nums; }
+.ops-line .ops-need { grid-column: 2 / -1; color: var(--faint); font-size: 11.5px; }
+.ops-line.short .bar > i { background: var(--warn); }
+.ops-line.short .ops-need { color: var(--warn); }
+.ops-note { color: var(--dim); }
+.ops-note.short { color: var(--warn); }
+.ops-req { display: grid; gap: 10px; }
+@media (max-width: 560px) {
+  .ops-line { grid-template-columns: 1fr auto; }
+  .ops-line .bar { grid-column: 1 / -1; grid-row: 2; }
+  .ops-line .ops-need { grid-column: 1 / -1; }
+}
 /* <<< EXP-CREW-AUTOMATION */
 /* -- */
 /* >>> EXP-UPGRADE-CATEGORIES */
@@ -4910,6 +4928,311 @@ function onKey(e) {
 // ---------------------------------------------------------------------------
 //
 // >>> EXP-CREW-AUTOMATION
+// Crew-run operation. Crew members run the machines: each one on a production job
+// keeps a number of machines of that job's kind at full speed, and a machine nobody
+// runs works at a quarter of its output. Upgrades for ordinary passive work (crew
+// upgrades and the facility-wide shift upgrades) are listed in the Crew tab, with
+// their effects unchanged. Registry entry and rollback: docs/experiments/EXP-CREW-AUTOMATION.md
+(function crewOperationsExperiment() {
+  const ID = 'EXP-CREW-AUTOMATION';
+  Exp.define({
+    id: ID,
+    name: 'Crew-run operation',
+    summary: 'Crew run the machines. Each crew member keeps several machines of their job at full speed; a machine nobody runs works at 25%. Crew and shift upgrades are listed in the Crew tab.',
+  });
+
+  const OPS = {
+    perCrew: 4,        // machines one crew member keeps running, before crew efficiency and staffing upgrades
+    unattended: 0.25,  // share of its output a machine produces when nobody runs it
+    self: 10,          // machines you keep running yourself
+  };
+  // The job that runs each kind of machine. Dampeners are passive foam and need nobody.
+  const LINES = [
+    { kind: 'salvage', job: 'scavenge', what: 'salvage machines', one: 'salvage machine' },
+    { kind: 'water', job: 'dowse', what: 'condensers', one: 'condenser' },
+    { kind: 'survey', job: 'chart', what: 'beacons', one: 'beacon' },
+    { kind: 'echo', job: 'archive', what: 'arrays', one: 'array' },
+  ];
+  const LINE = Object.fromEntries(LINES.map((l) => [l.job, l]));
+  const RUN_BY = Object.fromEntries(LINES.map((l) => [l.kind, l]));
+
+  // Upgrades for ordinary passive work, listed in the Crew tab. Their effects do not change.
+  const CREW_HOME = new Set(['radio', 'bunks', 'whistle', 'canteens', 'lanterns', 'nightwatch', 'ledger', 'shifts', 'overtime']);
+  // New upgrades: how many machines each crew member keeps running.
+  const STAFFING = [
+    { id: 'roster', name: 'Duty Roster', cost: { salvage: 3000 }, req: { crew: 5 }, staff: 1.5,
+      effect: 'Each crew member keeps 50% more machines running.',
+      flavor: 'Names, shifts and a column headed "seen today". Fill it in honestly.' },
+    { id: 'gangs', name: 'Work Gangs', cost: { salvage: 4e5 }, req: { level: 2, crew: 12 }, staff: 1.5,
+      effect: 'Each crew member keeps 50% more machines running.',
+      flavor: 'Teams of four. Always four. If a fifth turns up, nobody remembers hiring them.' },
+    { id: 'nightcrew', name: 'Night Crew', cost: { salvage: 2e7 }, req: { level: 4 }, staff: 2,
+      effect: 'Each crew member keeps twice as many machines running.',
+      flavor: 'The second shift starts when the first one stops. Nobody has seen them change over.' },
+  ];
+  for (const u of STAFFING) {
+    u.exp = ID;
+    u.cat = 'Crew';
+    UPGRADES.push(u);
+    UPG[u.id] = u;
+  }
+  const staffMult = () => STAFFING.reduce((m, u) => (has(u.id) ? m * u.staff : m), 1);
+
+  // ------------------------------------------------------------- save data
+  // S.ext.crew marks a save the experiment has converted. run.ext.crew.legacy is a
+  // one-run allowance: machines the previous shift keeps running (see convertSave()).
+  Exp.ext.state.crew = (v) => (isObj(v) ? { since: int(v.since, 1, 1, 1e6) } : undefined);
+  Exp.ext.run.crew = (v) => {
+    if (!isObj(v) || !isObj(v.legacy)) return undefined;
+    const legacy = {};
+    for (const id in v.legacy) if (FAC[id] && FAC[id].kind !== 'dampener') legacy[id] = int(v.legacy[id], 0, 0, 1e9);
+    return { legacy };
+  };
+
+  /**
+   * Converts a save made before crew ran the machines. Machines the current crew cannot
+   * run stay staffed by "the previous shift" until the next noclip, so production at the
+   * moment of conversion is exactly what it was. Crew, jobs and resources are untouched.
+   * Runs once per save: S.ext.crew records that it happened.
+   */
+  function convertSave() {
+    if (!Exp.on(ID) || S.ext.crew) return;
+    S.ext.crew = { since: S.iteration };
+    delete S.run.ext.crew;
+    const ops = derive().ops;
+    if (!ops) return;
+    const legacy = {};
+    let n = 0;
+    for (const L of LINES) for (const f of ops.lines[L.job].facs) if (f.idle > 0) { legacy[f.id] = f.idle; n += f.idle; }
+    if (!n) return;
+    S.run.ext.crew = { legacy };
+    rt.structureDirty = true;
+    log(`Crew now run the machines. ${fmt(n)} of your machines have nobody on them yet, so the previous shift keeps them running until you noclip. Assign crew in the Crew tab.`, 'terminal', 'CREW');
+  }
+  Exp.hook('afterLoad', ID, convertSave);
+  Exp.hook('flagsChanged', ID, () => { convertSave(); rt.structureDirty = true; });
+
+  // ------------------------------------------------------------- production
+  Exp.hook('derive:production', ID, (D, X) => {
+    const r = X.r, jobs = r.crew.jobs;
+    const each = OPS.perCrew * D.crewEff * staffMult();
+    const legacy = (r.ext.crew && r.ext.crew.legacy) || {};
+    let self = OPS.self;
+    const ops = { each, lines: {}, machines: 0, staffed: 0, idle: 0, selfUsed: 0, legacyUsed: 0, crewOut: { salvage: 0, water: 0, survey: 0, echo: 0 }, noCrew: { salvage: 0, water: 0, survey: 0, echo: 0 } };
+    // Output per machine with no crew at all: no scavenger bonus on salvage machines.
+    const bare = (f, fd) => (f.kind === 'salvage' ? fd.each / D.scavengeBoost : fd.each);
+    const sum = { salvage: 0, water: 0, survey: 0, echo: 0 };
+    for (const L of LINES) {
+      const crew = jobs[L.job] + (L.job === 'scavenge' ? X.phantom : 0);
+      const capacity = Math.floor(crew * each + 1e-9);
+      // The most productive machines are run first.
+      const facs = FACILITIES.filter((f) => f.kind === L.kind && count(f.id) > 0)
+        .sort((a, b) => D.fac[b.id].each - D.fac[a.id].each)
+        .map((f) => ({ id: f.id, n: count(f.id), off: D.fac[f.id].off, byCrew: 0, bySelf: 0, byLegacy: 0, idle: 0 }));
+      let room = capacity;
+      for (const m of facs) if (!m.off) { m.byCrew = Math.min(m.n, room); room -= m.byCrew; }
+      for (const m of facs) if (!m.off) { m.bySelf = Math.min(m.n - m.byCrew, self); self -= m.bySelf; }
+      for (const m of facs) if (!m.off) { m.byLegacy = Math.min(m.n - m.byCrew - m.bySelf, legacy[m.id] || 0); }
+      const line = { job: L.job, kind: L.kind, crew, capacity, spare: room, machines: 0, staffed: 0, idle: 0, facs };
+      for (const m of facs) {
+        const fd = D.fac[m.id];
+        const staffed = m.byCrew + m.bySelf + m.byLegacy;
+        // Without crew, the machines you and the previous shift run would still run; the rest would idle.
+        if (!m.off) ops.noCrew[L.kind] += bare(FAC[m.id], fd) * (m.bySelf + m.byLegacy + (m.n - m.bySelf - m.byLegacy) * OPS.unattended);
+        m.idle = m.off ? 0 : m.n - staffed;
+        fd.staffed = m.off ? 0 : staffed;
+        fd.byCrew = m.byCrew;
+        fd.total = m.off ? 0 : fd.each * (staffed + m.idle * OPS.unattended);
+        sum[L.kind] += fd.total;
+        ops.crewOut[L.kind] += m.off ? 0 : fd.each * m.byCrew;
+        line.machines += m.n;
+        line.staffed += m.off ? 0 : staffed;
+        line.idle += m.idle;
+        ops.selfUsed += m.bySelf;
+        ops.legacyUsed += m.byLegacy;
+      }
+      ops.lines[L.job] = line;
+      ops.machines += line.machines;
+      ops.staffed += line.staffed;
+      ops.idle += line.idle;
+    }
+    ops.facOut = { ...sum };
+    X.facSal = sum.salvage;
+    X.facWater = sum.water;
+    X.facSurveys = sum.survey;
+    X.facEcho = sum.echo;
+    D.ops = ops;
+  });
+
+  // ------------------------------------------------------------- where upgrades live
+  Exp.hook('upgradeHome', ID, (u) => (CREW_HOME.has(u.id) || u.exp === ID ? 'crew' : undefined));
+  const crewUpgrades = () => UPGRADES.filter((u) => upgradeAvailable(u) && upgradeHome(u) === 'crew')
+    .sort((a, b) => (upgradeCurrency(a) !== upgradeCurrency(b) ? (upgradeCurrency(a) === 'salvage' ? -1 : 1) : upgradePrice(a) - upgradePrice(b)));
+  Exp.hook('tabDot', ID, (tab) => (tab === 'crew' && crewUpgrades().some(canAffordUpgrade) ? true : undefined));
+  Exp.hook('objective', ID, () => {
+    const r = S.run;
+    // Same place in the order as the original radio objective, which named no tab.
+    if (r.rooms < 3 || !count('cart') || (!has('flashlight') && r.rooms >= 5 && r.level === 0)) return undefined;
+    if (r.flags.water && !has('radio')) return 'Requisition the Shortwave Radio in the Crew tab to bring other wanderers to you.';
+    return undefined;
+  }, 20);
+
+  // ------------------------------------------------------------- Facilities tab
+  Exp.hook('facilities:sub', ID, () => `Machines run whether you watch or not, and while you are away. Each runs at full speed with a crew member on it; one with nobody on it works at ${pct(OPS.unattended)}. Dampeners need nobody. Most machines make noise.`);
+  Exp.hook('facilities:line', ID, (f, fd, D) => {
+    const L = RUN_BY[f.kind];
+    if (!L || !D.ops) return undefined;
+    const staffed = fd.off ? '' : ` · ${fmt(fd.staffed)}/${fmt(fd.n)} running`;
+    let line;
+    if (f.kind === 'salvage') {
+      const share = D.spsNominal > 0 ? fd.total / D.spsNominal : 0;
+      line = `+${fmtRate(fd.each)} salvage/s each${staffed} · ${fmtRate(fd.total)}/s total (${pct(share)})`;
+    } else if (f.kind === 'water') line = `+${fmtRate(fd.each)} water/s each${staffed} · ${fmtRate(fd.total)}/s total`;
+    else if (f.kind === 'survey') line = `${fmtRate(fd.each)} surveys/s each${staffed} · maps ${fmtRate(fd.total * D.roomsPerSurvey)} rooms/s · +${fmtRate(fd.total * D.surveyFlat * CONFIG.survey.autoShare)} salvage/s`;
+    else line = `+${fmtRate(fd.each, 4)} Echoes/s each${staffed} · ${fmtRate(fd.total, 3)}/s total`;
+    if (f.noise > 0) line += ` · noise ${fmtRate(f.noise * D.noiseMult, 3)}/s each`;
+    return line;
+  });
+  Exp.hook('facilities:row', ID, (f, R) => {
+    if (!RUN_BY[f.kind]) return;
+    R.crewNote = el('p', { class: 'row-stats ops-note' });
+    R.stats.after(R.crewNote);
+  });
+  Exp.hook('facilities:rowUpdate', ID, (f, R, D) => {
+    if (!R.crewNote) return;
+    const on = Exp.on(ID) && D.ops;
+    setHidden(R.crewNote, !on);
+    if (!on) return;
+    const fd = D.fac[f.id], L = RUN_BY[f.kind];
+    if (fd.off || !fd.n) { setText(R.crewNote, ''); return; }
+    const idle = fd.n - fd.staffed;
+    setText(R.crewNote, idle > 0
+      ? `${plural(idle, 'machine')} with nobody on ${idle === 1 ? 'it' : 'them'}, working at 25%. ${JOB[L.job].name}s run ${L.what} (Crew tab).`
+      : `All running. ${JOB[L.job].name}s run ${L.what}.`);
+    R.crewNote.classList.toggle('short', idle > 0);
+  });
+
+  // ------------------------------------------------------------- Crew tab
+  let view = null;   // elements built for the current Crew panel
+  Exp.hook('crew:sig', ID, () => crewUpgrades().map((u) => u.id).join() + '|' + UPGRADES.filter((u) => contentOn(u) && has(u.id) && upgradeHome(u) === 'crew').length);
+  Exp.hook('crew:lockedText', ID, () => 'Requisition the Shortwave Radio above. It lets lost people find their way to you, and they run your machines.');
+  Exp.hook('crew:top', ID, (p) => {
+    view = { slips: [], lines: {}, jobNotes: {} };
+    if (!crewUnlocked()) {
+      p.append(requisitions(view.slips, true));
+      return;
+    }
+    const sum = el('p', { class: 'ops-sum' });
+    const lines = el('div', { class: 'ops-lines' });
+    for (const L of LINES) {
+      const bar = el('div', { class: 'bar' }, el('i'));
+      const label = el('span', { class: 'ops-what' });
+      const val = el('span', { class: 'ops-val num' });
+      const need = el('span', { class: 'ops-need' });
+      const row = el('div', { class: 'ops-line' }, label, bar, val, need);
+      lines.append(row);
+      view.lines[L.job] = { row, bar: bar.firstChild, label, val, need };
+    }
+    const foot = el('p', { class: 'ops-foot' });
+    view.sum = sum;
+    view.foot = foot;
+    p.append(el('section', { class: 'ops', 'aria-label': 'Operation' },
+      el('h3', { class: 'section-title', text: 'Operation' }), sum, lines, foot));
+  });
+  Exp.hook('crew:jobRow', ID, (j, ref) => {
+    if (!LINE[j.id]) return;
+    const note = el('p', { class: 'row-stats ops-note' });
+    ref.body.append(note);
+    view.jobNotes[j.id] = note;
+  });
+  Exp.hook('crew:jobLine', ID, (id, D) => {
+    const L = LINE[id];
+    if (!L || !D.ops) return undefined;
+    const ln = D.ops.lines[id];
+    const runs = `running ${fmt(ln.staffed)}/${fmt(ln.machines)} ${L.what}`;
+    if (id === 'scavenge') return `Now: ${runs}, machine salvage ×${D.scavengeBoost.toFixed(2)}, +${fmtRate(D.jobOut.scavenge)} salvage/s by hand`;
+    if (id === 'chart') return `Now: ${runs}, ${fmtRate(D.jobOut.chart)} surveys/s by hand`;
+    if (id === 'dowse') return `Now: ${runs}, +${fmtRate(D.jobOut.dowse)} water/s by hand`;
+    return `Now: ${runs}, +${fmtRate(D.jobOut.archive, 3)} Echoes/s by hand`;
+  });
+  Exp.hook('crew:jobUpdate', ID, (id, J, D) => {
+    const note = view && view.jobNotes[id];
+    if (!note || !D.ops) return;
+    setText(note, needText(D, id));
+    note.classList.toggle('short', D.ops.lines[id].idle > 0);
+  });
+  Exp.hook('crew:afterRows', ID, (p) => {
+    p.append(requisitions(view.slips, false));
+    const owned = UPGRADES.filter((u) => contentOn(u) && has(u.id) && upgradeHome(u) === 'crew');
+    if (owned.length) {
+      const list = el('ul');
+      for (const u of owned) list.append(el('li', { text: `${u.name}: ${u.effect}` }));
+      p.append(el('details', { class: 'installed' }, el('summary', { text: `Crew requisitions installed (${owned.length})` }), list));
+    }
+  });
+  Exp.hook('crew:update', ID, (D) => {
+    if (!view) return;
+    Panels.upgrades.updateSlips(view.slips);
+    if (!view.sum || !D.ops) return;
+    const o = D.ops;
+    setText(view.sum, `Your crew run ${fmt(o.staffed - o.selfUsed - o.legacyUsed)} of ${plural(o.machines, 'machine')}, up to ${fmtEach(o.each)} each. Crew work makes ${pct(crewShare(D))} of your salvage.`);
+    for (const L of LINES) {
+      const v = view.lines[L.job], ln = o.lines[L.job];
+      setHidden(v.row, ln.machines === 0);
+      if (!ln.machines) continue;
+      setText(v.label, `${L.what[0].toUpperCase()}${L.what.slice(1)}`);
+      setWidth(v.bar, ln.staffed / ln.machines);
+      setText(v.val, `${fmt(ln.staffed)}/${fmt(ln.machines)}`);
+      setText(v.need, ln.idle > 0 ? `${JOB[L.job].name}s · ${fmt(ln.idle)} idle` : `${JOB[L.job].name}s · all running`);
+      v.row.classList.toggle('short', ln.idle > 0);
+    }
+    const parts = [`A machine nobody runs works at ${pct(OPS.unattended)}. You run ${o.selfUsed < OPS.self ? `${fmt(o.selfUsed)} (you can run ${OPS.self})` : fmt(OPS.self)} yourself.`];
+    if (o.legacyUsed > 0) parts.push(`The previous shift keeps ${plural(o.legacyUsed, 'machine')} running until you noclip.`);
+    setText(view.foot, parts.join(' '));
+  });
+
+  const fmtEach = (x) => (Math.abs(x - Math.round(x)) < 1e-9 ? fmt(Math.round(x)) : x.toFixed(1));
+  /**
+   * Share of passive salvage per second that crew work adds: the operation as it is, compared
+   * with the same machines and no crew at all (no scavenger bonus, no hand work, and every
+   * machine you and the previous shift do not run at 25%). Surveys by hand are not counted.
+   */
+  function crewShare(D) {
+    const o = D.ops;
+    const without = o.noCrew.salvage + o.noCrew.survey * D.surveyFlat * CONFIG.survey.autoShare;
+    return D.spsNominal > 0 ? clamp(1 - without / D.spsNominal, 0, 1) : 0;
+  }
+  /** "2 more Cartographers would run every beacon", or what the spare crew could take on. */
+  function needText(D, job) {
+    const L = LINE[job], ln = D.ops.lines[job];
+    if (!ln.machines) return `No ${L.what} yet.`;
+    if (ln.idle > 0) {
+      const more = Math.ceil((ln.idle - 1e-9) / D.ops.each);
+      return `${plural(ln.idle, L.one)} idle. ${more} more ${more === 1 ? JOB[job].name : JOB[job].name + 's'} would run ${ln.idle === 1 ? 'it' : 'them all'}.`;
+    }
+    return ln.spare > 0 ? `All running. Room for ${plural(ln.spare, `more ${L.one}`, `more ${L.what}`)}.` : 'All running.';
+  }
+
+  function requisitions(refs, locked) {
+    const list = crewUpgrades().filter((u) => !locked || u.id === 'radio');
+    const box = el('section', { class: 'ops-req', 'aria-label': 'Crew requisitions' }, el('h3', { class: 'section-title', text: 'Crew requisitions' }));
+    if (!list.length) {
+      const later = UPGRADES.filter((u) => contentOn(u) && !has(u.id) && !reqMet(u.req) && upgradeHome(u) === 'crew').length;
+      box.append(el('p', { class: 'panel-sub', text: later ? `${plural(later, 'more requisition')} for the crew will become available as the operation grows.` : 'Every crew requisition is installed.' }));
+      return box;
+    }
+    const grid = el('div', { class: 'slips' });
+    for (const u of list) grid.append(Panels.upgrades.slip(u, refs));
+    box.append(grid);
+    return box;
+  }
+
+  Exp.hook('manual', ID, (add) => add('Crew run the machines', [
+    `Every salvage machine, condenser, beacon and array needs someone on it to run at full speed. A machine nobody runs works at ${pct(OPS.unattended)}. Dampeners are passive and need nobody.`,
+    `Scavengers run salvage machines, Dowsers run condensers, Cartographers run beacons and Archivists run arrays. Each crew member keeps up to ${OPS.perCrew} machines running, multiplied by crew efficiency and the staffing requisitions. Crew take the most productive machines first. You keep ${OPS.self} machines running yourself.`,
+    'The Crew tab shows how many machines each job runs and how many more crew would run them all. Crew requisitions, including the shift upgrades that raise every machine’s salvage, are listed there.',
+  ]));
+})();
 // <<< EXP-CREW-AUTOMATION
 //
 // ---------------------------------------------------------------------------
