@@ -52,11 +52,13 @@
   - logs without bodies, cookies or tokens.
 
 **In the browser (`EXP-ACCOUNT-AUTH` script slot).**
-- **Startup.** Only when the page was served over `http(s)`, it:
+- **Startup.** Only when the page was served by The Hum's server, it:
   - asks `/api/health` whether this server has accounts;
   - then asks `/api/auth/session`.
   
-  A valid session is restored at once, with **no sign-in screen after a refresh**. Opened from disk, nothing is requested and accounts are unavailable.
+  A valid session is restored at once, with **no sign-in screen after a refresh**.
+  - The server marks the pages it serves with `<meta name="the-hum-server">`.
+  - A copy without that mark has no server and is never probed. This covers a file, the published artifact and any other static host.
 - **The `account:service` hook** offers the rest of the game: `state()`, `register()`, `login()`, `logout()`, `api()`, `retry()` and `has(feature)`.
 - **Notices to other experiments:**
   - every change of state is announced through `account:changed`;
