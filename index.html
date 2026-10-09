@@ -568,6 +568,29 @@ body.reduce-motion .vp-banner { animation: none; opacity: 1; }
 /* <<< EXP-ATTENTION-BALANCE */
 /* -- */
 /* >>> EXP-DEV-MENU */
+.dev-status { margin: 0; padding: 8px 10px; border: 1px dashed var(--warn); color: var(--paper); font-size: 13px; }
+.dev-sec { display: grid; gap: 8px; }
+.dev-row { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: end; }
+.dev-field { display: grid; gap: 2px; font: 11px var(--font-mono); color: var(--dim); }
+.dev-field select, .dev-num { min-width: 0; max-width: 100%; padding: 5px 6px; background: var(--ink-2); color: var(--paper); border: 1px solid var(--line-2); font: 13px var(--font-mono); }
+.dev-num { width: 9em; }
+.dev-toggle[aria-pressed="true"] { border-color: var(--warn); color: var(--warn); }
+.dev-prod { margin: 0; display: grid; gap: 4px; }
+.dev-prod > div { display: grid; grid-template-columns: 11em minmax(0, 1fr); gap: 2px 10px; }
+.dev-prod dt { font: 11px var(--font-mono); color: var(--dim); }
+.dev-prod dd { margin: 0; font: 12px/1.4 var(--font-mono); color: var(--paper); overflow-wrap: anywhere; }
+.dev-exps { display: grid; border-top: 1px solid var(--line); }
+.dev-exp { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.dev-exp p { margin: 2px 0; font-size: 12.5px; color: var(--dim); max-width: 70ch; }
+.dev-exp code { font: 11px var(--font-mono); color: var(--faint); }
+.dev-exp small { font: 11px var(--font-mono); color: var(--faint); }
+.dev-exp.off b { color: var(--dim); }
+.dev-exp .btn[aria-pressed="true"] { border-color: var(--ok); color: var(--ok); }
+.dev-badge { align-self: center; }
+.dev-inf { margin-left: 4px; color: var(--warn); font-weight: 700; }
+@media (max-width: 560px) {
+  .dev-prod > div { grid-template-columns: 1fr; }
+}
 /* <<< EXP-DEV-MENU */
 /* -- */
 </style>
@@ -5692,6 +5715,307 @@ function onKey(e) {
 // ---------------------------------------------------------------------------
 //
 // >>> EXP-DEV-MENU
+// Developer menu. A testing convenience, not a security boundary: anyone with the
+// page can turn it on. It is off until you opt in (Settings → Developer tools, or
+// #dev in the address for one visit). Its settings live in this browser under
+// `the-hum.dev`, never in the save. Saves it changes are marked in `ext.dev`.
+// Registry entry and rollback: docs/experiments/EXP-DEV-MENU.md
+(function developerMenuExperiment() {
+  const ID = 'EXP-DEV-MENU';
+  Exp.define({
+    id: ID,
+    name: 'Developer menu',
+    summary: 'Opt-in testing tools: infinite resources, resource injection, level, research, requisition and crew controls, meters and events, live production figures, and the experiment switches.',
+  });
+
+  const KEY = 'the-hum.dev';
+  const CURS = [['salvage', 'Salvage'], ['aw', 'Almond water'], ['echoes', 'Echoes'], ['dv', 'Déjà Vu']];
+  const dev = { enabled: false, session: false, infinite: { salvage: false, aw: false, echoes: false, dv: false } };
+  let allowed = false;     // the player agreed, this page load, that developer actions change the save
+  let freeNow = false;     // a single "install for free" is in progress
+  try {
+    const raw = JSON.parse(Store.get(KEY) || '{}');
+    if (isObj(raw)) {
+      dev.enabled = raw.enabled === true;
+      if (isObj(raw.infinite)) for (const [c] of CURS) dev.infinite[c] = raw.infinite[c] === true;
+    }
+  } catch (e) { /* unreadable developer settings: start with everything off */ }
+  if (/(^|[#,&])dev($|[,&])/.test(window.location.hash || '')) dev.session = true;
+
+  const active = () => Exp.on(ID) && (dev.enabled || dev.session);
+  const infinite = (cur) => active() && dev.infinite[cur];
+  const persist = () => Store.set(KEY, JSON.stringify({ enabled: dev.enabled, infinite: dev.infinite }));
+
+  // ------------------------------------------------------------- the mark on changed saves
+  Exp.ext.state.dev = (v) => (isObj(v) ? {
+    actions: int(v.actions, 0, 0, 1e9), first: num(v.first, 0, 0, 8.64e15), last: num(v.last, 0, 0, 8.64e15),
+    kinds: Array.isArray(v.kinds) ? v.kinds.filter((k) => typeof k === 'string').slice(0, 24).map((k) => k.slice(0, 40)) : [],
+  } : undefined);
+  function mark(kind) {
+    const now = Date.now();
+    const m = S.ext.dev || (S.ext.dev = { actions: 0, first: now, last: now, kinds: [] });
+    m.actions++;
+    m.last = now;
+    if (!m.kinds.includes(kind) && m.kinds.length < 24) m.kinds.push(kind);
+  }
+  const markText = () => {
+    const m = S.ext.dev;
+    if (!m || !m.actions) return 'This save has not been changed with developer tools.';
+    return `This save has been changed with developer tools: ${plural(m.actions, 'action')} since ${new Date(m.first).toLocaleString()} (${m.kinds.join(', ')}).`;
+  };
+
+  // ------------------------------------------------------------- infinite resources
+  // Purchases go through the normal code; only the deduction is skipped. Balances are never raised.
+  Exp.hook('wallet:budget', ID, (cur) => (freeNow || infinite(cur) ? Infinity : undefined));
+  Exp.hook('wallet:free', ID, (cur) => {
+    if (!(freeNow || infinite(cur))) return undefined;
+    mark(freeNow ? 'free requisition' : `infinite ${cur}`);
+    return true;
+  });
+
+  /** Runs a change to the save, after a one-time confirmation for this page load. `kind` labels the mark; null leaves none. */
+  function change(kind, fn) {
+    const go = () => { allowed = true; fn(); if (kind) mark(kind); rt.structureDirty = true; UI.update(true); };
+    if (allowed) { go(); return; }
+    UI.modal({
+      title: 'Change this save with developer tools?',
+      body: [
+        el('p', { text: 'Developer actions change your save for real: resources, levels, research and the rest stay changed after you turn the tools off. The save will be marked as changed with developer tools.' }),
+        el('p', { class: 'muted', text: 'To keep a clean copy, export your save from Settings first. You will not be asked again until you reload.' }),
+      ],
+      actions: [{ label: 'Cancel' }, { label: 'Change this save', cls: 'primary', onClick: go }],
+    });
+  }
+
+  // ------------------------------------------------------------- the Dev tab
+  TABS.push({ id: 'dev', label: 'Dev', key: '9', unlocked: () => true, visible: () => active() });
+  const form = { amount: 1000, level: 0, rooms: 500, research: '', upgrade: '', fac: '', facN: 10, crew: 5, attention: 50, sanity: 50, minutes: 60 };
+  let view = null;
+
+  const field = (label, key, attrs) => {
+    const input = el('input', { type: 'number', class: 'dev-num', 'aria-label': label, ...attrs });
+    input.value = String(form[key]);
+    input.addEventListener('input', () => { const v = Number(input.value); if (Number.isFinite(v)) form[key] = v; });
+    return el('label', { class: 'dev-field' }, el('span', { text: label }), input);
+  };
+  const select = (label, key, options) => {
+    const s = el('select', { 'aria-label': label });
+    for (const [v, t] of options) s.append(el('option', { value: v, text: t }));
+    if (options.some(([v]) => v === form[key])) s.value = form[key]; else if (options.length) form[key] = s.value = options[0][0];
+    s.addEventListener('change', () => { form[key] = s.value; });
+    return el('label', { class: 'dev-field' }, el('span', { text: label }), s);
+  };
+  const button = (text, onClick, cls) => {
+    const b = el('button', { type: 'button', class: 'btn small' + (cls ? ' ' + cls : '') }, text);
+    b.addEventListener('click', onClick);
+    return b;
+  };
+  const section = (title, note, ...rows) => el('section', { class: 'dev-sec', 'aria-label': title },
+    el('h3', { class: 'section-title', text: title }), note ? el('p', { class: 'panel-sub', text: note }) : null, ...rows);
+  const row = (...kids) => el('div', { class: 'dev-row' }, ...kids);
+  const amt = () => Math.max(0, Math.abs(Number(form.amount) || 0));
+
+  Panels.dev = {
+    sig: () => [active(), S.run.level, Exp.sig(), Object.keys(S.research).length, Object.keys(S.run.upgrades).length,
+      FACILITIES.filter(facVisible).length, CURS.map(([c]) => dev.infinite[c]).join()].join('|'),
+    build(p) {
+      view = { prod: [], status: null };
+      p.append(el('div', { class: 'panel-head' }, el('div', null,
+        el('h2', { text: 'Developer tools' }),
+        el('p', { class: 'panel-sub', text: 'For testing. Each action says what it changes. A browser-side convenience, not a lock: anyone with the page can turn it on.' }))));
+      view.status = el('p', { class: 'dev-status' });
+      p.append(view.status);
+
+      // Infinite resources
+      const toggles = CURS.map(([cur, name]) => {
+        const b = el('button', { type: 'button', class: 'btn small dev-toggle', 'aria-pressed': String(dev.infinite[cur]) }, `${name}: ${dev.infinite[cur] ? 'infinite' : 'normal'}`);
+        b.addEventListener('click', () => {
+          const turnOn = !dev.infinite[cur];
+          const apply = () => { dev.infinite[cur] = turnOn; persist(); rt.structureDirty = true; UI.update(true); };
+          if (turnOn && !allowed) change(null, apply); else apply();   // purchases mark the save, not the switch
+        });
+        return b;
+      });
+      p.append(section('Infinite resources',
+        'Purchases go through without spending: prices still show, requirements still apply and the normal purchase code runs. Balances are not raised, and turning this off takes nothing away. Déjà Vu buys permanent Memories. With MAX selected, Facilities buys up to 10,000 at once.',
+        row(...toggles)));
+
+      // Resources
+      const res = [];
+      for (const [cur, name] of CURS) {
+        res.push(button(`+ ${name}`, () => change(`add ${cur}`, () => addRes(cur, amt()))));
+        res.push(button(`− ${name}`, () => change(`remove ${cur}`, () => addRes(cur, -amt()))));
+      }
+      p.append(section('Add or remove resources',
+        'Changes what you hold. Added salvage does not count toward Déjà Vu; added Déjà Vu is spendable but not "earned", so it does not raise the production bonus.',
+        row(field('Amount', 'amount', { min: 0, step: 'any' })), row(...res)));
+
+      // Levels and rooms
+      form.level = String(Math.min(LEVELS.length - 1, S.run.level + 1));
+      p.append(section('Levels and rooms', 'Uses the game’s own level change and room mapping, with their messages and unlocks.',
+        row(select('Level', 'level', LEVELS.map((L, i) => [String(i), `Level ${i}: ${L.name}`])),
+          button('Go to level', () => change('level', () => { const i = clamp(Math.floor(Number(form.level)), 0, LEVELS.length - 1); if (i !== S.run.level) enterLevel(i); })),
+          button('Find the exit', () => change('exit', () => { if (S.run.level < LEVELS.length - 1) enterLevel(LEVELS.length - 1); if (!S.run.exitFound) findExit(); }))),
+        row(field('Rooms', 'rooms', { min: 0, step: 1 }),
+          button('Map rooms', () => change('rooms', () => addRooms(Math.max(0, Math.floor(Number(form.rooms) || 0))))))));
+
+      // Research, requisitions, machines
+      const resOpts = RESEARCH.filter((R) => R.repeatable || !researched(R.id)).map((R) => [R.id, R.repeatable ? `${R.name} (rank ${S.deepTheory + 1})` : R.name]);
+      const upgOpts = UPGRADES.filter((u) => upgradeAvailable(u) && upgradeHome(u) !== 'none').map((u) => [u.id, `${u.name} (${u.cat})`]);
+      const facOpts = FACILITIES.filter(facVisible).map((f) => [f.id, f.name]);
+      p.append(section('Research, requisitions and machines',
+        'Completed research is kept across noclips, like earned research. Free requisitions use the normal purchase, so their requirements still apply; meet them with the controls above.',
+        resOpts.length ? row(select('Research', 'research', resOpts),
+          button('Complete', () => change('research', () => completeResearch(form.research))),
+          button('Complete all', () => change('research', () => { for (const R of RESEARCH) if (!R.repeatable) S.research[R.id] = true; }))) : el('p', { class: 'panel-sub', text: 'All research is complete.' }),
+        upgOpts.length ? row(select('Requisition', 'upgrade', upgOpts),
+          button('Install for free', () => change('free requisition', () => installFree(form.upgrade)))) : el('p', { class: 'panel-sub', text: 'No requisition can be installed right now.' }),
+        facOpts.length ? row(select('Machine', 'fac', facOpts), field('Count', 'facN', { min: 1, step: 1 }),
+          button('Add machines', () => change('machines', () => { const f = FAC[form.fac]; if (f && facVisible(f)) S.run.facilities[f.id] = count(f.id) + Math.max(0, Math.floor(Number(form.facN) || 0)); }))) : null));
+
+      // Crew
+      p.append(section('Crew', 'Wanderers arrive idle; assign them in the Crew tab. Installs the Shortwave Radio if needed.',
+        row(field('Wanderers', 'crew', { min: 1, step: 1 }),
+          button('Add wanderers', () => change('crew', () => { S.run.upgrades.radio = true; S.run.crew.total += Math.max(0, Math.floor(Number(form.crew) || 0)); })))));
+
+      // Meters, events, time
+      p.append(section('Meters, events and time', 'Events are the game’s own: an anomaly to document, an incident with its warning, a blackout. Time away runs the offline simulation and shows its report.',
+        row(field('Attention', 'attention', { min: 0, max: 100, step: 1 }),
+          button('Set attention', () => change('attention', () => { const v = clamp(Number(form.attention) || 0, 0, 100); S.run.attention = v; S.run.peakAttention = Math.max(S.run.peakAttention, v); })),
+          field('Sanity', 'sanity', { min: 0, max: 100, step: 1 }),
+          button('Set sanity', () => change('sanity', () => { const v = clamp(Number(form.sanity) || 0, 0, 100); S.run.sanity = v; S.run.minSanity = Math.min(S.run.minSanity, v); }))),
+        row(button('Spawn an anomaly', () => change('event', () => { if (!rt.anomaly) spawnAnomaly(); })),
+          button('Schedule an incident', () => change('event', () => { if (!S.run.pendingIncident) scheduleIncident(); })),
+          button('Black out', () => change('event', () => { if (!blackedOut()) blackout(); })),
+          button('Clear incident and blackout', () => change('event', () => { S.run.pendingIncident = null; S.run.blackoutUntil = 0; Sound.setWarning(false); })),
+          button('Recharge Kill the Lights', () => change('event', () => { S.run.lightsReadyAt = 0; }))),
+        row(field('Minutes away', 'minutes', { min: 1, step: 1 }),
+          button('Simulate time away', () => change('time', () => { const rep = catchUp(Math.max(1, Number(form.minutes) || 1) * 60); if (rep) UI.offlineReport(rep); })))));
+
+      // Live production
+      const dl = el('dl', { class: 'dev-prod' });
+      for (const [label, value] of PROD) {
+        const dd = el('dd', { class: 'num' });
+        dl.append(el('div', null, el('dt', { text: label }), dd));
+        view.prod.push({ dd, value });
+      }
+      p.append(section('Production now', 'Read live from the same calculation the simulation uses (derive()).', dl));
+
+      // Experiments
+      const list = el('div', { class: 'dev-exps' });
+      for (const id of Exp.ids) {
+        const d = Exp.defs[id], on = Exp.on(id);
+        const src = id in Exp.session ? 'this page load (address)' : id in Exp.overrides ? 'set here' : 'default';
+        const b = el('button', { type: 'button', class: 'btn small', 'aria-pressed': String(on), 'aria-label': `${d.name}: ${on ? 'on' : 'off'}. Turn ${on ? 'off' : 'on'}` }, on ? 'On' : 'Off');
+        b.addEventListener('click', () => {
+          const flip = () => { Exp.set(id, !on); rt.structureDirty = true; UI.update(true); };
+          if (id === ID && on) {
+            UI.modal({
+              title: 'Turn off the developer menu?',
+              body: [el('p', { text: 'This tab and every developer tool disappear, including infinite resources. To bring it back, open the game with ?exp=EXP-DEV-MENU in the address and turn it on here.' })],
+              actions: [{ label: 'Cancel' }, { label: 'Turn off', cls: 'primary', onClick: flip }],
+            });
+          } else flip();
+        });
+        list.append(el('div', { class: 'dev-exp' + (on ? '' : ' off') },
+          el('div', null, el('b', { text: d.name }), el('code', { text: ` ${id}` }), el('p', { text: d.summary || '' }), el('small', { text: `${on ? 'On' : 'Off'} · ${src}` })),
+          b));
+      }
+      p.append(section('Experiments',
+        'Switching an experiment off restores its original behaviour at once and keeps its saved data for when it comes back. It is not the same as reverting its code (git revert, see docs/experiments/README.md) or restoring an older save (Settings → Import). Choices here are stored in this browser only.',
+        list, row(button('Reset all experiments to their defaults', () => { Exp.reset(); rt.structureDirty = true; UI.update(true); }))));
+
+      p.append(section('Developer settings', null,
+        row(button('Turn off infinite resources', () => { for (const [c] of CURS) dev.infinite[c] = false; persist(); rt.structureDirty = true; UI.update(true); }),
+          button('Turn off developer tools', () => setEnabled(false)))));
+      this.update();
+    },
+    update() {
+      if (!view) return;
+      const on = CURS.filter(([c]) => dev.infinite[c]).map(([, n]) => n);
+      setText(view.status, `Developer tools are on${dev.session && !dev.enabled ? ' for this visit (#dev)' : ''}. Infinite: ${on.length ? on.join(', ') : 'none'}. ${markText()}`);
+      const D = rt.D || derive();
+      for (const x of view.prod) setText(x.dd, x.value(D));
+    },
+  };
+
+  const PROD = [
+    ['Salvage/s', (D) => `${fmtRate(D.sps)} = machines ${fmtRate(D.facSalvage)} + crew ${fmtRate(D.crewSalvage)} + automatic ${fmtRate(D.autoSalvage)}`],
+    ['Per survey by hand', (D) => `${fmtRate(D.manualSalvage)} salvage · ${fmtRooms(D.roomsPerSurvey)} rooms · survey multiplier ×${fmtRate(D.surveyMult)}`],
+    ['Facility multiplier', (D) => `×${fmtRate(D.facMult)} (scavenger bonus ×${D.scavengeBoost.toFixed(2)}, Déjà Vu ×${D.dvMult.toFixed(2)}, achievements ×${D.achMult.toFixed(2)}, Recurrence ×${D.recur.toFixed(2)})`],
+    ['Water/s · Echoes/s', (D) => `${fmtRate(D.aws)} · ${fmtRate(D.eps, 4)} (attention ×${D.attnEcho.toFixed(2)})`],
+    ['Automatic surveys', (D) => `${fmtRate(D.autoSurveys, 3)}/s · ${fmtRate(D.roomsPerSec)} rooms/s`],
+    ['Crew', (D) => `efficiency ×${D.crewEff.toFixed(2)}${D.ops ? ` · running ${fmt(D.ops.staffed)}/${fmt(D.ops.machines)} machines, ${fmtRate(D.ops.each)} each` : ''}`],
+    ['Noise · absorption', (D) => `${fmtRate(D.noise, 3)}${D.noiseSteps != null ? ` (footsteps ${fmtRate(D.noiseSteps, 3)})` : ''} · ${fmtRate(D.absorb)} → attention heads to ${fmtRate(D.attnTarget)}`],
+    ['Sanity', (D) => `${fmtRate(D.sanityNet, 3)}/s (recover ${fmtRate(D.sanityRegen, 3)}, drain ${fmtRate(D.sanityDrain, 3)}) · ${D.sanityBand.name}`],
+    ['Déjà Vu on noclip', () => `${fmt(dvPreview())} (run salvage ${fmt(S.run.stats.salvage)})`],
+  ];
+
+  function addRes(cur, n) {
+    const r = S.run;
+    if (cur === 'salvage') r.salvage = clamp(r.salvage + n, 0, MAX_VALUE);
+    else if (cur === 'aw') r.aw = clamp(r.aw + n, 0, MAX_VALUE);
+    else if (cur === 'echoes') { S.echoes = clamp(S.echoes + n, 0, MAX_VALUE); if (n > 0) S.seen.echoes = true; }
+    else if (cur === 'dv') S.dv = clamp(S.dv + n, 0, MAX_VALUE);
+  }
+  function completeResearch(id) {
+    const R = RES[id];
+    if (!R) return;
+    if (R.repeatable) S.deepTheory++;
+    else S.research[id] = true;
+  }
+  function installFree(id) {
+    freeNow = true;
+    try { buyUpgrade(id); } finally { freeNow = false; }
+  }
+  function setEnabled(on) {
+    dev.enabled = on;
+    if (!on) { dev.session = false; for (const [c] of CURS) dev.infinite[c] = false; }
+    persist();
+    if (!on && rt.tab === 'dev') UI.selectTab('settings');
+    rt.structureDirty = true;
+    UI.update(true);
+  }
+
+  // ------------------------------------------------------------- Settings entry point
+  Exp.hook('settings:sections', ID, (add) => {
+    const input = el('input', { type: 'checkbox', id: 'set-dev' });
+    input.checked = active();
+    input.addEventListener('change', () => setEnabled(input.checked));
+    add(el('h3', { class: 'section-title', text: 'Developer tools' }));
+    add(el('div', { class: 'setting' },
+      el('label', { for: 'set-dev' }, 'Enable developer tools',
+        el('small', { text: 'For testing balance and features: infinite resources, resource and level controls, and the experiment switches, in a Dev tab (key 9). Stored in this browser only, not in your save. You can also add #dev to the address for one visit.' })),
+      input));
+    add(el('p', { class: 'panel-sub', text: markText() }));
+  });
+  // Leave the Dev tab if the tools are switched off while it is open.
+  Exp.hook('flagsChanged', ID, () => { if (!active() && rt.tab === 'dev' && UI.built) UI.selectTab('settings'); });
+
+  // ------------------------------------------------------------- always-visible markers
+  let badge = null;
+  const inf = {};
+  Exp.hook('ui:init', ID, () => {
+    badge = el('span', { class: 'chip warn dev-badge', hidden: true, title: 'Developer tools are on' }, 'DEV');
+    const sys = document.querySelector('.sysctl');
+    if (sys) sys.prepend(badge);
+    const map = { salvage: 'salvage', aw: 'aw', echoes: 'echo', dv: 'dv' };
+    for (const [cur] of CURS) {
+      const R = UI.res[map[cur]];
+      if (!R) continue;
+      inf[cur] = el('span', { class: 'dev-inf', hidden: true, title: 'Infinite (developer tools)' }, '∞');
+      R.chip.querySelector('.res-label').append(inf[cur]);
+    }
+  });
+  Exp.hook('ui:update', ID, () => {
+    if (badge) setHidden(badge, !active());
+    for (const cur in inf) setHidden(inf[cur], !infinite(cur));
+  });
+
+  Exp.hook('manual', ID, (add) => add('Developer tools', [
+    'Settings → Developer tools (or #dev in the address) opens a Dev tab for testing: infinite resources, adding resources, levels, research, requisitions, crew, meters, events, simulated time away, live production figures and the experiment switches. It is off by default and stored in this browser only. Saves it changes are marked as changed with developer tools.',
+  ]));
+})();
 // <<< EXP-DEV-MENU
 //
 // ---------------------------------------------------------------------------
