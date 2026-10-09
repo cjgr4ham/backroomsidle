@@ -138,7 +138,8 @@ const CURVES = { cart: 1.12, bench: 1.13, vat: 1.14, foundry: 1.15, boiler: 1.16
   });
   c.check('a noclip resets facilities and their prices to the first unit, as before', nc.fac === '{}' && nc.price === 15 && nc.rows === 1, nc);
 
-  // ------------------------------------------------------------- developer infinite salvage
+  // ------------------------------------------------------------- developer infinite salvage (when the developer menu is in this build)
+  if (await ev(() => !!HUM.Exp.defs['EXP-DEV-MENU'])) {
   await ev(() => { localStorage.setItem('the-hum.dev', JSON.stringify({ enabled: true, infinite: { salvage: true } })); });
   await g.reload();
   const inf = await ev(() => {
@@ -150,6 +151,7 @@ const CURVES = { cart: 1.12, bench: 1.13, vat: 1.14, foundry: 1.15, boiler: 1.16
   });
   c.check('developer infinite salvage buys facilities without spending, at the normal rising prices', inf.ok && inf.carts === 10 && inf.salvage === 0 && inf.next > 15 * Math.pow(1.12, 10) * 10, inf);
   await ev(() => { localStorage.removeItem('the-hum.dev'); });
+  } else console.log('  (developer infinite salvage not checked: EXP-DEV-MENU is not in this build)');
 
   // ------------------------------------------------------------- switching it off
   const off = await ev((id) => {
