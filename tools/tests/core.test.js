@@ -79,8 +79,10 @@ const { open, Checker } = require('./harness');
   c.check('wallet reads every currency', wallet.bal.join() === '50,7,3,2', wallet);
   c.check('wallet compares and pays exactly', wallet.can.join() === 'true,false' && wallet.after.join() === '40,2,2,0', wallet);
 
-  // Hook points added for the facilities, Déjà Vu, Noclip and account experiments.
-  const hooks = await ev(() => {
+  // Hook points added for the facilities, Déjà Vu, Noclip and account experiments. Checked with every other
+  // experiment off, so the probe below is the only one answering them.
+  const h = await open('?exp=none');
+  const hooks = await h.ev(() => {
     const E = HUM.Exp, out = {};
     HUM.replaceState(HUM.sanitizeState({ v: 1 })); HUM.rt.saveBlocked = true;
     const cart = HUM.FAC.cart;
@@ -114,7 +116,7 @@ const { open, Checker } = require('./harness');
     hooks.noclipped === true && hooks.again === false && JSON.stringify(hooks.calls.map((x) => x[0])) === '["newRun","saved","done"]', hooks.calls);
   c.check('the noclip hooks describe the iteration that ended', JSON.stringify(hooks.calls[0]) === JSON.stringify(['newRun', 1, 2, 0, 7]) && JSON.stringify(hooks.calls[2]) === JSON.stringify(['done', 1, 3, false]), hooks.calls);
 
-  const panels = await ev(() => {
+  const panels = await h.ev(() => {
     const E = HUM.Exp, out = {};
     E.hook('noclip:subtabs', 'EXP-HOOKS', (subs) => subs.push(['probe', 'Probe']));
     E.hook('noclip:build', 'EXP-HOOKS', (tab, p) => { if (tab !== 'probe') return undefined; p.append(Object.assign(document.createElement('p'), { id: 'probeBody', textContent: 'probe' })); return true; });
@@ -154,7 +156,8 @@ const { open, Checker } = require('./harness');
   c.check('an experiment can lay out the facility rows, which core still updates', panels.layout && panels.updates >= 1 && panels.countText === '×0', panels);
   c.check('experiments can add notes to the erase confirmation', panels.resetNote);
   c.check('with the experiment off the Noclip panel is the original one', panels.offBar === 0 && panels.offMem, panels);
+  await h.browser.close();
 
-  c.finish(g.errors);
+  c.finish(g.errors.concat(h.errors));
   await g.browser.close();
 })();
