@@ -31,7 +31,9 @@ let page = { mtime: 0, body: null, csp: '' };
 function loadPage() {
   const st = fs.statSync(PAGE);
   if (st.mtimeMs === page.mtime && page.body) return page;
-  const body = fs.readFileSync(PAGE);
+  // The page is marked as served by this server, so the game knows a server is here. A copy opened from disk
+  // or a static host has no mark and never probes for one. The mark is outside any script: hashes are unchanged.
+  const body = Buffer.from(fs.readFileSync(PAGE, 'utf8').replace('<head>', '<head>\n<meta name="the-hum-server" content="1">'), 'utf8');
   // Only the page's own inline scripts may run: each is allowed by its SHA-256 hash.
   const hashes = [];
   const re = /<script>([\s\S]*?)<\/script>/g;

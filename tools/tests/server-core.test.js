@@ -42,7 +42,7 @@ try { playwright = require('playwright'); } catch (e) { playwright = require('/o
   const hash = crypto.createHash('sha256').update(script, 'utf8').digest('base64');
   const pg = await fetch(s.url + '/');
   const csp = pg.headers.get('content-security-policy') || '';
-  c.check('the game page is served as HTML, exactly as in the repository', pg.status === 200 && /text\/html/.test(pg.headers.get('content-type')) && (await pg.text()) === html, pg.status);
+  c.check('the game page is served as HTML, exactly as in the repository plus the server’s mark', pg.status === 200 && /text\/html/.test(pg.headers.get('content-type')) && (await pg.text()) === html.replace('<head>', '<head>\n<meta name="the-hum-server" content="1">'), pg.status);
   c.check('its Content-Security-Policy allows only the page’s own script, by hash, and no other origin',
     csp.includes(`script-src 'sha256-${hash}'`) && csp.includes("default-src 'none'") && csp.includes("connect-src 'self'") && csp.includes("frame-ancestors 'none'") && !/unsafe-eval|\*/.test(csp), csp);
   c.check('security headers are set', pg.headers.get('x-content-type-options') === 'nosniff' && pg.headers.get('referrer-policy') === 'no-referrer' && pg.headers.get('x-frame-options') === 'DENY', [...pg.headers]);
