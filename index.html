@@ -531,6 +531,15 @@ body.reduce-motion .vp-banner { animation: none; opacity: 1; }
 /* <<< EXP-CREW-AUTOMATION */
 /* -- */
 /* >>> EXP-UPGRADE-CATEGORIES */
+.seg.cats { flex-wrap: wrap; justify-self: start; max-width: 100%; }
+.seg.cats button { padding: 6px 10px; border-bottom: 1px solid var(--line-2); margin-bottom: -1px; }
+.cats-group { display: grid; gap: 6px; }
+.cats-note { margin: 0; font-size: 13px; color: var(--dim); max-width: 72ch; }
+.cats-sum { margin: 0 0 4px; font: 12px/1.45 var(--font-mono); color: var(--paper); font-variant-numeric: tabular-nums; }
+.cats-elsewhere { margin: 0; }
+.cats-installed { padding: 0 12px 12px; display: grid; gap: 4px; }
+.cats-installed h4 { margin: 6px 0 0; font: 700 10px var(--font-sign); letter-spacing: 0.16em; text-transform: uppercase; color: var(--faint); }
+.cats-installed ul { margin: 0; padding-left: 18px; color: var(--dim); font-size: 13px; columns: 2 220px; }
 /* <<< EXP-UPGRADE-CATEGORIES */
 /* -- */
 /* >>> EXP-FACILITY-TIERS */
@@ -5242,6 +5251,135 @@ function onKey(e) {
 // ---------------------------------------------------------------------------
 //
 // >>> EXP-UPGRADE-CATEGORIES
+// Upgrade categories. The Upgrades tab groups requisitions by what they actually do,
+// with a compact category control and a live summary of the numbers each group
+// affects. Only the layout changes: every upgrade, price and effect stays the same.
+// Registry entry and rollback: docs/experiments/EXP-UPGRADE-CATEGORIES.md
+(function upgradeCategoriesExperiment() {
+  const ID = 'EXP-UPGRADE-CATEGORIES';
+  Exp.define({
+    id: ID,
+    name: 'Upgrade categories',
+    summary: 'Groups the Upgrades tab by what each requisition does, with a category control and a live summary of the numbers each group changes.',
+  });
+
+  // Categories follow each upgrade's `cat`, which already describes its gameplay effect.
+  const CATS = [
+    { cat: 'Survey', label: 'Survey', note: 'Surveys you make by hand: salvage per survey, rooms mapped and finds.',
+      summary: (D) => `Survey power +${fmt(D.manualSalvage)} salvage · ${fmtRooms(D.roomsPerSurvey)} ${D.roomsPerSurvey === 1 ? 'room' : 'rooms'} per survey` },
+    { cat: 'Facility', label: 'Machines', note: 'Facility output: one machine type at a time, or every salvage machine.',
+      summary: (D) => `Machines make ${fmtRate(D.facSalvage)} salvage/s (${pct(D.sps > 0 ? D.facSalvage / D.sps : 0)} of passive salvage) · facility multiplier ×${fmtRate(D.facMult)}` },
+    { cat: 'Crew', label: 'Crew', note: 'Wanderers: taking them in, their efficiency and their jobs.',
+      summary: (D) => (crewUnlocked() ? `${plural(S.run.crew.total, 'wanderer')}, ${fmt(crewIdle())} idle · crew efficiency ×${D.crewEff.toFixed(2)}` : 'No crew yet: the Shortwave Radio brings them.') },
+    { cat: 'Sanity', label: 'Sanity', note: 'Keeping your nerve: sanity recovery and drain, and drinking almond water.',
+      summary: (D) => `Sanity ${Math.round(S.run.sanity)} (${D.sanityBand.name}) · ${D.sanityNet >= 0 ? '+' : '−'}${fmtRate(Math.abs(D.sanityNet), 3)}/s · a drink costs ${fmt(drinkCost())} water and restores ${fmt(drinkRestore())}` },
+    { cat: 'Risk', label: 'Noise & risk', note: 'Attention: noise absorption, incident warnings and damage, and Kill the Lights.',
+      summary: (D) => `Noise ${fmtRate(D.noise, 3)} vs absorption ${fmtRate(D.absorb)} · attention ${Math.round(S.run.attention)}, heading to ${Math.round(D.attnTarget)}` },
+    { cat: 'Expedition', label: 'Expeditions', note: 'Expedition time, rewards and safety.',
+      summary: () => { const n = Object.keys(S.run.expeditions).length; return n ? `${plural(n, 'expedition')} out now` : 'No expeditions out'; } },
+  ];
+  const CAT = Object.fromEntries(CATS.map((c) => [c.cat, c]));
+  const catOf = (u) => (CAT[u.cat] ? u.cat : 'Other');
+  const labelOf = (cat) => (CAT[cat] ? CAT[cat].label : 'Other');
+  const HOME_LABEL = { crew: 'the Crew tab', facilities: 'each facility’s row in Facilities' };
+
+  let pick = 'all';         // selected category; interface state only, never saved
+  let view = null;
+  const listed = () => UPGRADES.filter(upgradeVisible);
+  const byPrice = (a, b) => {
+    const ca = upgradeCurrency(a), cb = upgradeCurrency(b);
+    if (ca !== cb) return ca === 'salvage' ? -1 : 1;
+    return upgradePrice(a) - upgradePrice(b);
+  };
+
+  Exp.hook('upgrades:sig', ID, () => pick);
+  Exp.hook('upgrades:build', ID, (p) => {
+    const panel = Panels.upgrades;
+    panel.btns = [];
+    view = { sums: [] };
+    p.append(el('div', { class: 'panel-head' }, el('div', null,
+      el('h2', { text: 'Upgrades' }),
+      el('p', { class: 'panel-sub', text: 'One-off requisitions, grouped by what they do. Most cost salvage; some cost almond water. All are lost when you noclip.' }))));
+    const avail = listed().sort(byPrice);
+    const count = {};
+    for (const u of avail) count[catOf(u)] = (count[catOf(u)] || 0) + 1;
+    const cats = [...CATS.map((c) => c.cat), 'Other'].filter((c) => count[c]);
+    if (pick !== 'all' && !count[pick]) pick = 'all';
+
+    const seg = el('div', { class: 'seg cats', role: 'group', 'aria-label': 'Upgrade categories' });
+    const segBtn = (id, text) => el('button', { type: 'button', 'data-cat': id, 'aria-pressed': String(pick === id) }, text);
+    seg.append(segBtn('all', `All ${avail.length}`));
+    for (const c of cats) seg.append(segBtn(c, `${labelOf(c)} ${count[c]}`));
+    seg.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-cat]');
+      if (!b) return;
+      pick = b.dataset.cat;
+      rt.structureDirty = true;
+      UI.update();
+      const again = document.querySelector(`#panel-upgrades .cats [data-cat="${CSS.escape(pick)}"]`);
+      if (again) again.focus();
+    });
+    if (avail.length) p.append(seg);
+
+    // Upgrades of these categories that live in another tab, so they are not hunted for here.
+    const elsewhere = {};
+    for (const u of UPGRADES) {
+      const home = upgradeHome(u);
+      if (home !== 'upgrades' && HOME_LABEL[home] && upgradeAvailable(u)) (elsewhere[home] = elsewhere[home] || new Set()).add(labelOf(catOf(u)).toLowerCase());
+    }
+    const pointers = Object.keys(elsewhere).map((h) => `${[...elsewhere[h]].join(' and ')} requisitions are in ${HOME_LABEL[h]}`);
+    if (pointers.length) p.append(el('p', { class: 'panel-sub cats-elsewhere', text: `Also available: ${pointers.join('; ')}.` }));
+
+    if (!avail.length) p.append(el('p', { class: 'empty', text: 'Nothing to requisition right now. Map more rooms, build more facilities, or go deeper.' }));
+    for (const c of cats) {
+      if (pick !== 'all' && pick !== c) continue;
+      const sum = el('p', { class: 'cats-sum num' });
+      const def = CAT[c];
+      view.sums.push({ node: sum, def });
+      const grid = el('div', { class: 'slips' });
+      for (const u of avail) if (catOf(u) === c) grid.append(panel.slip(u, panel.btns));
+      p.append(el('section', { class: 'cats-group', 'aria-label': labelOf(c) },
+        el('h3', { class: 'section-title', text: labelOf(c) }),
+        def ? el('p', { class: 'cats-note', text: def.note }) : null,
+        def ? sum : null,
+        grid));
+    }
+
+    const hidden = UPGRADES.filter((u) => contentOn(u) && !has(u.id) && !reqMet(u.req) && upgradeHome(u) === 'upgrades');
+    if (hidden.length) {
+      const per = {};
+      for (const u of hidden) per[catOf(u)] = (per[catOf(u)] || 0) + 1;
+      const parts = Object.keys(per).map((c) => `${per[c]} ${labelOf(c).toLowerCase()}`);
+      p.append(el('p', { class: 'panel-sub', text: `${plural(hidden.length, 'more requisition')} (${parts.join(', ')}) will become available as the operation grows and you go deeper.` }));
+    }
+    const owned = UPGRADES.filter((u) => contentOn(u) && has(u.id) && upgradeHome(u) === 'upgrades');
+    if (owned.length) {
+      const groups = el('div', { class: 'cats-installed' });
+      for (const c of [...CATS.map((x) => x.cat), 'Other']) {
+        const mine = owned.filter((u) => catOf(u) === c);
+        if (!mine.length) continue;
+        groups.append(el('h4', { text: labelOf(c) }), el('ul', null, mine.map((u) => el('li', { text: `${u.name}: ${u.effect}` }))));
+      }
+      p.append(el('details', { class: 'installed' }, el('summary', { text: `Installed (${owned.length})` }), groups));
+    }
+    updateSums(rt.D || derive());
+    return true;
+  });
+
+  function updateSums(D) {
+    if (!view) return;
+    for (const s of view.sums) setText(s.node, s.def.summary(D));
+  }
+  Exp.hook('ui:update', ID, (D) => {
+    if (!Exp.on(ID) || rt.tab !== 'upgrades' || !view) return;
+    updateSums(D);
+  });
+
+  Exp.hook('manual', ID, (add) => add('Upgrades by category', [
+    'The Upgrades tab groups requisitions by what they do: Survey (surveys you make by hand), Machines (facility output), Crew, Sanity, Noise & risk, and Expeditions. Each group shows the numbers it changes, as they are now.',
+    'Requisitions that belong somewhere else are listed there instead, and the Upgrades tab says where.',
+  ]));
+})();
 // <<< EXP-UPGRADE-CATEGORIES
 //
 // ---------------------------------------------------------------------------
