@@ -265,6 +265,39 @@ const near = (a, b, eps = 1e-9) => Math.abs(a - b) <= eps * Math.max(1, Math.abs
   c.check('switched off, the Crew and Facilities tabs look as they did', !off.panelOps && !off.panelReq && /^Facilities run whether you watch or not/.test(off.facSub) && !off.facNote, off);
   c.check('switched back on, staffing returns without converting the save again', off.backOn && off.markKept, off);
 
+  // ------------------------------------------------------------- the staffing rule switched off by another experiment
+  const free = await ev(() => {
+    const H = HUM;
+    const near = (a, b) => Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
+    H.Exp.define({ id: 'EXP-PROBE-STAFF', name: 'Probe: no staffing', defaultOn: true });
+    H.Exp.hook('crew:staffing', 'EXP-PROBE-STAFF', () => false);
+    const D = H.derive();
+    const full = H.FACILITIES.filter((f) => H.S.run.facilities[f.id]).every((f) => near(D.fac[f.id].total, D.fac[f.id].each * H.S.run.facilities[f.id]));
+    H.UI.selectTab('crew'); H.rt.structureDirty = true; H.UI.update(true);
+    const res = {
+      ops: D.ops, full, homes: ['roster', 'gangs', 'nightcrew', 'radio', 'shifts'].map((id) => H.upgradeHome(H.UPG[id])),
+      output: (document.querySelector('#panel-crew .ops .ops-sum') || {}).textContent || '',
+      lines: document.querySelectorAll('#panel-crew .ops-line').length, notes: document.querySelectorAll('#panel-crew .ops-note').length,
+      req: !!document.querySelector('#panel-crew .ops-req'),
+    };
+    H.UI.selectTab('facilities'); H.UI.update(true);
+    res.facSub = document.querySelector('#panel-facilities .panel-sub').textContent;
+    res.facNote = !!document.querySelector('#panel-facilities .ops-note:not([hidden])');
+    // A save that has never been converted is not converted while staffing is off.
+    H.replaceState(H.sanitizeState({ v: 1, run: { facilities: { cart: 20 }, crew: { total: 0 } } }));
+    H.rt.saveBlocked = true;
+    res.notConverted = H.S.ext.crew === undefined && H.S.run.ext.crew === undefined;
+    H.Exp.set('EXP-PROBE-STAFF', false);
+    res.backOn = !!H.derive().ops && H.S.ext.crew !== undefined;
+    H.Exp.reset();
+    return res;
+  });
+  c.check('with staffing switched off, every machine runs at full output', free.ops === undefined && free.full, free);
+  c.check('with staffing switched off, staffing requisitions are not offered while crew requisitions stay in the Crew tab', free.homes.join() === 'none,none,none,crew,crew', free.homes);
+  c.check('with staffing switched off, the Crew tab shows what the crew produce instead of machine lines', /^Your crew add [\d.]+ salvage\/s, \d+% of your passive salvage\./.test(free.output) && /full output with or without crew/.test(free.output) && free.lines === 0 && free.notes === 0 && free.req, free);
+  c.check('with staffing switched off, the Facilities tab says nothing about staffing', /^Facilities run whether you watch or not/.test(free.facSub) && !free.facNote, free);
+  c.check('with staffing switched off, a save is not converted; staffing it later converts it then', free.notConverted && free.backOn, free);
+
   c.finish(g.errors);
   await g.browser.close();
 })();
