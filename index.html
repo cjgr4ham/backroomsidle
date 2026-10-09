@@ -6691,7 +6691,9 @@ function onKey(e) {
   async function start() {
     if (started) return;
     started = true;
-    if (!/^https?:$/.test(window.location.protocol)) { set('none', null, ''); return; }
+    // Only a page served by The Hum's server carries its mark; any other copy (a file, a static host such as the
+    // published artifact) has no server, and is never probed for one.
+    if (!/^https?:$/.test(window.location.protocol) || !document.querySelector('meta[name="the-hum-server"]')) { set('none', null, ''); return; }
     const h = await api('GET', '/api/health');
     if (h.status === 0 || h.status >= 500) { set('error', null, 'unreachable', h.data.message); return; }
     if (!h.ok || h.data.service !== 'the-hum' || !Array.isArray(h.data.features) || !h.data.features.includes(ID)) { set('none', null, ''); return; }
