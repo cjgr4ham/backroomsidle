@@ -35,7 +35,9 @@ function check(name, cond, detail) {
   check('survey button is visible and enabled', await page.isEnabled('#btnSurvey'));
 
   console.log('Surveying and purchases');
-  for (let i = 0; i < 20; i++) { await page.click('#btnSurvey'); await page.waitForTimeout(65); }
+  // Surveys closer than 60 ms apart are refused (key-repeat guard). Under load two clicks can reach the page closer
+  // together than they were sent, so each click first clears that timer; the clicks themselves are real.
+  for (let i = 0; i < 20; i++) { await ev(() => { HUM.rt.lastSurveyReal = -1e9; }); await page.click('#btnSurvey'); await page.waitForTimeout(20); }
   const afterClicks = await ev(() => ({ rooms: HUM.S.run.rooms, salvage: HUM.S.run.salvage, surveys: HUM.S.run.stats.surveys }));
   check('20 clicks map 20 rooms', afterClicks.rooms === 20, afterClicks);
   check('salvage recovered from surveys', afterClicks.salvage >= 20, afterClicks);
