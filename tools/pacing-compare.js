@@ -3,6 +3,7 @@
 //   e.g. node tools/pacing-compare.js "original=?exp=none" "click=?exp=none,EXP-CLICK-POWER"
 //        node tools/pacing-compare.js "crew=?exp=none,EXP-CREW-AUTOMATION" "neglect=?exp=none,EXP-CREW-AUTOMATION|--crew=base"
 //        node tools/pacing-compare.js "baseline=@ebfa0c6" "now=?exp=none"    (@rev builds that git revision)
+//        node tools/pacing-compare.js "variant=/tmp/build.html?exp=none,EXP-A"   (another file, with flags)
 // Columns: minutes to each level and the exit, Déjà Vu at the end of the iteration, the share of salvage from
 // surveys made by hand, attention at 5 and 10 minutes, peak attention, drinks and averted incidents.
 const path = require('path');
@@ -20,7 +21,10 @@ const builds = args.filter((a) => !a.startsWith('--')).map((spec) => {
     file = path.join(os.tmpdir(), `the-hum-${target.slice(1)}.html`);
     fs.writeFileSync(file, execFileSync('git', ['-C', path.join(__dirname, '..'), 'show', `${target.slice(1)}:index.html`]));
     query = '';
-  } else if (!target.startsWith('?') && target) { file = path.resolve(target); query = ''; }
+  } else if (!target.startsWith('?') && target) {
+    const q = target.indexOf('?');   // a file with experiment flags: path/to/build.html?exp=none,EXP-A
+    file = path.resolve(q < 0 ? target : target.slice(0, q)); query = q < 0 ? '' : target.slice(q);
+  }
   return { label, file, query, extra };
 });
 if (!builds.length) { console.log('Give at least one build, e.g. "original=?exp=none"'); process.exit(1); }
