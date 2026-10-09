@@ -5,7 +5,10 @@ const { open, Checker } = require('./harness');
   const c = new Checker('EXP-CLICK-POWER: click-power progression');
   const g = await open('?exp=none,EXP-CLICK-POWER');
   const { ev, page } = g;
-  const click = async (n) => { for (let i = 0; i < n; i++) { await page.click('#btnSurvey'); await page.waitForTimeout(70); } };
+  // Surveys closer than 60 ms apart are refused (key-repeat guard). Under load two clicks can reach the page
+  // closer together than they were sent, so each one clears that timer first; the click itself is real.
+  const ready = () => ev(() => { HUM.rt.lastSurveyReal = -1e9; });
+  const click = async (n) => { for (let i = 0; i < n; i++) { await ready(); await page.click('#btnSurvey'); await page.waitForTimeout(20); } };
 
   c.check('a new game recovers exactly 1 salvage per survey', await ev(() => HUM.derive().manualSalvage === 1));
   await click(1);
@@ -37,6 +40,7 @@ const { open, Checker } = require('./harness');
   await click(1);
   const afterClick = await ev(() => HUM.S.run.salvage);
   c.check('the next survey by button recovers 2 salvage', Math.abs(afterClick - before - 2) < 0.05, { before, afterClick });
+  await ready();
   await page.keyboard.press('s');
   await page.waitForTimeout(80);
   const afterKey = await ev(() => HUM.S.run.salvage);
