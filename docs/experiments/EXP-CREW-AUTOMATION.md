@@ -40,6 +40,16 @@ The crew's largest effect, the scavenger bonus of +5% facility salvage each, was
 | Offline progress | everything above, at the same rates | while away | | no incidents | | |
 | Lights out, incidents, anomalies | production stops, a facility type goes offline, Echoes | events | modifies | | | |
 
+> **Status after the final specification update.** Facilities must never need crew. `EXP-FACILITY-INDEPENDENCE`, which is on by default, switches this experiment's staffing rule off through the `crew:staffing` hook described below.
+>
+> With both experiments on, which is the default:
+> - every machine runs at full output, with or without crew;
+> - the staffing requisitions are not offered;
+> - the crew work their own jobs, as in the original game;
+> - the Crew tab keeps the crew requisitions and shows what the crew produce.
+>
+> The staffing rule described below applies only when `EXP-FACILITY-INDEPENDENCE` is off or reverted.
+
 ## What it changes
 
 ### Ownership
@@ -98,6 +108,27 @@ The crew's largest effect, the scavenger bonus of +5% facility salvage each, was
 - **Facility rows.** They show "N/M running" and a warning line when machines are idle. The subtitle explains the rule.
 - **Other text.** The objective now names the Crew tab for the radio, and the field manual gains a "Crew run the machines" section.
 
+### The staffing switch (`crew:staffing`)
+
+This was added in its own commit, after the original one, for the final specification update.
+
+- The module asks `Exp.ask('crew:staffing')`. If an enabled experiment answers `false`, which `EXP-FACILITY-INDEPENDENCE` does, the following applies.
+- **Production and the save.**
+  - The staffing calculation is skipped, so every machine produces its full output, exactly as in the original game.
+  - A save is not converted. Conversion happens later if staffing is switched back on.
+  - The previous-shift allowance of a save that was already converted stays stored and unused.
+- **Requisitions.**
+  - The three staffing requisitions are not offered (`upgradeHome` is `none`). Owned ones stay owned.
+  - The crew requisitions stay in the Crew tab, with their effects unchanged.
+- **Crew tab.**
+  - The Operation section is replaced by **Crew output**. It shows the salvage the crew add: scavengers' own work, their bonus on facility salvage, and cartographers' automatic surveys, each counted once. It also shows their share of passive salvage, and the water, absorption and Echoes they make.
+  - Job rows show their usual "Now:" lines.
+- **Facilities tab and field manual.**
+  - Facility rows carry no staffing notes.
+  - The Facilities subtitle is left to other experiments or the original text.
+  - The field manual describes the crew requisitions instead of the staffing rule.
+- With no experiment answering, which includes `EXP-FACILITY-INDEPENDENCE` being off or reverted, the experiment behaves exactly as before the switch was added.
+
 ### "Crew work makes X% of your salvage"
 
 - The operation as it is is compared with the same machines and no crew at all.
@@ -120,6 +151,7 @@ The crew's largest effect, the scavenger bonus of +5% facility salvage each, was
     - Field manual: `manual`.
   - It owns the save namespaces `ext.crew` and `run.ext.crew`.
 - **`tools/tests/crew.test.js`:** the experiment's tests.
+- **The staffing switch:** the `staffing()` gate inside the same slot. It covers `convertSave()`, `derive:production`, `upgradeHome`, `facilities:sub`, `crew:lockedText`, `crew:top`, `crew:jobRow`, `crew:update`, `manual`, and `outputText()` for the Crew output summary.
 - **`docs/experiments/EXP-CREW-AUTOMATION.md`:** this entry.
 
 ## Save-schema effects and conversion of existing saves
@@ -161,7 +193,9 @@ The experiment has no settings of its own, so there are no previous settings to 
 
 ## Reverting its code
 
-1. Run `git revert <EXP-CREW-AUTOMATION commit>`. That commit touches only the two slots, the test file and this entry. The registry index lists the commit.
+1. Run `git revert` on this experiment's commits, newest first: first the staffing switch, then the original commit. The commits touch only the two slots, the test file and this entry. The registry index lists them, and `tools/revert-check.js` finds them by their `EXP-CREW-AUTOMATION:` subject.
+   - With the code reverted, nothing is left to staff machines, so facilities still never need crew.
+   - `EXP-FACILITY-INDEPENDENCE` then has nothing to switch off, and it does nothing harmful.
 2. The crew panel hook points can stay; they do nothing without an experiment. To remove them as well, revert `bda08bd` too.
 3. Other experiments do not use this one's code or data.
 
@@ -175,7 +209,7 @@ The experiment has no settings of its own, so there are no previous settings to 
 ## Tests after turning it off or reverting
 
 - `node tools/run-tests.js` runs the full suite, and `node tools/equivalence-check.js` checks the build with every experiment off against the baseline.
-- `node tools/tests/crew.test.js` runs 38 checks:
+- `node tools/tests/crew.test.js` runs 43 checks. The suite turns `EXP-FACILITY-INDEPENDENCE` off, so the staffing rule is tested as designed. A probe experiment then switches staffing off to test the switch.
 
 | Area | What the tests check |
 | --- | --- |
@@ -187,6 +221,7 @@ The experiment has no settings of its own, so there are no previous settings to 
 | Upgrade placement | The Upgrades tab no longer lists the radio, and the objective names the Crew tab. The locked Crew tab sells the radio, and buying it charges 90 salvage and opens the roster. |
 | Interface | The operation summary, the job hints, the requisition list, the tab dot, and the facility rows with their subtitle. |
 | Flag off and on | Turning the flag off restores full output, the upgrade placement and both tabs' layout. Turning it back on does not convert the save again. |
+| Staffing switch | Every machine runs at full output, and the staffing requisitions are hidden while crew requisitions stay. The Crew output summary replaces the machine lines, and the Facilities tab drops its staffing text. A save is not converted until staffing returns. |
 
 ## Balance measurements
 

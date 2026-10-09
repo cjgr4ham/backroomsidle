@@ -8,6 +8,8 @@ You noclipped into Level 0. A survey terminal boots up and says *welcome back*. 
 
 Open `index.html` in a modern browser. There is nothing to install, it needs no network connection, and it loads no external files: HTML, CSS and JavaScript are all in the one file.
 
+Accounts, cloud saves and the noclip leaderboard need the game's server (`npm start`, see [`server/README.md`](server/README.md)). The server is implemented and tested, but **not deployed anywhere yet**. Opened from a file or any static page, the game plays exactly as before, saving in the browser, and says plainly that those features are not available in that copy.
+
 | Key | Action |
 | --- | --- |
 | `S` | Survey the next room |
@@ -25,12 +27,29 @@ Everything also works with the mouse or touch, and every control is reachable by
 The game now carries a set of independent, switchable experiments. Each has its own flag, its own code slot, its own commits, its own tests and a registry entry that says how to turn it off, revert it and restore the original behaviour. All are on by default. With every one switched off, the game behaves exactly as it did before, which is checked against the original build.
 
 - **Click power.** A Survey power line under the Survey button shows what one survey pays and what the next upgrade changes. Work Gloves is the first upgrade. Hand tools, the Echo Sounder and Survey Drills follow.
-- **Crew run the machines.** Each crew member keeps several machines of their job at full speed, and a machine nobody runs works at 25%. The Crew tab shows who runs what and lists the crew and shift upgrades. Existing saves keep their production.
+- **Crew requisitions.** Crew and shift upgrades are listed in the Crew tab. (This experiment also has a staffing rule, under which machines need crew. The final update switches that rule off by default; see below.)
 - **Organization.** The Upgrades tab is grouped by what each requisition does. Facility tiers are installed from each facility's row. Archive → Resources explains every resource and meter; select a resource in the header to open it.
 - **Attention.** An audit found the formula working as designed. Surveys you make by hand now make a little footstep noise that fades, so the meter responds from the start. The meters say what Attention and Sanity each mean.
 - **Developer tools.** Opt in from Settings → Developer tools, or with `#dev` in the address. You get infinite resources, resource injection, level, research and crew controls, events, time, live figures and the experiment switches. This is a testing convenience, not a security boundary.
 
-No levels were added, and Noclip is unchanged. See [`docs/experiments/README.md`](docs/experiments/README.md) for the registry, the four ways to undo a change, and the proofs.
+No levels were added. See [`docs/experiments/README.md`](docs/experiments/README.md) for the registry, the four ways to undo a change, and the proofs.
+
+## Final update: facilities, Déjà Vu, noclips, accounts and the leaderboard
+
+These are more experiments of the same kind, each with its own flag, slot, commits, tests and registry entry.
+
+- **Facilities never need crew.** Every facility can be bought as soon as its level and other requirements are met, and runs at full output with nobody assigned. Crew keep their own jobs and output.
+- **A salvage-first Facilities shop.** Salvage machines (salvage per second) come first, then support equipment.
+  - Each row shows what buying the chosen quantity adds and what your totals become, with units, plus the next price.
+  - Each machine has its own price curve: cheap ones grow slowly, big ones faster.
+  - Every locked facility says what it would add and what unlocks it.
+- **The Déjà Vu shop** (Noclip → Déjà Vu shop). The Memories, now with levels, current and next effects and next prices.
+  - New: starting salvage, cheaper facilities and more starting wanderers.
+  - Permanent upgrades are kept through every noclip, and starting bonuses are applied once per iteration.
+- **Noclip records.** The header shows how many noclips you have completed. The Noclip tab has a Records panel with Déjà Vu to spend and earned, this iteration, and lifetime salvage.
+- **Accounts** (with the server). Sign in or create an account with a username and password. A session survives refreshes, and you can always play offline instead. The header shows who is signed in, and Settings → Account holds the rest.
+- **Cloud save** (with the server). While signed in, your save is kept with your account as well. If two tabs or devices disagree, nothing is overwritten: you choose. Existing progress in this browser can be uploaded to a new account, once. Earlier versions and kept copies can be restored.
+- **Leaderboard** (with the server; Archive → Leaderboard). Accounts are ranked by noclips **recorded by the server**: each completed noclip is reported and counted once, and the browser never sends a total. Ties go to whoever reached the count first.
 
 ## What is in it
 
@@ -45,14 +64,15 @@ No levels were added, and Noclip is unchanged. See [`docs/experiments/README.md`
 - **Research (16 projects)** bought with Echoes and kept forever, including three mutually exclusive doctrines chosen once per iteration and a repeatable sink.
 - **Expeditions (6)** that send idle crew deep for salvage, Echoes and relics. They keep running while you are away, and each card shows its exact odds.
 - **12 relics, 43 achievements and 38 archive documents.** The documents carry the story, which builds toward what the exit actually is.
-- **Noclip (prestige).** From Level 3 you can start over for Déjà Vu, which buys permanent Memories and adds +1% production per point ever earned. From iteration 2 you can choose conditions that change the next iteration's rules.
+- **Noclip (prestige).** From Level 3 you can start over for Déjà Vu, which buys permanent upgrades in the Déjà Vu shop and adds +1% production per point ever earned. From iteration 2 you can choose conditions that change the next iteration's rules.
 
 ## Saving and time away
 
 - The game autosaves to `localStorage` every 15 seconds, when the tab is hidden and when the page closes. The header shows when it last saved.
 - Saves are versioned and validated field by field on load. A save that cannot be read is copied aside under its own key, never deleted, and the game falls back to a rotating backup.
 - **Settings → Export / Import** moves a save between browsers as a text string. **Erase** asks for confirmation.
-- **Offline progress** is credited at full rate for facilities, crew, automatic surveys and expeditions, up to 8 hours. Research adds 8 hours and a Memory adds 16 more. Nothing bad happens while you are away: no incidents, no anomalies, no sanity drain, and a pending threat is called off. A report shows what you earned.
+- **Signed in to the server,** the save is also kept with your account (see the cloud save above). The browser save stays the working copy, so switching cloud saving off never loses progress.
+- **Offline progress** is credited at full rate for facilities, crew, automatic surveys and expeditions, up to 8 hours. Research adds 8 hours, and Long Sleep in the Déjà Vu shop adds 16 more. Nothing bad happens while you are away: no incidents, no anomalies, no sanity drain, and a pending threat is called off. A report shows what you earned.
 
 ## Pacing
 
@@ -60,11 +80,11 @@ Timings are measured with the deterministic balance bot (below) playing the real
 
 | | Level 1 | Level 3 (noclip opens) | Level 5 | Exit |
 | --- | --- | --- | --- | --- |
-| Active player, 1st iteration (3 surveys/s) | ~3 min | ~19 min | ~50 min | ~74 min |
+| Active player, 1st iteration (3 surveys/s) | ~3 min | ~19 min | ~50 min | ~75 min |
 | Casual player, 1st iteration (1 survey/s, documents half of anomalies) | ~7 min | ~30 min | ~65 min | ~92 min |
-| Active player, 2nd iteration | <1 min | ~4 min | ~15 min | ~23 min |
+| Active player, 2nd iteration | <1 min | ~4 min | ~15 min | ~24 min |
 
-These are with every experiment on. The original game (`?exp=none`) took about 3.4, 22, 55 and 80 minutes for the active player. Per-experiment figures are in each registry entry.
+These are with every experiment on. The original game (`?exp=none`) took about 3.4, 22, 55 and 80 minutes for the active player, and 8.4, 32, 67 and 95 minutes for the casual one. The registry index has the full comparison, and each registry entry has its own figures.
 
 Room counts, not salvage, set the pace of later iterations, so prestige speeds runs up without collapsing them to nothing.
 
@@ -72,13 +92,15 @@ Room counts, not salvage, set the pace of later iterations, so prestige speeds r
 
 These need Node.js and Playwright with a Chromium build. The game itself needs neither.
 
-- `node tools/run-tests.js` runs every suite against the real page in headless Chromium: 250 checks.
+- `node tools/run-tests.js` runs every suite against the real page in headless Chromium. The server suites start the real game server with temporary databases.
   - The original 55 functional checks run with every experiment off. They cover purchases and bulk pricing, crew bookkeeping, expeditions and hazards, incidents and the light switch, blackouts, real and hallucinated anomalies, levels, the noclip flow, save round-trips, offline credit and its cap, corrupted and hostile saves, export and import, erasing, keyboard shortcuts and a 24-hour catch-up.
-  - One suite per experiment.
+  - One suite per experiment, and one for the server core.
   - A Noclip regression suite, with every experiment off and on.
   - A whole-game regression with every experiment on, starting from a save made by the original build.
+  - An interface suite that opens every tab and sub-tab at four screen sizes, from 360 px wide, and checks that nothing scrolls sideways or sticks out of the window.
 - `node tools/equivalence-check.js` checks that, with every experiment off, the game matches the original build at 96 checkpoints over 8 seeded sessions.
-- `node tools/revert-check.js --all` proves each experiment can be reverted alone in a throwaway clone. Reverting everything restores the original `index.html` byte for byte.
+- `node tools/revert-check.js --all` proves each experiment can be reverted alone in a throwaway clone. Reverting everything restores the original `index.html` byte for byte, with no server files left.
+- `npm start` runs the game server on <http://127.0.0.1:8080>. It needs Node.js 22.13 or newer, and nothing else.
 - `node tools/balance-bot.js <surveys/s> <document chance> <max minutes> [iterations]` plays the game with a simple strategy and prints a timeline and milestone times. It takes `--query=?exp=…`, `--seed`, `--file`, `--crew` and `--json`, and is deterministic.
 - `node tools/pacing-compare.js "original=?exp=none" "now=?exp=all"` compares pacing over seeds.
 
@@ -86,7 +108,9 @@ Adding `#debug` to the URL exposes the simulation as `window.HUM` for these tool
 
 ## Known limitations
 
-- Saves live in one browser's local storage. Private windows or blocked site data mean no saving; the header says so, and Export still works.
+- **The server is not deployed.** Accounts, cloud saves and the leaderboard work only when someone runs it behind HTTPS (see [`server/README.md`](server/README.md)).
+- **The leaderboard cannot prove a noclip was played honestly.** The game runs in the browser. The server counts each reported noclip once, never takes a count from the browser, and limits how often an account can record one, but a determined player could script plausible reports.
+- Without an account, saves live in one browser's local storage. Private windows or blocked site data mean no saving; the header says so, and Export still works.
 - Sound is synthesised with the Web Audio API and starts only after your first click or key press.
 - Balance has been checked with scripted players, not human playtesters.
 - The published artifact drops query strings, so `?exp=` does not work there. Use the Dev tab to switch experiments.

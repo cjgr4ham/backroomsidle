@@ -593,6 +593,96 @@ body.reduce-motion .vp-banner { animation: none; opacity: 1; }
 }
 /* <<< EXP-DEV-MENU */
 /* -- */
+/* >>> EXP-FACILITY-SALVAGE-SCALING */
+.fs-group { display: grid; gap: 6px; }
+.fs-note { margin: 0; color: var(--dim); font-size: 13px; max-width: 72ch; }
+.fs-sum { margin: 0; font: 12px/1.45 var(--font-mono); color: var(--sodium); font-variant-numeric: tabular-nums; }
+.fs-gain { color: var(--ok); }
+.fs-locked { list-style: none; margin: 0; padding: 0; display: grid; border-top: 1px solid var(--line); }
+.fs-locked li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; padding: 8px 4px 8px 2px; border-bottom: 1px solid var(--line); }
+.fs-locked .ico { width: 16px; height: 16px; margin-top: 2px; color: var(--faint); }
+.fs-locked b { display: block; font: 700 14px/1.3 var(--font-sign); letter-spacing: 0.03em; color: var(--dim); }
+.fs-locked b .code { font: 10px var(--font-mono); color: var(--faint); letter-spacing: 0; }
+.fs-what, .fs-req { display: block; font: 12px/1.45 var(--font-mono); font-variant-numeric: tabular-nums; }
+.fs-what { color: var(--paper); }
+.fs-req { color: var(--dim); }
+/* <<< EXP-FACILITY-SALVAGE-SCALING */
+/* -- */
+/* >>> EXP-NOCLIP-STATISTICS */
+.brand-noclips { padding: 0; border: 0; background: none; font: inherit; color: var(--deja); letter-spacing: inherit; }
+.brand-noclips::before { content: "·"; color: var(--dim); margin: 0 0.45em; }
+.brand-noclips:hover { text-decoration: underline; }
+.ns-records { display: grid; gap: 6px; }
+.ns-records dl { margin: 0; display: grid; border-top: 1px solid var(--line); }
+.ns-records dl > div { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 2px 12px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.ns-records dt { font: 700 11px/1.6 var(--font-sign); letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); }
+.ns-records dd { margin: 0; font: 12px/1.5 var(--font-mono); color: var(--paper); font-variant-numeric: tabular-nums; }
+.ns-extra { margin: 0; }
+@media (max-width: 520px) { .ns-records dl > div { grid-template-columns: minmax(0, 1fr); gap: 0; } }
+/* <<< EXP-NOCLIP-STATISTICS */
+/* -- */
+/* >>> EXP-DEJA-VU-SHOP */
+.djv-shop { display: grid; gap: 10px; }
+.djv-intro, .djv-balance { margin: 0; font-size: 13px; color: var(--paper); max-width: 72ch; }
+.djv-balance { color: var(--dim); }
+.djv-balance .num { color: var(--deja); font-weight: 600; }
+.djv-note { margin: -4px 0 0; }
+.slip.djv { border-top: 2px solid var(--deja); }
+.slip.djv .slip-head span:last-child { color: var(--deja); }
+.slip.djv .djv-next { margin: 0; font: 12px/1.45 var(--font-mono); color: var(--ok); }
+.slip.djv.bought { animation: bought 0.6s ease-out; }
+/* <<< EXP-DEJA-VU-SHOP */
+/* -- */
+/* >>> EXP-ACCOUNT-UI */
+.acct-chip { max-width: 16ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 6px 10px; background: var(--panel-2); border: 1px solid var(--line); color: var(--dim); font: 600 12px var(--font-mono); }
+.acct-chip:hover { color: var(--paper); border-color: var(--line-2); }
+.acct-chip.signed-in { color: var(--paper); }
+.acct-chip.signed-in::before { content: "◉ "; color: var(--ok); }
+.acct-chip.warn { color: var(--warn); }
+.acct-form { display: grid; gap: 10px; }
+.acct-mode { justify-self: start; }
+.acct-field { display: grid; gap: 4px; font: 700 11px var(--font-sign); letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); }
+.acct-input { width: 100%; padding: 9px 10px; background: var(--ink-2); border: 1px solid var(--line-2); color: var(--paper); font: 15px var(--font-mono); letter-spacing: 0; text-transform: none; }
+.acct-input:focus { outline: 2px solid var(--focus); outline-offset: 1px; border-color: var(--sodium-deep); }
+.acct-policy { margin: 0; }
+.acct-err:empty { display: none; }
+.acct-note { color: var(--sodium-hi) !important; }
+.acct-section { display: grid; gap: 8px; }
+.acct-section .setting b { color: var(--sodium); }
+.acct-section .btn { flex: none; white-space: nowrap; }
+.modal .acct-err { color: var(--warn); }
+@media (max-width: 520px) { .acct-chip { max-width: 11ch; } }
+.modal-actions:empty { display: none; }
+/* <<< EXP-ACCOUNT-UI */
+/* -- */
+/* >>> EXP-CLOUD-SAVE */
+.cs-compare { width: 100%; border-collapse: collapse; font: 13px var(--font-mono); font-variant-numeric: tabular-nums; }
+.cs-compare th, .cs-compare td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; }
+.cs-compare thead th { font: 700 11px var(--font-sign); letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); }
+.cs-compare tbody th { color: var(--dim); font-weight: 400; }
+.cs-block { align-items: start; }
+.cs-list { display: grid; gap: 4px; margin-top: 6px; }
+.cs-item { display: flex; gap: 10px; align-items: center; justify-content: space-between; font: 12px var(--font-mono); color: var(--paper); }
+.cs-item .btn { flex: none; }
+/* <<< EXP-CLOUD-SAVE */
+/* -- */
+/* >>> EXP-NOCLIP-LEADERBOARD */
+.lb { display: grid; gap: 10px; }
+.lb-status, .lb-mine { margin: 0; font-size: 13px; color: var(--paper); max-width: 72ch; }
+.lb-mine { color: var(--sodium-hi); }
+.lb-status:empty, .lb-mine:empty { display: none; }
+.lb-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.lb-list li { display: grid; grid-template-columns: 5ch minmax(0, 1fr) auto; gap: 12px; align-items: baseline; padding: 7px 4px; border-bottom: 1px solid var(--line); font: 13px var(--font-mono); font-variant-numeric: tabular-nums; }
+.lb-list li.you { background: var(--panel-2); box-shadow: inset 3px 0 0 var(--deja); }
+.lb-rank { color: var(--dim); text-align: right; }
+.lb-name { color: var(--paper); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-list li.you .lb-name::after { content: " (you)"; color: var(--deja); }
+.lb-count { color: var(--sodium); }
+.lb-pager { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.lb-page { font: 12px var(--font-mono); color: var(--dim); padding: 0 6px; }
+.lb-source { margin: 0; }
+/* <<< EXP-NOCLIP-LEADERBOARD */
+/* -- */
 </style>
 </head>
 <body>
@@ -1519,7 +1609,7 @@ const rt = {
   anomaly: null,
   offline: false, offlineNotes: null,
   buyMode: 1,
-  tab: 'facilities', archiveTab: 'docs', openDoc: null,
+  tab: 'facilities', archiveTab: 'docs', noclipTab: 'noclip', openDoc: null,
   lastSurveyReal: 0,
   checkAcc: 0, autobuyAcc: 0, hallucinateAt: 0,
   logDirty: true,
@@ -2210,13 +2300,19 @@ const Wallet = {
   },
 };
 
+/** A facility's price curve: the first unit's price and the growth per unit owned. Experiments may adjust it. */
+function facPrice(f) {
+  const p = { base: f.cost, growth: f.growth };
+  Exp.run('facility:price', f, p);
+  return p;
+}
 function facilityCost(f, owned, n) {
-  const g = f.growth;
-  return f.cost * Math.pow(g, owned) * (Math.pow(g, n) - 1) / (g - 1);
+  const { base, growth: g } = facPrice(f);
+  return base * Math.pow(g, owned) * (Math.pow(g, n) - 1) / (g - 1);
 }
 function maxAffordable(f, owned, budget) {
-  const g = f.growth;
-  const first = f.cost * Math.pow(g, owned);
+  const { base, growth: g } = facPrice(f);
+  const first = base * Math.pow(g, owned);
   if (!(budget >= Math.ceil(first))) return 0;
   let n = Math.floor(Math.log(budget * (g - 1) / first + 1) / Math.log(g));
   n = clamp(n, 0, 10000);
@@ -2522,6 +2618,9 @@ function noclip() {
   if (!canNoclip()) return false;
   const gain = dvPreview();
   const exited = S.run.exitFound;
+  /** The iteration that is ending, for experiments that set up the next run or record the noclip. */
+  const ended = { iteration: S.iteration, level: S.run.level, exitFound: exited, rooms: S.run.rooms,
+    salvage: S.run.stats.salvage, time: S.run.stats.time, condition: S.condition, gain };
   S.dv += gain;
   S.dvTotal += gain;
   S.life.noclips++;
@@ -2534,6 +2633,7 @@ function noclip() {
   rt.D = null;
   if (memRank('friends')) applyFriends();
   if (memRank('hoard')) { S.run.facilities.cart = 10; S.run.facilities.bench = 5; S.run.facilities.beacon = 2; }
+  Exp.run('noclip:newRun', ended);   // starting bonuses: applied here once, never on load
   S.log = [];
   log(`WELCOME BACK, SURVEYOR. Iteration ${S.iteration}. Conditions: ${COND[S.condition].name}.`, 'terminal', 'TERMINAL');
   log(`You keep ${fmt(gain)} Déjà Vu. Spend it on Memories in the Noclip tab.`, 'gain', 'NOCLIP');
@@ -2545,6 +2645,7 @@ function noclip() {
   Sound.play('noclip');
   UI.banner(`Iteration ${S.iteration}`, 'Level 0 · The Lobby');
   save();
+  Exp.run('noclip:done', ended);
   return true;
 }
 
@@ -2748,6 +2849,7 @@ function save(manual) {
     Store.set(CONFIG.backupKey, data);
     rt.lastBackupReal = performance.now();
   }
+  if (ok) Exp.run('save:after', manual);
   if (manual) UI.toast('Saved', ok ? 'Progress saved in this browser.' : 'This browser blocked saving. Export your save to keep it.', ok ? 'ach' : 'danger');
   return ok;
 }
@@ -3413,7 +3515,7 @@ const tabUnlocked = (t) => { const v = Exp.ask('tabUnlocked', t); return v !== u
 const Panels = {};
 
 Panels.facilities = {
-  sig: () => FACILITIES.filter(facVisible).map((f) => f.id).join() + '|' + memRank('procure') + '|' + rt.buyMode + '|' + Exp.sig(),
+  sig: () => FACILITIES.filter(facVisible).map((f) => f.id).join() + '|' + memRank('procure') + '|' + rt.buyMode + '|' + Exp.sig() + '|' + (Exp.ask('facilities:sig') || ''),
   build(p) {
     const seg = el('div', { class: 'seg', role: 'group', 'aria-label': 'Purchase quantity' });
     for (const m of [1, 10, 25, 'max']) {
@@ -3423,21 +3525,23 @@ Panels.facilities = {
       el('div', null, el('h2', { text: 'Facilities' }),
         el('p', { class: 'panel-sub', text: Exp.ask('facilities:sub') || 'Facilities run whether you watch or not, and while you are away. Most of them make noise.' })),
       seg));
-    const rows = el('div', { class: 'rows' });
     this.rows = {};
-    for (const f of FACILITIES) {
-      if (facVisible(f)) rows.append(this.row(f));
+    if (!Exp.ask('facilities:layout', p, this)) {   // an experiment may arrange the rows itself (built with this.row)
+      const rows = el('div', { class: 'rows' });
+      for (const f of FACILITIES) {
+        if (facVisible(f)) rows.append(this.row(f));
+      }
+      const next = FACILITIES.find((f) => !facVisible(f));
+      if (next) {
+        rows.append(el('div', { class: 'row locked' },
+          el('div', { class: 'row-icon' }, icon('lock'), el('span', { class: 'code', text: next.code })),
+          el('div', { class: 'row-body' },
+            el('div', { class: 'row-title' }, el('h3', { text: next.name })),
+            el('p', { class: 'row-stats muted', text: reqText({ level: next.level, ...(next.req || {}) }) })),
+        ));
+      }
+      p.append(rows);
     }
-    const next = FACILITIES.find((f) => !facVisible(f));
-    if (next) {
-      rows.append(el('div', { class: 'row locked' },
-        el('div', { class: 'row-icon' }, icon('lock'), el('span', { class: 'code', text: next.code })),
-        el('div', { class: 'row-body' },
-          el('div', { class: 'row-title' }, el('h3', { text: next.name })),
-          el('p', { class: 'row-stats muted', text: reqText({ level: next.level, ...(next.req || {}) }) })),
-      ));
-    }
-    p.append(rows);
     if (memRank('procure')) p.append(el('p', { class: 'panel-sub', text: 'Auto-buy purchases one unit at a time whenever you hold at least twice its price, so it never spends your last salvage.' }));
     Exp.run('facilities:afterRows', p);
   },
@@ -3500,6 +3604,7 @@ Panels.facilities = {
       if (R.auto && R.auto.checked !== !!S.run.autobuy[f.id]) R.auto.checked = !!S.run.autobuy[f.id];
       Exp.run('facilities:rowUpdate', f, R, D);
     }
+    Exp.run('facilities:update', D);
   },
 };
 
@@ -3801,11 +3906,24 @@ Panels.research = {
 };
 
 Panels.noclip = {
-  sig: () => `${canNoclip()}|${S.run.exitFound}|${S.nextCondition}|${S.iteration}|${JSON.stringify(S.memories)}|${S.run.level >= CONFIG.prestige.minLevel}|${Object.keys(S.run.expeditions).length}`,
+  sig: () => `${canNoclip()}|${S.run.exitFound}|${S.nextCondition}|${S.iteration}|${JSON.stringify(S.memories)}|${S.run.level >= CONFIG.prestige.minLevel}|${Object.keys(S.run.expeditions).length}|${rt.noclipTab}|${Exp.sig()}|${Exp.ask('noclip:sig') || ''}`,
   build(p) {
     p.append(el('div', { class: 'panel-head' }, el('div', null,
       el('h2', { text: 'Noclip' }),
       el('p', { class: 'panel-sub', text: 'Slip through the floor and start the survey again from Level 0. You lose the operation. You keep what you remember.' }))));
+    // Sections added by experiments appear as sub-tabs next to the noclip itself.
+    const subs = [];
+    Exp.run('noclip:subtabs', subs);
+    if (!subs.some(([id]) => id === rt.noclipTab)) rt.noclipTab = 'noclip';
+    if (subs.length) {
+      const bar = el('div', { class: 'subtabs', role: 'group', 'aria-label': 'Noclip sections' });
+      for (const [id, label] of [['noclip', 'Noclip'], ...subs]) {
+        bar.append(el('button', { type: 'button', 'data-action': 'noclip-subtab', 'data-id': id, 'aria-pressed': String(rt.noclipTab === id) }, label));
+      }
+      p.append(bar);
+    }
+    this.R = null;
+    if (rt.noclipTab !== 'noclip') { Exp.ask('noclip:build', rt.noclipTab, p); return; }
     const R = {};
     R.status = el('p');
     R.gain = el('span', { class: 'big-num' });
@@ -3827,6 +3945,7 @@ Panels.noclip = {
       expN ? el('p', { class: 'err', text: `${plural(expN, 'expedition')} under way will be abandoned.` }) : null,
       el('div', null, R.btn));
     p.append(R.box);
+    Exp.run('noclip:afterBox', p);
 
     p.append(el('h3', { class: 'section-title', text: `Conditions for iteration ${S.iteration + 1}` }));
     const conds = el('div', { class: 'conds', role: 'radiogroup', 'aria-label': 'Conditions for the next iteration' });
@@ -3839,11 +3958,16 @@ Panels.noclip = {
     }
     p.append(conds);
 
+    R.mem = [];
+    R.dv = null;
+    if (!Exp.ask('noclip:memories', p)) this.buildMemories(p, R);
+    this.R = R;
+  },
+  buildMemories(p, R) {
     p.append(el('h3', { class: 'section-title', text: 'Memories' }));
     R.dv = el('span', { class: 'num' });
     p.append(el('p', { class: 'panel-sub' }, 'Spend Déjà Vu on permanent Memories. Spending does not reduce the production bonus. You have ', R.dv, ' Déjà Vu.'));
     const grid = el('div', { class: 'slips' });
-    R.mem = [];
     for (const M of MEMORIES) {
       const rank = memRank(M.id);
       const done = !M.repeatable && rank > 0;
@@ -3856,10 +3980,10 @@ Panels.noclip = {
         el('h3', { text: M.name }), el('p', { class: 'effect', text: M.effect }), el('p', { class: 'flavor', text: M.flavor }), btn));
     }
     p.append(grid);
-    this.R = R;
   },
   update() {
     const R = this.R, r = S.run;
+    if (!R) { Exp.run('noclip:update', rt.noclipTab); return; }
     const gain = dvPreview();
     const ready = canNoclip();
     R.box.classList.toggle('ready', ready);
@@ -3870,12 +3994,13 @@ Panels.noclip = {
     setText(R.detail, `From ${fmt(r.stats.salvage)} salvage recovered this iteration. The next point comes at ${fmt(dvNextAt())} salvage.${r.exitFound ? ' Includes the ×1.5 exit bonus.' : ' Finding the exit on Level 5 multiplies this by 1.5.'}`);
     setText(R.bonus, `Every point of Déjà Vu ever earned adds +${Math.round(CONFIG.prestige.dvBonus * 100)}% to salvage and water production. Current bonus: +${fmt(S.dvTotal * CONFIG.prestige.dvBonus * 100)}%.`);
     setDis(R.btn, !ready);
-    setText(R.dv, fmt(S.dv));
+    if (R.dv) setText(R.dv, fmt(S.dv));
     for (const m of R.mem) {
       if (m.done) { setText(m.sub, ''); continue; }
       setText(m.sub, `${fmt(memoryCost(m.M))} Déjà Vu`);
       setDis(m.btn, !canBuyMemory(m.M));
     }
+    Exp.run('noclip:update', rt.noclipTab);
   },
 };
 
@@ -4214,6 +4339,7 @@ const UI = {
       case 'memory': buyMemory(id); break;
       case 'noclip': confirmNoclip(); break;
       case 'subtab': rt.archiveTab = id; break;
+      case 'noclip-subtab': rt.noclipTab = id; break;
       case 'doc':
         rt.openDoc = id;
         S.docsRead[id] = true;
@@ -4580,6 +4706,7 @@ const UI = {
           el('li', null, el('span', { text: 'Déjà Vu earned' }), el('b', { text: fmt(st.dvTotal) })),
           el('li', null, el('span', { text: 'Achievements' }), el('b', { text: `${Object.keys(st.achievements).length} / ${ACHIEVEMENTS.length}` }))),
         el('p', { class: 'muted', text: 'Imported saves do not earn offline progress for the time since they were exported.' }),
+        ...extraNotes('import:notes'),
       ],
       actions: [
         { label: 'Cancel' },
@@ -4588,6 +4715,13 @@ const UI = {
     });
   },
 };
+
+/** Extra paragraphs experiments add to a confirmation dialog. */
+function extraNotes(hook) {
+  const notes = [];
+  Exp.run(hook, (text) => notes.push(el('p', { class: 'muted', text })));
+  return notes;
+}
 
 /** Lets a rebuilt panel restore focus to the "same" control. */
 function focusSignature(node) {
@@ -4651,6 +4785,7 @@ function confirmReset() {
     body: [
       el('p', { text: 'This permanently deletes your progress in this browser: every iteration, Déjà Vu, relic and achievement.' }),
       el('p', { class: 'muted', text: 'Export your save first if you might want it back.' }),
+      ...extraNotes('reset:notes'),
     ],
     actions: [
       { label: 'Keep my save', cls: 'primary' },
@@ -4984,7 +5119,11 @@ function onKey(e) {
 // keeps a number of machines of that job's kind at full speed, and a machine nobody
 // runs works at a quarter of its output. Upgrades for ordinary passive work (crew
 // upgrades and the facility-wide shift upgrades) are listed in the Crew tab, with
-// their effects unchanged. Registry entry and rollback: docs/experiments/EXP-CREW-AUTOMATION.md
+// their effects unchanged. Another experiment can switch the staffing rule off by
+// answering the crew:staffing hook with false (EXP-FACILITY-INDEPENDENCE does): then
+// every machine runs at full output, crew work only their own jobs, and the Crew tab
+// keeps its requisitions and shows what the crew produce.
+// Registry entry and rollback: docs/experiments/EXP-CREW-AUTOMATION.md
 (function crewOperationsExperiment() {
   const ID = 'EXP-CREW-AUTOMATION';
   Exp.define({
@@ -5029,6 +5168,8 @@ function onKey(e) {
     UPG[u.id] = u;
   }
   const staffMult = () => STAFFING.reduce((m, u) => (has(u.id) ? m * u.staff : m), 1);
+  /** Whether machines need crew. False while another experiment switches the staffing rule off. */
+  const staffing = () => Exp.ask('crew:staffing') !== false;
 
   // ------------------------------------------------------------- save data
   // S.ext.crew marks a save the experiment has converted. run.ext.crew.legacy is a
@@ -5048,7 +5189,7 @@ function onKey(e) {
    * Runs once per save: S.ext.crew records that it happened.
    */
   function convertSave() {
-    if (!Exp.on(ID) || S.ext.crew) return;
+    if (!Exp.on(ID) || S.ext.crew || !staffing()) return;
     S.ext.crew = { since: S.iteration };
     delete S.run.ext.crew;
     const ops = derive().ops;
@@ -5066,6 +5207,7 @@ function onKey(e) {
 
   // ------------------------------------------------------------- production
   Exp.hook('derive:production', ID, (D, X) => {
+    if (!staffing()) return;   // every machine at full output, as in the original game
     const r = X.r, jobs = r.crew.jobs;
     const each = OPS.perCrew * D.crewEff * staffMult();
     const legacy = (r.ext.crew && r.ext.crew.legacy) || {};
@@ -5117,7 +5259,8 @@ function onKey(e) {
   });
 
   // ------------------------------------------------------------- where upgrades live
-  Exp.hook('upgradeHome', ID, (u) => (CREW_HOME.has(u.id) || u.exp === ID ? 'crew' : undefined));
+  // Without the staffing rule the staffing requisitions do nothing, so they are not offered. Owned ones stay owned.
+  Exp.hook('upgradeHome', ID, (u) => (u.exp === ID && !staffing() ? 'none' : CREW_HOME.has(u.id) || u.exp === ID ? 'crew' : undefined));
   const crewUpgrades = () => UPGRADES.filter((u) => upgradeAvailable(u) && upgradeHome(u) === 'crew')
     .sort((a, b) => (upgradeCurrency(a) !== upgradeCurrency(b) ? (upgradeCurrency(a) === 'salvage' ? -1 : 1) : upgradePrice(a) - upgradePrice(b)));
   Exp.hook('tabDot', ID, (tab) => (tab === 'crew' && crewUpgrades().some(canAffordUpgrade) ? true : undefined));
@@ -5130,7 +5273,7 @@ function onKey(e) {
   }, 20);
 
   // ------------------------------------------------------------- Facilities tab
-  Exp.hook('facilities:sub', ID, () => `Machines run whether you watch or not, and while you are away. Each runs at full speed with a crew member on it; one with nobody on it works at ${pct(OPS.unattended)}. Dampeners need nobody. Most machines make noise.`);
+  Exp.hook('facilities:sub', ID, () => (!staffing() ? undefined : `Machines run whether you watch or not, and while you are away. Each runs at full speed with a crew member on it; one with nobody on it works at ${pct(OPS.unattended)}. Dampeners need nobody. Most machines make noise.`));
   Exp.hook('facilities:line', ID, (f, fd, D) => {
     const L = RUN_BY[f.kind];
     if (!L || !D.ops) return undefined;
@@ -5167,11 +5310,19 @@ function onKey(e) {
   // ------------------------------------------------------------- Crew tab
   let view = null;   // elements built for the current Crew panel
   Exp.hook('crew:sig', ID, () => crewUpgrades().map((u) => u.id).join() + '|' + UPGRADES.filter((u) => contentOn(u) && has(u.id) && upgradeHome(u) === 'crew').length);
-  Exp.hook('crew:lockedText', ID, () => 'Requisition the Shortwave Radio above. It lets lost people find their way to you, and they run your machines.');
+  Exp.hook('crew:lockedText', ID, () => (staffing()
+    ? 'Requisition the Shortwave Radio above. It lets lost people find their way to you, and they run your machines.'
+    : 'Requisition the Shortwave Radio above. It lets lost people find their way to you, and they take on jobs for you.'));
   Exp.hook('crew:top', ID, (p) => {
     view = { slips: [], lines: {}, jobNotes: {} };
     if (!crewUnlocked()) {
       p.append(requisitions(view.slips, true));
+      return;
+    }
+    if (!staffing()) {
+      view.output = el('p', { class: 'ops-sum' });
+      p.append(el('section', { class: 'ops', 'aria-label': 'Crew output' },
+        el('h3', { class: 'section-title', text: 'Crew output' }), view.output));
       return;
     }
     const sum = el('p', { class: 'ops-sum' });
@@ -5192,7 +5343,7 @@ function onKey(e) {
       el('h3', { class: 'section-title', text: 'Operation' }), sum, lines, foot));
   });
   Exp.hook('crew:jobRow', ID, (j, ref) => {
-    if (!LINE[j.id]) return;
+    if (!LINE[j.id] || !staffing()) return;
     const note = el('p', { class: 'row-stats ops-note' });
     ref.body.append(note);
     view.jobNotes[j.id] = note;
@@ -5225,6 +5376,7 @@ function onKey(e) {
   Exp.hook('crew:update', ID, (D) => {
     if (!view) return;
     Panels.upgrades.updateSlips(view.slips);
+    if (view.output) setText(view.output, outputText(D));
     if (!view.sum || !D.ops) return;
     const o = D.ops;
     setText(view.sum, `Your crew run ${fmt(o.staffed - o.selfUsed - o.legacyUsed)} of ${plural(o.machines, 'machine')}, up to ${fmtEach(o.each)} each. Crew work makes ${pct(crewShare(D))} of your salvage.`);
@@ -5244,6 +5396,21 @@ function onKey(e) {
   });
 
   const fmtEach = (x) => (Math.abs(x - Math.round(x)) < 1e-9 ? fmt(Math.round(x)) : x.toFixed(1));
+  /**
+   * What the crew produce while machines do not need them: salvage from scavengers' own work, the scavengers'
+   * bonus on facility salvage and the cartographers' automatic surveys, counted once each, plus water and Echoes.
+   */
+  function outputText(D) {
+    const facSal = FACILITIES.reduce((n, f) => n + (f.kind === 'salvage' ? D.fac[f.id].total : 0), 0);
+    const salvage = D.jobOut.scavenge + facSal * (1 - 1 / D.scavengeBoost) + D.jobOut.chart * D.surveyFlat * CONFIG.survey.autoShare;
+    const share = D.spsNominal > 0 ? clamp(salvage / D.spsNominal, 0, 1) : 0;
+    const parts = [`Your crew add ${fmtRate(salvage)} salvage/s, ${pct(share)} of your passive salvage.`];
+    if (D.jobOut.dowse > 0) parts.push(`Dowsers: +${fmtRate(D.jobOut.dowse)} water/s.`);
+    if (D.jobOut.watch > 0) parts.push(`Watchers absorb ${fmtRate(D.jobOut.watch)} noise.`);
+    if (D.jobOut.archive > 0) parts.push(`Archivists: +${fmtRate(D.jobOut.archive, 3)} Echoes/s.`);
+    parts.push('Facilities run at full output with or without crew.');
+    return parts.join(' ');
+  }
   /**
    * Share of passive salvage per second that crew work adds: the operation as it is, compared
    * with the same machines and no crew at all (no scavenger bonus, no hand work, and every
@@ -5279,11 +5446,13 @@ function onKey(e) {
     return box;
   }
 
-  Exp.hook('manual', ID, (add) => add('Crew run the machines', [
+  Exp.hook('manual', ID, (add) => (!staffing() ? add('Crew requisitions', [
+    'Crew upgrades, and the shift upgrades that raise every machine’s salvage, are listed in the Crew tab as crew requisitions. Their effects are the same wherever they are listed.',
+  ]) : add('Crew run the machines', [
     `Every salvage machine, condenser, beacon and array needs someone on it to run at full speed. A machine nobody runs works at ${pct(OPS.unattended)}. Dampeners are passive and need nobody.`,
     `Scavengers run salvage machines, Dowsers run condensers, Cartographers run beacons and Archivists run arrays. Each crew member keeps up to ${OPS.perCrew} machines running, multiplied by crew efficiency and the staffing requisitions. Crew take the most productive machines first. You keep ${OPS.self} machines running yourself.`,
     'The Crew tab shows how many machines each job runs and how many more crew would run them all. Crew requisitions, including the shift upgrades that raise every machine’s salvage, are listed there.',
-  ]));
+  ])));
 })();
 // <<< EXP-CREW-AUTOMATION
 //
@@ -6019,6 +6188,1272 @@ function onKey(e) {
 // <<< EXP-DEV-MENU
 //
 // ---------------------------------------------------------------------------
+//
+// >>> EXP-FACILITY-INDEPENDENCE
+// Facilities never need crew. Every facility is bought and runs at its full output with
+// nobody assigned, while you watch and while you are away. Facilities may still need a
+// level, rooms, almond water or earlier facilities, as before; never crew. Crew stay a
+// separate system with their own jobs in the Crew tab. This switches off the staffing
+// rule of EXP-CREW-AUTOMATION through the crew:staffing hook; without that experiment
+// there is nothing to switch off. Registry entry and rollback: docs/experiments/EXP-FACILITY-INDEPENDENCE.md
+(function facilityIndependenceExperiment() {
+  const ID = 'EXP-FACILITY-INDEPENDENCE';
+  Exp.define({
+    id: ID,
+    name: 'Facilities never need crew',
+    summary: 'Every facility can be bought and runs at full output with no crew. Switches off the crew staffing rule; crew keep their own jobs and output.',
+  });
+
+  Exp.hook('crew:staffing', ID, () => false);
+  Exp.hook('facilities:sub', ID, () => 'Facilities run at full output with or without crew, while you watch and while you are away. Most of them make noise.', -10);
+  Exp.hook('manual', ID, (add) => add('Facilities and crew', [
+    'Facilities never need crew. A facility can be bought as soon as its level and other requirements are met, and it produces its full output with nobody assigned to it.',
+    `Crew are a separate system. Each job produces on its own: scavengers recover salvage by hand, cartographers survey, dowsers find water, watchers absorb noise and archivists record Echoes. Scavengers also add +${Math.round(CONFIG.crew.scavengeBonus * 100)}% facility salvage each, on top of the facilities’ full output.`,
+  ]));
+})();
+// <<< EXP-FACILITY-INDEPENDENCE
+//
+// ---------------------------------------------------------------------------
+//
+// >>> EXP-FACILITY-SALVAGE-SCALING
+// Salvage-first Facilities shop. Facilities are grouped by what they do: salvage machines
+// (salvage per second) first, then support equipment (automatic surveys, almond water,
+// noise absorption, Echoes). Each row says what buying the chosen quantity adds and what
+// the totals become, in explicit units, worked out by the same derive() the game uses.
+// Every facility that is still locked is listed with what it would add and what unlocks
+// it. Each salvage machine has its own price curve, price of the next unit = base ×
+// growth^owned: cheap machines grow slowly so they stay worth stacking, and the big ones
+// grow faster so each one is a real decision.
+// Registry entry and rollback: docs/experiments/EXP-FACILITY-SALVAGE-SCALING.md
+(function facilitySalvageScalingExperiment() {
+  const ID = 'EXP-FACILITY-SALVAGE-SCALING';
+  Exp.define({
+    id: ID,
+    name: 'Salvage-first Facilities shop',
+    summary: 'Facilities grouped as salvage machines and support equipment, with the gain and resulting totals of each purchase, every locked facility with its requirement, and a price curve per machine.',
+  });
+
+  // Price curves. Anything not listed keeps its original curve (support equipment: 1.16–1.2).
+  const CURVES = {
+    cart: { growth: 1.12 },
+    bench: { growth: 1.13 },
+    vat: { growth: 1.14 },
+    foundry: { growth: 1.15 },
+    boiler: { growth: 1.16 },
+    switchboard: { growth: 1.165 },
+    fold: { growth: 1.17 },
+  };
+  Exp.hook('facility:price', ID, (f, p) => {
+    const c = CURVES[f.id];
+    if (!c) return;
+    if (c.base != null) p.base = c.base;
+    if (c.growth != null) p.growth = c.growth;
+  });
+
+  const GROUPS = [
+    { id: 'salvage', title: 'Salvage machines',
+      note: 'Each machine adds salvage every second, while you play and while you are away. The next one always costs more than the last.' },
+    { id: 'support', title: 'Support equipment',
+      note: 'Beacons make automatic surveys, and each automatic survey recovers a quarter of a survey’s base salvage. Condensers make almond water, dampeners absorb noise and arrays record Echoes.' },
+  ];
+  const groupOf = (f) => (f.kind === 'salvage' ? 'salvage' : 'support');
+  const SHORT = { cart: 'carts', bench: 'benches', condenser: 'condensers', beacon: 'beacons', dampener: 'dampeners', vat: 'vats',
+    foundry: 'foundries', boiler: 'boilers', array: 'arrays', switchboard: 'switchboards', fold: 'Fold Engines' };
+  const many = (f) => f.name.replace(/([^aeiou])y$/, '$1ie').replace(/(ch|sh|s|x)$/, '$1e') + 's';
+  const stepPct = (g) => { const v = (g - 1) * 100; return `${Math.abs(v - Math.round(v)) < 1e-9 ? Math.round(v) : v.toFixed(1)}%`; };
+
+  /** What unlocks a facility that is still locked, with progress. Facilities never need crew. */
+  function needs(f) {
+    const r = S.run, q = f.req || {}, out = [];
+    if (r.level < f.level) out.push(`reach Level ${f.level}: ${LEVELS[f.level].name}`);
+    if (q.level != null && r.level < q.level) out.push(`reach Level ${q.level}: ${LEVELS[q.level].name}`);
+    if (q.rooms != null && r.rooms < q.rooms) out.push(`map ${fmt(q.rooms)} rooms (${fmt(r.rooms)} so far)`);
+    if (q.fac && count(q.fac) < q.n) out.push(`own ${q.n} ${many(FAC[q.fac])} (you have ${fmt(count(q.fac))})`);
+    if (q.facTotal != null && totalFacilities() < q.facTotal) out.push(`own ${q.facTotal} facilities (you have ${fmt(totalFacilities())})`);
+    if (q.flag === 'water' && !r.flags.water) out.push('find almond water while surveying');
+    if (q.flag === 'expedition' && !r.flags.expedition) out.push('send an expedition');
+    const s = out.join(' and ');
+    return s ? s[0].toUpperCase() + s.slice(1) + '.' : 'Available.';
+  }
+
+  /** The figures with `n` more of a facility, from the game's own calculation. The save is left exactly as it was. */
+  function withMore(f, n) {
+    const r = S.run, had = r.facilities[f.id];
+    r.facilities[f.id] = (had || 0) + n;
+    try { return derive(); } finally { if (had === undefined) delete r.facilities[f.id]; else r.facilities[f.id] = had; }
+  }
+
+  /** "Buy 10: +2.40 salvage/s → carts 3.60/s, all passive salvage 9.10/s" and the like. */
+  function gainText(f, n, D) {
+    const D2 = withMore(f, n), a = D.fac[f.id], b = D2.fac[f.id];
+    const head = `Buy ${fmt(n)}: `;
+    let s;
+    if (f.kind === 'salvage') {
+      s = `${head}+${fmtRate(D2.spsNominal - D.spsNominal)} salvage/s → ${SHORT[f.id]} ${fmtRate(b.total)}/s, all passive salvage ${fmtRate(D2.spsNominal)}/s`;
+    } else if (f.kind === 'survey') {
+      const more = b.total - a.total;
+      s = `${head}+${fmtRate(more)} surveys/s (+${fmtRate(more * D.roomsPerSurvey)} rooms/s, +${fmtRate(D2.spsNominal - D.spsNominal)} salvage/s) → beacons ${fmtRate(b.total)} surveys/s`;
+    } else if (f.kind === 'water') {
+      s = `${head}+${fmtRate(b.total - a.total)} water/s → condensers ${fmtRate(b.total)}/s`;
+    } else if (f.kind === 'echo') {
+      s = `${head}+${fmtRate(b.total - a.total, 4)} Echoes/s → arrays ${fmtRate(b.total, 3)}/s`;
+    } else {
+      s = `${head}absorbs +${fmtRate(b.total - a.total)} noise → dampeners ${fmtRate(b.total)}`;
+    }
+    const at = Math.round(D.attnTarget), at2 = Math.round(D2.attnTarget);
+    if (at2 !== at && !D.lightsOut) s += ` · attention settles at ${at2} instead of ${at}`;
+    return s;
+  }
+
+  let view = null;
+  Exp.hook('facilities:layout', ID, (p, P) => {
+    view = { sums: {}, locked: [] };
+    for (const G of GROUPS) {
+      const facs = FACILITIES.filter((f) => groupOf(f) === G.id && facVisible(f));
+      if (!facs.length) continue;
+      const sum = el('p', { class: 'fs-sum' });
+      view.sums[G.id] = sum;
+      const rows = el('div', { class: 'rows' });
+      for (const f of facs) rows.append(P.row(f));
+      p.append(el('section', { class: 'fs-group', 'aria-label': G.title, 'data-group': G.id },
+        el('h3', { class: 'section-title', text: G.title }), el('p', { class: 'fs-note', text: G.note }), sum, rows));
+    }
+    const locked = FACILITIES.filter((f) => !facVisible(f));
+    if (locked.length) {
+      const list = el('ul', { class: 'fs-locked' });
+      for (const f of locked) {
+        const what = el('span', { class: 'fs-what' });
+        const req = el('span', { class: 'fs-req' });
+        list.append(el('li', { 'data-id': f.id }, icon('lock'), el('div', null, el('b', null, el('span', { class: 'code', text: f.code }), ' ', f.name), what, req)));
+        view.locked.push({ f, what, req });
+      }
+      p.append(el('section', { class: 'fs-group', 'aria-label': 'Locked facilities', 'data-group': 'locked' },
+        el('h3', { class: 'section-title', text: `Locked (${locked.length})` }),
+        el('p', { class: 'fs-note', text: 'Stronger machines open on deeper levels, and some need earlier machines first. Every iteration starts with no facilities, and they open again in the same order.' }),
+        list));
+    }
+    return true;
+  });
+
+  Exp.hook('facilities:row', ID, (f, R) => {
+    R.gain = el('p', { class: 'row-stats fs-gain' });
+    R.stats.after(R.gain);
+  });
+  Exp.hook('facilities:rowUpdate', ID, (f, R, D) => {
+    if (!R.gain) return;
+    const q = buyQuote(f);
+    setText(R.gain, `${gainText(f, q.n, D)} · each next one costs ${stepPct(facPrice(f).growth)} more`);
+    if (!Number.isFinite(q.cost)) setText(R.cost, 'beyond any budget');
+  });
+  Exp.hook('facilities:update', ID, (D) => {
+    if (!view) return;
+    if (view.sums.salvage) {
+      const facSal = FACILITIES.reduce((n, f) => n + (f.kind === 'salvage' ? D.fac[f.id].total : 0), 0);
+      const share = D.spsNominal > 0 ? facSal / D.spsNominal : 0;
+      setText(view.sums.salvage, `Machines make ${fmtRate(facSal)} salvage/s, ${pct(share)} of your passive salvage. Every machine’s output is multiplied by ×${fmtRate(D.facMult)} from levels, upgrades, research, achievements, Déjà Vu and crew.`);
+    }
+    if (view.sums.support) {
+      const parts = [];
+      const t = (id) => D.fac[id].total;
+      if (count('beacon')) parts.push(`beacons ${fmtRate(t('beacon'))} surveys/s (+${fmtRate(t('beacon') * D.surveyFlat * CONFIG.survey.autoShare)} salvage/s)`);
+      if (count('condenser')) parts.push(`condensers ${fmtRate(t('condenser'))} water/s`);
+      if (count('dampener')) parts.push(`dampeners absorb ${fmtRate(t('dampener'))} noise`);
+      if (count('array')) parts.push(`arrays ${fmtRate(t('array'), 3)} Echoes/s`);
+      setText(view.sums.support, parts.length ? `Now: ${parts.join(' · ')}.` : 'None built yet.');
+    }
+    for (const L of view.locked) {
+      const f = L.f, fd = D.fac[f.id], price = facPrice(f);
+      const first = `first one ${fmt(Math.ceil(facilityCost(f, 0, 1)))} salvage, then +${stepPct(price.growth)} per unit`;
+      let what;
+      if (f.kind === 'salvage') what = `+${fmtRate(fd.each)} salvage/s each at your current multipliers · ${first}`;
+      else if (f.kind === 'survey') what = `${fmtRate(fd.each)} automatic surveys/s each, each survey recovering ${fmtRate(D.surveyFlat * CONFIG.survey.autoShare)} salvage · ${first}`;
+      else if (f.kind === 'water') what = `+${fmtRate(fd.each)} almond water/s each · ${first}`;
+      else if (f.kind === 'echo') what = `+${fmtRate(fd.each, 4)} Echoes/s each · ${first}`;
+      else what = `absorbs ${fmtRate(fd.each)} noise each · ${first}`;
+      setText(L.what, what);
+      setText(L.req, `Unlocks: ${needs(f)}`);
+    }
+  });
+
+  Exp.hook('manual', ID, (add) => add('Facility prices', [
+    'Each facility’s price rises with every unit you own: price of the next one = first price × growth^owned. Cheap machines grow slowly, so they stay worth stacking; the big ones grow faster.',
+    `Salvage machines: ${FACILITIES.filter((f) => CURVES[f.id]).map((f) => `${f.name} +${stepPct(CURVES[f.id].growth)}`).join(', ')} per unit. Support equipment keeps its original curve.`,
+    'Each row shows what buying the chosen quantity adds and what your totals become. Locked facilities show what they would add and what unlocks them.',
+  ]));
+})();
+// <<< EXP-FACILITY-SALVAGE-SCALING
+//
+// ---------------------------------------------------------------------------
+//
+// >>> EXP-NOCLIP-STATISTICS
+// Noclip statistics. The number of completed noclips is shown in the header, next to the
+// iteration, and the Noclip tab gets a Records panel: noclips and exits, Déjà Vu to spend
+// and earned in all, this iteration's progress, and lifetime salvage. Counting itself is
+// unchanged: S.life.noclips goes up once, inside noclip(), when a noclip completes (going
+// through the exit included). Opening the tab or the confirmation counts nothing, and
+// loading a save never changes the count. Registry entry and rollback: docs/experiments/EXP-NOCLIP-STATISTICS.md
+(function noclipStatisticsExperiment() {
+  const ID = 'EXP-NOCLIP-STATISTICS';
+  Exp.define({
+    id: ID,
+    name: 'Noclip statistics',
+    summary: 'Completed noclips in the header, and a Records panel in the Noclip tab with Déjà Vu, this iteration and lifetime salvage.',
+  });
+
+  const noclipsText = (n) => `${fmt(n)} ${n === 1 ? 'noclip' : 'noclips'}`;
+
+  // ------------------------------------------------------------- header
+  let chip = null;
+  Exp.hook('ui:init', ID, () => {
+    chip = el('button', { type: 'button', class: 'brand-noclips', hidden: true, title: 'Completed noclips. Opens the Noclip tab.' });
+    chip.addEventListener('click', () => {
+      const t = TABS.find((x) => x.id === 'noclip');
+      if (!t || !tabVisible(t)) return;
+      rt.noclipTab = 'noclip';
+      UI.selectTab('noclip');
+    });
+    $('iterLabel').after(chip);
+  });
+  Exp.hook('ui:update', ID, () => {
+    if (!chip) return;
+    const n = S.life.noclips;
+    const show = Exp.on(ID) && (n > 0 || !!S.seen.tab_noclip);
+    setHidden(chip, !show);
+    if (!show) return;
+    setText(chip, noclipsText(n));
+    setAttr(chip, 'aria-label', `${noclipsText(n)} completed. Open the Noclip tab.`);
+  });
+
+  // ------------------------------------------------------------- the Records panel
+  let rec = null;
+  Exp.hook('noclip:afterBox', ID, (p) => {
+    const line = (label) => { const dd = el('dd'); return [el('div', null, el('dt', { text: label }), dd), dd]; };
+    const [a, noclips] = line('Noclips');
+    const [b, dv] = line('Déjà Vu');
+    const [c, run] = line('This iteration');
+    const [d, life] = line('Lifetime salvage');
+    rec = { noclips, dv, run, life, extra: el('p', { class: 'panel-sub ns-extra', hidden: true }) };
+    p.append(el('section', { class: 'ns-records', 'aria-label': 'Records' },
+      el('h3', { class: 'section-title', text: 'Records' }), el('dl', null, a, b, c, d), rec.extra));
+  });
+  Exp.hook('noclip:update', ID, (tab) => {
+    if (!rec || tab !== 'noclip' || !rec.noclips.isConnected) return;
+    const L = S.life, r = S.run;
+    setText(rec.noclips, `${fmt(L.noclips)} completed${L.exits ? ` · ${fmt(L.exits)} through the exit` : ''}`);
+    setText(rec.dv, `${fmt(S.dv)} to spend · ${fmt(S.dvTotal)} earned in all`);
+    setText(rec.run, `Iteration ${fmt(S.iteration)} · Level ${r.level}: ${LEVELS[r.level].name} · ${fmtRooms(r.rooms)} rooms · ${fmt(r.stats.salvage)} salvage recovered · ${fmtTime(r.stats.time)}`);
+    setText(rec.life, `${fmt(L.salvage)} salvage across every iteration`);
+    const extra = Exp.ask('noclip:records');   // another experiment may add a line, such as what a leaderboard server has recorded
+    setHidden(rec.extra, !extra);
+    if (extra) setText(rec.extra, extra);
+  });
+
+  Exp.hook('manual', ID, (add) => add('Noclip records', [
+    'The header shows how many noclips you have completed. A noclip counts once, when it completes: going through the exit counts too. Opening the Noclip tab or its confirmation does not count, and loading a save never changes the count.',
+    'The Records panel in the Noclip tab shows your noclips and exits, the Déjà Vu you can spend and have earned in all, this iteration’s progress, and the salvage you have recovered across every iteration.',
+  ]));
+})();
+// <<< EXP-NOCLIP-STATISTICS
+//
+// ---------------------------------------------------------------------------
+//
+// >>> EXP-DEJA-VU-SHOP
+// Déjà Vu shop. The Memories section of the Noclip tab becomes a shop of its own, a Noclip
+// sub-tab: permanent upgrades paid with Déjà Vu and kept through every noclip. Each upgrade
+// shows its level and maximum, what it does now, what the next level does, and the next
+// price. The original eleven Memories keep their effects and prices (one level each;
+// Recurrence has no limit). Three leveled upgrades are added: Stashed Salvage (starting
+// salvage), Remembered Prices (cheaper facilities) and four more levels of Old Friends
+// (more starting wanderers). Their levels live in ext.djv; the original Memories stay in
+// S.memories. Starting bonuses are applied once per iteration, in noclip:newRun, and never
+// on load. Registry entry and rollback: docs/experiments/EXP-DEJA-VU-SHOP.md
+(function dejaVuShopExperiment() {
+  const ID = 'EXP-DEJA-VU-SHOP';
+  Exp.define({
+    id: ID,
+    name: 'Déjà Vu shop',
+    summary: 'A Déjà Vu shop in the Noclip tab: every permanent upgrade with its level, current and next effect and next price, plus starting salvage, cheaper facilities and more starting wanderers.',
+  });
+
+  // ------------------------------------------------------------- configuration (documented in the registry entry)
+  const CFG = {
+    stash: { max: 8, cost: (L) => Math.ceil(4 * Math.pow(2.5, L)), amount: (L) => (L > 0 ? 250 * Math.pow(6, L - 1) : 0) },
+    bargain: { max: 5, cost: (L) => Math.ceil(6 * Math.pow(2.2, L)), off: (L) => 0.06 * L },
+    friends: { max: 5, cost: (L) => Math.ceil(5 * Math.pow(2, L - 1)), crew: (L) => (L > 0 ? 3 + 2 * (L - 1) : 0) },   // level 1 is the original Memory
+  };
+  const LOCK_MS = 500;   // a card ignores clicks this long after a purchase, so a double click buys once
+
+  // ------------------------------------------------------------- save data
+  Exp.ext.state.djv = (v) => {
+    if (!isObj(v) || !isObj(v.levels)) return undefined;
+    const levels = {};
+    for (const id of Object.keys(CFG)) { const n = int(v.levels[id], 0, 0, CFG[id].max); if (n > 0) levels[id] = n; }
+    return { levels };
+  };
+  const lv = (id) => (S.ext.djv && S.ext.djv.levels[id]) || 0;
+  const setLv = (id, n) => { if (!S.ext.djv) S.ext.djv = { levels: {} }; S.ext.djv.levels[id] = n; };
+  const friendsLevel = () => (memRank('friends') ? Math.max(1, lv('friends')) : 0);
+  const stashAmount = () => CFG.stash.amount(lv('stash'));
+
+  // ------------------------------------------------------------- effects
+  Exp.hook('facility:price', ID, (f, p) => { const L = lv('bargain'); if (L) p.base *= 1 - CFG.bargain.off(L); });
+  /** Starting bonuses, applied once to each new iteration. Old Friends' first level is applied by the game itself. */
+  function topUp() {
+    const r = S.run;
+    if (stashAmount() > r.salvage) r.salvage = stashAmount();   // to the balance only, not to salvage recovered: it earns no Déjà Vu
+    const fl = friendsLevel();
+    if (fl > 1 && r.crew.total < CFG.friends.crew(fl)) { r.upgrades.radio = true; r.crew.total = CFG.friends.crew(fl); }
+  }
+  Exp.hook('noclip:newRun', ID, topUp);
+
+  // ------------------------------------------------------------- the upgrades
+  const mult = (x) => `×${Math.abs(x - Math.round(x)) < 1e-9 ? fmt(Math.round(x)) : x < 10 ? x.toFixed(2) : fmtRate(x)}`;
+  const memory = (id) => ({
+    id, name: MEM[id].name, flavor: MEM[id].flavor, max: 1, level: () => memRank(id), cost: () => MEM[id].cost,
+    now: (L) => (L ? MEM[id].effect : 'Not remembered yet.'), next: () => MEM[id].effect, buy: () => buyMemory(id),
+  });
+  const ITEMS = {
+    recur: { id: 'recur', name: MEM.recur.name, flavor: MEM.recur.flavor, max: Infinity, level: () => memRank('recur'), cost: () => memoryCost(MEM.recur),
+      now: (L) => (L ? `All salvage, water and Echo production ${mult(Math.pow(1.25, L))}.` : 'No bonus yet.'),
+      next: (L) => `All salvage, water and Echo production ${mult(Math.pow(1.25, L + 1))}.`, buy: () => buyMemory('recur') },
+    muscle: memory('muscle'), thirst: memory('thirst'), hoard: memory('hoard'), lucid: memory('lucid'), remembers: memory('remembers'),
+    route: memory('route'), shift: memory('shift'), sleep: memory('sleep'), procure: memory('procure'),
+    stash: { id: 'stash', name: 'Stashed Salvage', flavor: 'Behind the third ceiling tile from the door. You always leave something there for next time.',
+      max: CFG.stash.max, level: () => lv('stash'), cost: (L) => CFG.stash.cost(L),
+      now: (L) => (L ? `Every iteration starts with ${fmt(CFG.stash.amount(L))} salvage.` : 'Iterations start with no salvage.'),
+      next: (L) => `Every iteration starts with ${fmt(CFG.stash.amount(L + 1))} salvage. You also get it now if you have less.`,
+      buy: (L) => { setLv('stash', L + 1); topUp(); } },
+    friends: { id: 'friends', name: MEM.friends.name, flavor: MEM.friends.flavor, max: CFG.friends.max, level: friendsLevel,
+      cost: (L) => (L ? CFG.friends.cost(L) : MEM.friends.cost),
+      now: (L) => (L ? `Every iteration starts with the radio and ${CFG.friends.crew(L)} wanderers.` : 'Not remembered yet.'),
+      next: (L) => `Every iteration starts with the radio and ${CFG.friends.crew(L + 1)} wanderers. They join you now too.`,
+      buy: (L) => { if (!L) return buyMemory('friends'); setLv('friends', L + 1); topUp(); return true; } },
+    bargain: { id: 'bargain', name: 'Remembered Prices', flavor: 'You have bought every one of these before. You know what they are really worth.',
+      max: CFG.bargain.max, level: () => lv('bargain'), cost: (L) => CFG.bargain.cost(L),
+      now: (L) => (L ? `Facilities cost ${pct(CFG.bargain.off(L))} less.` : 'Facilities cost the full price.'),
+      next: (L) => `Facilities cost ${pct(CFG.bargain.off(L + 1))} less.`, buy: (L) => { setLv('bargain', L + 1); } },
+  };
+  const GROUPS = [
+    { title: 'Production', note: 'Multiplies output for good.', items: ['recur', 'muscle', 'thirst'] },
+    { title: 'Starting each iteration', note: 'Set up every new iteration once, when it begins. Never added again when a save loads.', items: ['stash', 'friends', 'hoard'] },
+    { title: 'Prices', note: 'Lowers what run purchases cost.', items: ['bargain'] },
+    { title: 'Survival and travel', note: '', items: ['lucid', 'remembers', 'route', 'shift', 'sleep'] },
+    { title: 'Automation', note: '', items: ['procure'] },
+  ];
+
+  const lockUntil = {};   // card id -> time before which clicks are ignored (interface only)
+  const locked = (id) => performance.now() < (lockUntil[id] || 0);
+  const canBuy = (it) => { const L = it.level(); return L < it.max && Wallet.can('dv', it.cost(L)); };
+  /** Levels this shop adds are paid here; the original Memories are bought through the game's own buyMemory(). */
+  const ownLevel = (id, L) => id === 'stash' || id === 'bargain' || (id === 'friends' && L > 0);
+  /** Buys the next level of an upgrade, one level per call. */
+  function buy(id) {
+    const it = ITEMS[id];
+    if (!it || !canBuy(it)) return false;
+    const L = it.level();
+    if (ownLevel(id, L)) {
+      Wallet.pay('dv', it.cost(L));
+      it.buy(L);
+      rt.structureDirty = true;
+      Sound.play('research');
+      log(`You remember: ${it.name}, level ${L + 1}. ${it.now(L + 1)}`, 'gain', 'MEMORY');
+    } else if (!it.buy(L)) return false;
+    return true;
+  }
+  const API = { ids: () => Object.keys(ITEMS), level: (id) => ITEMS[id].level(), max: (id) => ITEMS[id].max, cost: (id) => ITEMS[id].cost(ITEMS[id].level()),
+    can: (id) => canBuy(ITEMS[id]), buy, startingSalvage: stashAmount, discount: () => CFG.bargain.off(lv('bargain')) };
+  Exp.hook('djv:api', ID, () => API);
+
+  // ------------------------------------------------------------- the shop, a Noclip sub-tab
+  let view = null, pointer = null;
+  Exp.hook('noclip:subtabs', ID, (subs) => subs.push(['djv', 'Déjà Vu shop']));
+  Exp.hook('noclip:memories', ID, (p) => {
+    pointer = el('span', { class: 'num' });
+    p.append(el('h3', { class: 'section-title', text: 'Déjà Vu shop' }),
+      el('p', { class: 'panel-sub' }, 'Permanent upgrades, including the Memories, are in the Déjà Vu shop. You have ', pointer, ' Déjà Vu to spend.'),
+      el('div', null, el('button', { type: 'button', class: 'btn', 'data-action': 'noclip-subtab', 'data-id': 'djv' }, 'Open the Déjà Vu shop')));
+    return true;
+  });
+  Exp.hook('noclip:build', ID, (tab, p) => {
+    if (tab !== 'djv') return undefined;
+    view = { cards: [], dv: el('span', { class: 'num' }), total: el('span', { class: 'num' }) };
+    const shop = el('div', { class: 'djv-shop' },
+      el('p', { class: 'djv-intro' }, 'Permanent upgrades, paid with Déjà Vu. Requisitions, facilities and wanderers are lost when you noclip; these never are.'),
+      el('p', { class: 'djv-balance' }, 'You have ', view.dv, ' Déjà Vu to spend, ', view.total, ' earned in all. Every point ever earned also adds +1% production, and spending never reduces it.'));
+    for (const G of GROUPS) {
+      const grid = el('div', { class: 'slips' });
+      for (const id of G.items) grid.append(card(ITEMS[id]));
+      shop.append(el('h3', { class: 'section-title', text: G.title }), G.note ? el('p', { class: 'panel-sub djv-note', text: G.note }) : null, grid);
+    }
+    shop.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-action="djv-buy"]');
+      if (!b || b.disabled || locked(b.dataset.id)) return;
+      if (buy(b.dataset.id)) {
+        lockUntil[b.dataset.id] = performance.now() + LOCK_MS;
+        if (!rt.reducedMotion) { const n = b.closest('.slip'); n.classList.remove('bought'); void n.offsetWidth; n.classList.add('bought'); }
+      }
+      UI.update();
+    });
+    p.append(shop);
+    return true;
+  });
+  function card(it) {
+    const level = el('span'), now = el('p', { class: 'effect djv-now' }), next = el('p', { class: 'djv-next' });
+    const label = el('span'), cost = el('span', { class: 'sub' });
+    const btn = el('button', { type: 'button', class: 'btn btn-stack primary', 'data-action': 'djv-buy', 'data-id': it.id }, label, cost);
+    const node = el('article', { class: 'slip djv', 'data-id': it.id },
+      el('div', { class: 'slip-head' }, level, el('span', { text: 'Permanent' })),
+      el('h3', { text: it.name }), now, next, el('p', { class: 'flavor', text: it.flavor }), btn);
+    view.cards.push({ it, node, level, now, next, label, cost, btn });
+    return node;
+  }
+  Exp.hook('noclip:update', ID, (tab) => {
+    if (pointer && pointer.isConnected) setText(pointer, fmt(S.dv));
+    if (tab !== 'djv' || !view || !view.dv.isConnected) return;
+    setText(view.dv, fmt(S.dv));
+    setText(view.total, fmt(S.dvTotal));
+    const have = Wallet.budget('dv');
+    for (const c of view.cards) {
+      const it = c.it, L = it.level(), maxed = L >= it.max;
+      setText(c.level, it.max === Infinity ? `Level ${fmt(L)} · no limit` : `Level ${L} / ${it.max}`);
+      setText(c.now, `Now: ${it.now(L)}`);
+      setHidden(c.next, maxed);
+      if (!maxed) setText(c.next, `Next: ${it.next(L)}`);
+      c.node.classList.toggle('done', maxed);
+      if (maxed) { setText(c.label, 'Max level'); setText(c.cost, ''); setDis(c.btn, true); continue; }
+      const price = it.cost(L);
+      setText(c.label, L ? `Level ${fmt(L + 1)}` : 'Remember');
+      setText(c.cost, have >= price ? `${fmt(price)} Déjà Vu` : `${fmt(price)} Déjà Vu · need ${fmt(price - have)} more`);
+      setDis(c.btn, !canBuy(it) || locked(it.id));
+      setAttr(c.btn, 'aria-label', `${it.name}: ${L ? `level ${L + 1}` : 'remember'} for ${fmt(price)} Déjà Vu`);
+    }
+  });
+
+  Exp.hook('manual', ID, (add) => add('The Déjà Vu shop', [
+    'Noclip → Déjà Vu shop sells permanent upgrades for Déjà Vu. They are never lost when you noclip. Each one shows its level, what it does now, what the next level does and its price.',
+    `Stashed Salvage starts every iteration with salvage (${fmt(CFG.stash.amount(1))} at level 1, ×6 per level, ${CFG.stash.max} levels). Remembered Prices makes facilities ${pct(CFG.bargain.off(1))} cheaper per level (${CFG.bargain.max} levels). Old Friends goes up to level ${CFG.friends.max}, two more starting wanderers per level.`,
+    'Starting salvage is added to your balance, not to the salvage you recover, so it never earns Déjà Vu by itself.',
+  ]));
+})();
+// <<< EXP-DEJA-VU-SHOP
+//
+// ---------------------------------------------------------------------------
+//
+// >>> EXP-ACCOUNT-AUTH
+// Accounts, in the browser. When the game is served by The Hum server (server/), this finds it through
+// /api/health and restores the session from its cookie, so a valid session never sees a sign-in screen
+// again after a refresh. It offers registration, sign-in and sign-out to the account interface
+// (EXP-ACCOUNT-UI) and an API helper to the cloud save and leaderboard. The session token is an HttpOnly
+// cookie: the page never sees or stores it. Opened from disk or from any static host (such as the
+// published artifact) there is no server: accounts are simply unavailable and nothing is requested.
+// Registry entry and rollback: docs/experiments/EXP-ACCOUNT-AUTH.md
+(function accountAuthExperiment() {
+  const ID = 'EXP-ACCOUNT-AUTH';
+  Exp.define({
+    id: ID,
+    name: 'Accounts',
+    summary: 'Username and password accounts when the game is served by its server: the session survives refreshes, and other features can use the account.',
+  });
+
+  // status: 'checking' | 'none' (no account server for this copy) | 'error' (server unreachable) | 'signed-out' | 'signed-in'
+  // reason: why the status last changed: 'restored', 'registered', 'login', 'logout', 'expired', 'unreachable'
+  const A = { status: 'checking', user: null, reason: '', features: [], message: '' };
+  const snapshot = () => ({ status: A.status, user: A.user ? { ...A.user } : null, reason: A.reason, features: [...A.features], message: A.message });
+  function set(status, user, reason, message) {
+    A.status = status; A.user = user; A.reason = reason || ''; A.message = message || '';
+    rt.structureDirty = true;
+    Exp.run('account:changed', snapshot());
+  }
+  /** The username's case-insensitive key: the server treats "Wanderer" and "wanderer" as one account. */
+  const keyOf = (u) => String(u || '').toLowerCase();
+
+  /** Calls the server. Never throws: network failures come back as { ok: false, status: 0 }. */
+  async function api(method, path, body, options) {
+    let res;
+    try {
+      res = await fetch(path, {
+        method, credentials: 'same-origin', cache: 'no-store', keepalive: !!(options && options.keepalive),
+        headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+    } catch (e) {
+      return { ok: false, status: 0, data: { error: 'network', message: 'The server cannot be reached. Your progress is still saved in this browser.' } };
+    }
+    let data;
+    try { data = await res.json(); } catch (e) { data = { error: 'bad_response', message: 'The server sent an unexpected reply.' }; }
+    if (!isObj(data)) data = {};
+    // Any request refused because the session ended means the player is signed out now.
+    if (res.status === 401 && data.error === 'signed_out' && A.status === 'signed-in') set('signed-out', null, 'expired');
+    return { ok: res.ok, status: res.status, data };
+  }
+
+  let started = false;
+  async function start() {
+    if (started) return;
+    started = true;
+    // Only a page served by The Hum's server carries its mark; any other copy (a file, a static host such as the
+    // published artifact) has no server, and is never probed for one.
+    if (!/^https?:$/.test(window.location.protocol) || !document.querySelector('meta[name="the-hum-server"]')) { set('none', null, ''); return; }
+    const h = await api('GET', '/api/health');
+    if (h.status === 0 || h.status >= 500) { set('error', null, 'unreachable', h.data.message); return; }
+    if (!h.ok || h.data.service !== 'the-hum' || !Array.isArray(h.data.features) || !h.data.features.includes(ID)) { set('none', null, ''); return; }
+    A.features = h.data.features.filter((f) => typeof f === 'string');
+    const s = await api('GET', '/api/auth/session');
+    if (s.ok && isObj(s.data.user)) set('signed-in', { username: String(s.data.user.username), key: keyOf(s.data.user.username) }, 'restored');
+    else if (s.ok) set('signed-out', null, '');
+    else set('error', null, 'unreachable', s.data.message);
+  }
+  /** Tries again after the server could not be reached. */
+  function retry() { if (A.status === 'error') { started = false; A.status = 'checking'; start(); } }
+
+  async function signIn(path, username, password, reason) {
+    const r = await api('POST', path, { username, password });
+    if (r.ok && isObj(r.data.user)) set('signed-in', { username: String(r.data.user.username), key: keyOf(r.data.user.username) }, reason);
+    return r;
+  }
+  async function logout() {
+    // Features finish what they are doing first (the cloud save uploads the latest progress), for up to 4 s.
+    const waits = [];
+    Exp.run('account:beforeLogout', (p) => waits.push(p));
+    await Promise.race([Promise.allSettled(waits), new Promise((res) => setTimeout(res, 4000))]);
+    const r = await api('POST', '/api/auth/logout', {});
+    set('signed-out', null, 'logout');
+    return r;
+  }
+
+  const SERVICE = {
+    state: snapshot, api, retry, logout,
+    register: (u, p) => signIn('/api/auth/register', u, p, 'registered'),
+    login: (u, p) => signIn('/api/auth/login', u, p, 'login'),
+    has: (feature) => A.features.includes(feature),
+  };
+  Exp.hook('account:service', ID, () => SERVICE);
+  // ui:init runs for every experiment, on or off; the account check starts only when this one is on.
+  Exp.hook('ui:init', ID, () => { if (Exp.on(ID)) start(); else set('none', null, ''); });
+  Exp.hook('flagsChanged', ID, (id, on) => { if (id === ID && on && !started) start(); });
+})();
+// <<< EXP-ACCOUNT-AUTH
+//
+// ---------------------------------------------------------------------------
+//
+// >>> EXP-ACCOUNT-UI
+// The account interface: a sign-in screen in the terminal's own style, the signed-in name in the header,
+// and Settings → Account. It appears only when the game is served by its server (EXP-ACCOUNT-AUTH finds
+// it); a copy without a server says plainly that accounts are not available there. The sign-in screen
+// opens when a visit has no valid session (unless the player chose to play offline in this browser), after
+// a deliberate sign-out, and when a session expires; never while a session is valid. Usernames are always
+// inserted as text. Registry entry and rollback: docs/experiments/EXP-ACCOUNT-UI.md
+(function accountInterfaceExperiment() {
+  const ID = 'EXP-ACCOUNT-UI';
+  Exp.define({
+    id: ID,
+    name: 'Account interface',
+    summary: 'Sign-in and registration screen, the signed-in username in the header, and an Account section in Settings.',
+  });
+
+  const KEY = 'the-hum.account-ui';   // this browser's choice to play offline; not part of the save
+  const prefs = (() => { try { const v = JSON.parse(Store.get(KEY) || '{}'); return isObj(v) ? { offline: v.offline === true } : { offline: false }; } catch (e) { return { offline: false }; } })();
+  const savePrefs = () => Store.set(KEY, JSON.stringify(prefs));
+  const service = () => Exp.ask('account:service');
+  const state = () => { const s = service(); return s ? s.state() : { status: 'none', user: null, reason: '' }; };
+  const on = () => Exp.on(ID);
+
+  // ------------------------------------------------------------- the sign-in screen
+  let dialog = null;      // the sign-in form, while it is the open dialog
+  let pending = null;     // a screen to show once no other dialog is open: { mode, note }
+  const mine = () => !!(dialog && dialog.form.isConnected);
+  function openSignIn(mode, note) {
+    const svc = service();
+    if (!on() || !svc) return;
+    if (UI.modalOpen && !mine()) { pending = { mode, note }; return; }   // never replace another dialog
+    pending = null;
+    const view = { mode: mode === 'register' ? 'register' : 'login', busy: false };
+    const err = el('p', { class: 'err acct-err', role: 'alert' });
+    const user = el('input', { class: 'acct-input', id: 'acctUser', type: 'text', autocomplete: 'username', autocapitalize: 'none', spellcheck: 'false', maxlength: '20', required: true });
+    const pass = el('input', { class: 'acct-input', id: 'acctPass', type: 'password', maxlength: '200', required: true });
+    const policy = el('p', { class: 'muted acct-policy', text: 'Username: 3 to 20 letters, digits, _ or -. Password: at least 10 characters, not containing your username. A few unrelated words work well.' });
+    const submit = el('button', { type: 'submit', class: 'btn primary' });
+    const tabs = el('div', { class: 'seg acct-mode', role: 'group', 'aria-label': 'Sign in or create an account' });
+    const mBtn = (m, label) => { const b = el('button', { type: 'button', 'data-mode': m }, label); b.addEventListener('click', () => { view.mode = m; render(); }); return b; };
+    tabs.append(mBtn('login', 'Sign in'), mBtn('register', 'Create account'));
+    const offline = el('button', { type: 'button', class: 'btn' }, 'Play offline');
+    offline.addEventListener('click', () => { prefs.offline = true; savePrefs(); close(); UI.toast('Playing offline', 'Progress is saved in this browser. Sign in any time from the header.', ''); });
+    const form = el('form', { class: 'acct-form', novalidate: true },
+      tabs,
+      el('label', { class: 'acct-field', for: 'acctUser' }, el('span', { text: 'Username' }), user),
+      el('label', { class: 'acct-field', for: 'acctPass' }, el('span', { text: 'Password' }), pass),
+      policy, err,
+      el('div', { class: 'modal-actions' }, offline, submit));
+    function render() {
+      for (const b of tabs.children) setAttr(b, 'aria-pressed', b.dataset.mode === view.mode);
+      setHidden(policy, view.mode !== 'register');
+      setAttr(pass, 'autocomplete', view.mode === 'register' ? 'new-password' : 'current-password');
+      setText(submit, view.busy ? (view.mode === 'register' ? 'Creating…' : 'Signing in…') : (view.mode === 'register' ? 'Create account' : 'Sign in'));
+      setDis(submit, view.busy);
+      setDis(offline, view.busy);
+      setText(err, '');
+    }
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (view.busy) return;
+      if (!user.value.trim() || !pass.value) { setText(err, 'Enter a username and a password.'); return; }
+      view.busy = true; render();
+      const r = view.mode === 'register' ? await svc.register(user.value, pass.value) : await svc.login(user.value, pass.value);
+      view.busy = false; render();
+      if (r.ok) return;   // account:changed closes the screen
+      setText(err, (r.data && r.data.message) || 'That did not work. Try again.');
+      (r.data && /^username/.test(r.data.error) ? user : pass).focus();
+    });
+    const intro = note || 'Sign in to keep your progress with your account, on any device, and to appear on the noclip leaderboard. Without an account the game is the same, saved in this browser only.';
+    UI.modal({ title: 'Survey terminal: sign in', body: [el('p', { class: note ? 'acct-note' : '', text: intro }), form], actions: [] });
+    dialog = { form, user };
+    render();
+    user.focus();
+  }
+  function close() { if (mine()) UI.closeModal(); dialog = null; }
+
+  // ------------------------------------------------------------- reacting to the account
+  Exp.hook('account:changed', ID, (s) => {
+    if (UI.sigs) UI.sigs.settings = null;   // rebuild Settings → Account
+    if (s.status === 'signed-in') {
+      prefs.offline = false; savePrefs();
+      close();
+      if (s.reason === 'registered' || s.reason === 'login') UI.toast(s.reason === 'registered' ? 'Account created' : 'Signed in', `Welcome, ${s.user.username}.`, 'ach');
+    } else if (s.status === 'signed-out') {
+      if (s.reason === 'logout') openSignIn('login', 'You signed out. Your progress stays in this browser and with your account. Sign in again, or play offline.');
+      else if (s.reason === 'expired') openSignIn('login', 'Your session has ended. Sign in again to keep saving to your account. Your progress is still saved in this browser.');
+      else if (!prefs.offline) openSignIn('login');
+    }
+    if (UI.built) UI.update();   // the header and Settings show the change at once
+  });
+
+  // ------------------------------------------------------------- the header
+  let chip = null;
+  Exp.hook('ui:init', ID, () => {
+    chip = el('button', { type: 'button', class: 'acct-chip', hidden: true });
+    chip.addEventListener('click', () => {
+      const s = state();
+      if (s.status === 'signed-out') openSignIn('login');
+      else { UI.selectTab('settings'); const n = document.getElementById('acctSection'); if (n) n.scrollIntoView({ block: 'start' }); }
+    });
+    document.querySelector('.sysctl').prepend(chip);
+  });
+  Exp.hook('ui:update', ID, () => {
+    if (!chip) return;
+    const s = state();
+    const show = on() && (s.status === 'signed-in' || s.status === 'signed-out' || s.status === 'error');
+    setHidden(chip, !show);
+    if (pending && on() && !UI.modalOpen) openSignIn(pending.mode, pending.note);
+    if (!show) return;
+    const label = s.status === 'signed-in' ? s.user.username : s.status === 'signed-out' ? 'Sign in' : 'Server unreachable';
+    setText(chip, label);
+    chip.classList.toggle('signed-in', s.status === 'signed-in');
+    chip.classList.toggle('warn', s.status === 'error');
+    setAttr(chip, 'aria-label', s.status === 'signed-in' ? `Signed in as ${s.user.username}. Open Settings → Account.` : s.status === 'signed-out' ? 'Sign in or create an account' : 'The server cannot be reached. Open Settings → Account.');
+  });
+
+  // ------------------------------------------------------------- Settings → Account
+  Exp.hook('settings:sections', ID, (add) => {
+    const s = state();
+    const box = el('section', { class: 'acct-section', id: 'acctSection', 'aria-label': 'Account' });
+    add(el('h3', { class: 'section-title', text: 'Account' }));
+    const row = (label, note, btn) => el('div', { class: 'setting' }, el('div', { class: 'lbl' }, label, note ? el('small', { text: note }) : null), btn || null);
+    if (s.status === 'none' || s.status === 'checking') {
+      box.append(el('p', { class: 'panel-sub', text: 'This copy of The Hum runs without its server, so accounts, cloud saves and the leaderboard are not available here. Your progress is saved in this browser; export it below to keep a copy.' }));
+    } else if (s.status === 'error') {
+      const retry = el('button', { type: 'button', class: 'btn' }, 'Try again');
+      retry.addEventListener('click', () => { const svc = service(); if (svc) svc.retry(); });
+      box.append(row(el('span', { text: 'The server cannot be reached right now.' }), 'Your progress is still saved in this browser.', retry));
+    } else if (s.status === 'signed-out') {
+      const btn = el('button', { type: 'button', class: 'btn primary' }, 'Sign in or create an account');
+      btn.addEventListener('click', () => openSignIn('login'));
+      box.append(row(el('span', { text: 'Not signed in.' }), 'Sign in to keep your progress with your account and appear on the leaderboard.', btn));
+    } else {
+      const out = el('button', { type: 'button', class: 'btn' }, 'Sign out');
+      out.addEventListener('click', async () => { setDis(out, true); setText(out, 'Signing out…'); const svc = service(); if (svc) await svc.logout(); });
+      box.append(row(el('span', null, 'Signed in as ', el('b', { text: s.user.username })), 'Signing out keeps your progress in this browser and with your account.', out));
+      Exp.run('account:sections', (node) => box.append(node));   // cloud save status, leaderboard and the like
+    }
+    add(box);
+  });
+
+  Exp.hook('manual', ID, (add) => add('Accounts', [
+    'When The Hum is opened from its server, you can create an account with a username and password, or sign in. Your session lasts 30 days of not visiting and survives refreshes. Signing out is in Settings → Account.',
+    'You can always play offline instead: the game is the same, saved in this browser. Copies of the game without a server (opened from a file, or a static page) have no accounts.',
+  ]));
+})();
+// <<< EXP-ACCOUNT-UI
+//
+// ---------------------------------------------------------------------------
+//
+// >>> EXP-CLOUD-SAVE
+// Cloud save. While signed in (EXP-ACCOUNT-AUTH), the game keeps its save with the account on the server as
+// well as in this browser: it uploads about once a minute, at every noclip and when signing out, and loads
+// the account's save on another device. Every upload names the revision this game descends from (kept in
+// the save itself, ext.cloud), so a stale tab or device can never overwrite newer progress: the server
+// refuses, and the player chooses which progress to keep. Nothing is replaced silently: whenever one save
+// replaces another in this browser, the replaced one is kept as a copy that can be restored, and the
+// server keeps earlier versions of the account's save. Saves changed with developer tools are never
+// uploaded. Registry entry and rollback: docs/experiments/EXP-CLOUD-SAVE.md
+(function cloudSaveExperiment() {
+  const ID = 'EXP-CLOUD-SAVE';
+  Exp.define({
+    id: ID,
+    name: 'Cloud save',
+    summary: 'Keeps the save with the signed-in account as well as in this browser, with revision checks so stale copies never overwrite newer progress.',
+  });
+
+  const EVERY_MS = 60000;                     // routine uploads at most this often
+  const NEGLIGIBLE_S = 30;                    // unsynced play this short is not worth asking about
+  const COPY_PREFIX = 'the-hum.save.keep-';   // copies kept in this browser when another save replaced them
+  const COPIES = 3;
+
+  // ext.cloud: which account this game belongs to, the account revision it descends from, and the game time then.
+  Exp.ext.state.cloud = (v) => (isObj(v) && typeof v.owner === 'string' && /^[a-z0-9_-]{3,20}$/.test(v.owner)
+    ? { owner: v.owner, revision: int(v.revision, 0, 0, 1e9), syncedTime: num(v.syncedTime, 0, 0, 1e12) } : undefined);
+
+  const service = () => (Exp.on(ID) ? Exp.ask('account:service') : undefined);
+  const sync = { status: 'off', message: '', lastOk: 0, lastTry: 0, busy: false, user: null, conflict: null, history: null };
+  let loadedTime = 0;      // game time when the current save was loaded, before any offline catch-up
+  let quiet = false;       // set while this module itself replaces the save
+  const devMarked = () => !!(S.ext.dev && S.ext.dev.actions > 0);
+  const developed = (st) => st.iteration > 1 || st.dvTotal > 0 || st.life.noclips > 0 || st.time > 600 || st.run.stats.salvage > 1000;
+  const link = () => S.ext.cloud;
+  function setStatus(status, message) { sync.status = status; sync.message = message || ''; rt.structureDirty = true; }
+
+  // ------------------------------------------------------------- copies kept in this browser
+  function copies() {
+    const out = [];
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(COPY_PREFIX)) { try { const v = JSON.parse(Store.get(k)); if (isObj(v) && typeof v.data === 'string') out.push({ key: k, at: num(v.at, 0), label: String(v.label || '').slice(0, 120), data: v.data }); } catch (e) { /* unreadable copy: skipped */ } }
+      }
+    } catch (e) { /* storage blocked */ }
+    return out.sort((a, b) => b.at - a.at);
+  }
+  /** Keeps the current save as a copy before something replaces it. The oldest copies beyond COPIES are dropped. */
+  function keepCopy(label) {
+    const at = Date.now();
+    const ok = Store.set(COPY_PREFIX + at, JSON.stringify({ at, label, data: JSON.stringify(S) }));
+    for (const old of copies().slice(COPIES)) Store.remove(old.key);
+    return ok;
+  }
+
+  // ------------------------------------------------------------- talking to the server
+  const summaryOf = (st) => ({ iteration: st.iteration, level: st.run.level, rooms: st.run.rooms, salvage: st.run.salvage, noclips: st.life.noclips, dv: st.dv, dvTotal: st.dvTotal, time: st.time, lastSaved: st.lastSaved });
+  async function upload(reason, opts) {
+    const svc = service();
+    if (!svc || !sync.user) return false;
+    if (sync.busy) { sync.pending = reason; return false; }   // runs when the current upload finishes
+    if (!['synced', 'offline', 'error', 'linking'].includes(sync.status) && !(opts && opts.force)) return false;
+    if (devMarked()) { setStatus('paused-dev'); return false; }
+    const L = link();
+    if (!L || L.owner !== sync.user.key) return false;
+    const base = opts && opts.base != null ? opts.base : L.revision;
+    const data = JSON.parse(JSON.stringify(S));
+    data.lastSaved = Date.now();
+    data.ext.cloud = { owner: sync.user.key, revision: base + 1, syncedTime: data.time };
+    sync.busy = true; sync.lastTry = performance.now();
+    if (sync.status === 'synced' || sync.status === 'offline') setStatus('saving');
+    const r = await svc.api('PUT', '/api/save', { baseRevision: base, reason, data }, { keepalive: !!(opts && opts.keepalive) && JSON.stringify(data).length < 60000 });
+    sync.busy = false;
+    if (r.ok) {
+      S.ext.cloud = { owner: sync.user.key, revision: r.data.revision, syncedTime: data.time };
+      sync.lastOk = performance.now();
+      setStatus('synced');
+      if (!(opts && opts.keepalive)) save();   // this browser's save now names the new revision too
+      if (sync.pending) { const again = sync.pending; sync.pending = null; upload(again); }
+      return true;
+    }
+    sync.pending = null;
+    if (r.status === 409) { conflictFound(r.data.current); return false; }
+    if (r.status === 0) setStatus('offline', 'This browser cannot reach the server; it will try again.');
+    else if (r.status === 401) setStatus('off');
+    else if (r.status === 422) setStatus('paused-dev');
+    else setStatus('error', (r.data && r.data.message) || 'The server refused the save.');
+    return false;
+  }
+
+  /** Replaces this browser's game with the account's save, keeping the game it replaces as a copy. */
+  function adopt(cloud, keepLabel) {
+    if (developed(S) || S.time > 60) keepCopy(keepLabel);
+    const st = sanitizeState(cloud.data);
+    st.ext.cloud = { owner: sync.user.key, revision: cloud.revision, syncedTime: st.time };
+    quiet = true;
+    try { replaceState(st); } finally { quiet = false; }
+    sync.lastOk = sync.lastTry = performance.now();   // just loaded: the next routine upload is a minute away
+    const away = (Date.now() - st.lastSaved) / 1000;
+    const rep = away > 1 ? catchUp(away) : null;
+    save();
+    setStatus('synced');
+    UI.update(true);
+    if (rep && rep.seconds >= CONFIG.offline.reportAfter && !UI.modalOpen) UI.offlineReport(rep);
+  }
+  /** Starts a new game for the signed-in account, keeping the current one as a copy. */
+  function freshStart(label) {
+    keepCopy(label);
+    const st = defaultState();
+    st.settings = S.settings;
+    st.ext.cloud = { owner: sync.user.key, revision: 0, syncedTime: 0 };
+    quiet = true;
+    try { replaceState(st); unlockDoc('boot'); log('WELCOME BACK, SURVEYOR. Press SURVEY (or S) to map the next room.', 'terminal', 'TERMINAL'); } finally { quiet = false; }
+    save();
+  }
+
+  // ------------------------------------------------------------- deciding what to do with two saves
+  /** `deliberate`: the player just replaced this game (an import or an erase), so a differing save is never swapped in unasked. */
+  async function begin(deliberate) {
+    const svc = service();
+    const st = svc && svc.state();
+    if (!svc || !st || st.status !== 'signed-in') { setStatus('off'); return; }
+    if (!svc.has(ID)) { setStatus('unavailable'); return; }
+    sync.user = st.user;
+    setStatus('checking');
+    const r = await svc.api('GET', '/api/save');
+    if (!r.ok) { setStatus(r.status === 0 ? 'offline' : 'error', r.data.message); return; }
+    decide(r.data.save, !!deliberate);
+  }
+  function decide(cloud, deliberate) {
+    const me = sync.user.key, L = link();
+    const mine = !!L && L.owner === me;
+    const theirs = !!L && L.owner !== me;
+    if (devMarked()) { setStatus('paused-dev'); return; }
+    if (!cloud) {
+      if (theirs) { setStatus('waiting'); whenFree(() => askOtherAccount(null, L.owner)); return; }
+      if (!mine && developed(S)) { setStatus('waiting'); whenFree(askMigrate); return; }
+      S.ext.cloud = { owner: me, revision: 0, syncedTime: S.time };
+      setStatus('linking');
+      upload('link', { force: true });
+      return;
+    }
+    if (mine && cloud.revision === L.revision) { sync.lastOk = sync.lastTry = performance.now(); setStatus('synced'); return; }   // in step: the next routine upload carries any new progress
+    const sameMoment = Math.abs(num(cloud.summary && cloud.summary.time, -1e9) - loadedTime) <= NEGLIGIBLE_S;
+    if (!deliberate && mine && cloud.revision > L.revision && (loadedTime - L.syncedTime <= NEGLIGIBLE_S || sameMoment)) {
+      adopt(cloud, 'Replaced by newer progress from your account');
+      UI.toast('Account progress loaded', 'Your account had newer progress from another device or tab.', 'ach');
+      return;
+    }
+    if (theirs) { setStatus('waiting'); whenFree(() => askOtherAccount(cloud, L.owner)); return; }
+    if (!mine && !developed(S)) {
+      adopt(cloud, 'Replaced when signing in');
+      UI.toast('Account progress loaded', `Welcome back, ${sync.user.username}.`, 'ach');
+      return;
+    }
+    conflictFound({ revision: cloud.revision, savedAt: cloud.savedAt, summary: cloud.summary }, cloud);
+  }
+
+  let deferred = null;    // a dialog to show once no other dialog is open
+  const whenFree = (fn) => { if (UI.modalOpen) deferred = fn; else fn(); };
+  function conflictFound(current, cloud) {
+    sync.conflict = { current, cloud: cloud || null };
+    setStatus('conflict', 'Your account and this browser have different progress.');
+    whenFree(showConflict);
+  }
+  const table = (cols) => {
+    const rows = [['Iteration', (s) => fmt(s.iteration)], ['Level', (s) => `${s.level}: ${LEVELS[s.level] ? LEVELS[s.level].name : ''}`], ['Noclips', (s) => fmt(s.noclips)],
+      ['Déjà Vu earned', (s) => fmt(s.dvTotal)], ['Salvage this iteration', (s) => fmt(s.salvage)], ['Last saved', (s) => (s.lastSaved ? new Date(s.lastSaved).toLocaleString() : '—')]];
+    return el('table', { class: 'cs-compare' },
+      el('thead', null, el('tr', null, el('th'), cols.map((c) => el('th', { text: c.title })))),
+      el('tbody', null, rows.map(([label, f]) => el('tr', null, el('th', { text: label }), cols.map((c) => el('td', { text: f(c.s) }))))));
+  };
+  async function showConflict() {
+    const svc = service();
+    if (!svc || !sync.conflict) return;
+    if (!sync.conflict.cloud) {
+      const r = await svc.api('GET', '/api/save');
+      if (!r.ok || !r.data.save) { setStatus('error', 'The account’s save could not be read.'); return; }
+      sync.conflict.cloud = r.data.save;
+    }
+    const cloud = sync.conflict.cloud;
+    UI.modal({
+      title: 'Two different saves',
+      body: [
+        el('p', { text: `Your account (${sync.user.username}) and this browser have different progress. Choose which to keep playing. Nothing is lost: the other one is kept, and you can restore it from Settings → Account.` }),
+        table([{ title: 'This browser', s: summaryOf(S) }, { title: 'Your account', s: { ...cloud.summary } }]),
+      ],
+      actions: [
+        { label: 'Decide later', onClick: () => { setStatus('conflict', 'Choose which progress to keep in Settings → Account.'); } },
+        { label: 'Keep this browser’s progress', onClick: () => { resolveKeepLocal(cloud); } },
+        { label: 'Load my account’s progress', cls: 'primary', onClick: () => { adopt(cloud, 'Replaced by your account’s progress'); sync.conflict = null; } },
+      ],
+    });
+  }
+  function resolveKeepLocal(cloud) {
+    S.ext.cloud = { owner: sync.user.key, revision: cloud.revision, syncedTime: S.time };
+    sync.conflict = null;
+    setStatus('linking');
+    upload('resolve', { force: true, base: cloud.revision });   // the server keeps the account's previous save as an earlier version
+  }
+  function askMigrate() {
+    UI.modal({
+      title: 'Save this progress to your account?',
+      dismissible: false,
+      body: [
+        el('p', { text: `Your account (${sync.user.username}) has no save yet. The progress in this browser can become its save. It also stays in this browser.` }),
+        table([{ title: 'This browser', s: summaryOf(S) }]),
+        el('p', { class: 'muted', text: 'Only noclips made while signed in count on the leaderboard; your lifetime count stays in your save either way.' }),
+      ],
+      actions: [
+        { label: 'Start a new game for this account', onClick: () => { freshStart(`Kept when starting a new game for ${sync.user.username}`); setStatus('linking'); upload('reset', { force: true }); UI.toast('New game', 'The previous progress is kept as a copy in Settings → Account.', ''); } },
+        { label: 'Upload this progress', cls: 'primary', onClick: () => {
+          S.ext.cloud = { owner: sync.user.key, revision: 0, syncedTime: S.time };
+          setStatus('linking');
+          upload('migrate', { force: true }).then((ok) => {
+            if (ok) UI.toast('Progress saved to your account', `Iteration ${S.iteration}.`, 'ach');
+            else UI.toast('Not uploaded yet', `${sync.message || 'The server did not accept it.'} Your progress is safe in this browser and will be uploaded when the server can be reached.`, 'danger');
+          });
+        } },
+      ],
+    });
+  }
+  function askOtherAccount(cloud, owner) {
+    const svc = service();
+    UI.modal({
+      title: cloud ? `Load ${sync.user.username}’s save?` : `New game for ${sync.user.username}?`,
+      dismissible: false,
+      body: [
+        el('p', { text: `The progress in this browser belongs to another account (${owner}), so it cannot become ${sync.user.username}’s. It stays in that account, and a copy is kept here.` }),
+        cloud ? table([{ title: `${sync.user.username}’s account`, s: { ...cloud.summary } }]) : el('p', { text: `${sync.user.username} has no save yet, so a new game begins.` }),
+      ],
+      actions: [
+        { label: 'Sign out', onClick: () => { if (svc) svc.logout(); } },
+        { label: cloud ? 'Load it' : 'Start a new game', cls: 'primary', onClick: () => {
+          if (cloud) adopt(cloud, `Progress of ${owner}, replaced when ${sync.user.username} signed in`);
+          else { freshStart(`Progress of ${owner}, kept when ${sync.user.username} signed in`); setStatus('linking'); upload('link', { force: true }); }
+        } },
+      ],
+    });
+  }
+
+  // ------------------------------------------------------------- when to sync
+  Exp.hook('account:changed', ID, (s) => {
+    if (s.status === 'signed-in') begin();
+    else { sync.user = null; sync.conflict = null; setStatus('off'); }
+  });
+  Exp.hook('afterLoad', ID, () => {
+    loadedTime = S.time;
+    if (!quiet && sync.user && service()) begin(true);   // an import or an erase while signed in is checked like a sign-in
+  });
+  Exp.hook('save:after', ID, (manual) => {
+    if (!sync.user) return;
+    const hidden = document.visibilityState === 'hidden';
+    if (manual || hidden || performance.now() - sync.lastTry >= EVERY_MS) upload(manual ? 'manual' : 'autosave', { keepalive: hidden });
+  });
+  Exp.hook('noclip:done', ID, () => { if (sync.user) upload('noclip'); });
+  Exp.hook('account:beforeLogout', ID, (wait) => { if (sync.user) wait(upload('logout')); });
+  Exp.hook('cloud:state', ID, () => ({ status: sync.status, message: sync.message, revision: link() ? link().revision : 0, lastOk: sync.lastOk }));
+
+  Exp.hook('reset:notes', ID, (add) => { if (sync.user) add(`You are signed in as ${sync.user.username}: this erases the progress in this browser only. Your account keeps its save and loads it again. To start over in your account as well, use Settings → Account → Start a new game.`); });
+  Exp.hook('import:notes', ID, (add) => { if (sync.user) add('You are signed in: if the imported save differs from your account’s, you will choose which to keep. Neither is lost.'); });
+
+  // ------------------------------------------------------------- Settings → Account
+  let row = null;
+  Exp.hook('account:sections', ID, (add) => {
+    const state = el('span');
+    const note = el('small');
+    const now = el('button', { type: 'button', class: 'btn' }, 'Save to account now');
+    now.addEventListener('click', () => { if (sync.status === 'conflict') showConflict(); else if (sync.status === 'paused-dev') loadAccountSave(); else upload('manual', { force: sync.status !== 'saving' }); });
+    row = { state, note, now };
+    add(el('div', { class: 'setting' }, el('div', { class: 'lbl' }, state, note), now));
+    const restart = el('button', { type: 'button', class: 'btn' }, 'Start a new game…');
+    restart.addEventListener('click', () => {
+      UI.modal({
+        title: 'Start a new game for this account?',
+        body: [el('p', { text: 'Your current progress stays as an earlier version in your account, and as a copy in this browser. Your leaderboard count is not affected.' })],
+        actions: [{ label: 'Cancel' }, { label: 'Start a new game', cls: 'danger', onClick: () => { const base = link() ? link().revision : 0; freshStart('Kept when starting a new game'); S.ext.cloud = { owner: sync.user.key, revision: base, syncedTime: 0 }; setStatus('linking'); upload('reset', { force: true, base }); } }],
+      });
+    });
+    add(el('div', { class: 'setting' }, el('div', { class: 'lbl' }, 'Start over', el('small', { text: 'A new game in your account. The current one is kept as an earlier version.' })), restart));
+    // Earlier versions in the account, and copies kept in this browser.
+    const versions = el('div', { class: 'cs-list' });
+    const showV = el('button', { type: 'button', class: 'btn' }, 'Show earlier versions');
+    showV.addEventListener('click', async () => {
+      const svc = service();
+      if (!svc) return;
+      setDis(showV, true);
+      const r = await svc.api('GET', '/api/save/history');
+      setDis(showV, false);
+      versions.replaceChildren();
+      const list = r.ok && Array.isArray(r.data.history) ? r.data.history : [];
+      if (!list.length) versions.append(el('p', { class: 'panel-sub', text: r.ok ? 'No earlier versions yet.' : 'They could not be loaded.' }));
+      for (const h of list.slice(0, 10)) {
+        const load = el('button', { type: 'button', class: 'btn small' }, 'Load…');
+        load.addEventListener('click', async () => {
+          const one = await svc.api('GET', `/api/save/history/${h.revision}`);
+          if (one.ok && one.data.save) offerImport(one.data.save.data);
+        });
+        versions.append(el('div', { class: 'cs-item' }, el('span', { text: `Revision ${h.revision} · iteration ${fmt(h.summary.iteration)}, Level ${h.summary.level}, ${fmt(h.summary.dvTotal)} Déjà Vu earned · ${new Date(h.savedAt).toLocaleString()}` }), load));
+      }
+    });
+    add(el('div', { class: 'setting cs-block' }, el('div', { class: 'lbl' }, 'Earlier versions in your account', el('small', { text: 'Kept when a save was replaced on purpose, and once an hour.' }), versions), showV));
+    const local = el('div', { class: 'cs-list' });
+    for (const cpy of copies()) {
+      const restore = el('button', { type: 'button', class: 'btn small' }, 'Restore…');
+      restore.addEventListener('click', () => { try { offerImport(JSON.parse(cpy.data)); } catch (e) { UI.toast('Copy unreadable', 'This copy could not be read.', 'danger'); } });
+      local.append(el('div', { class: 'cs-item' }, el('span', { text: `${new Date(cpy.at).toLocaleString()} · ${cpy.label}` }), restore));
+    }
+    if (!local.children.length) local.append(el('p', { class: 'panel-sub', text: 'None. A copy is kept here whenever another save replaces the one in this browser.' }));
+    add(el('div', { class: 'setting cs-block' }, el('div', { class: 'lbl' }, 'Copies kept in this browser', local)));
+  });
+  /** Restores an earlier version or a kept copy, after a confirmation. It becomes this browser's game and the
+   *  account's save; the progress it replaces is kept as a copy here and as an earlier version there. */
+  function offerImport(data) {
+    let st;
+    try { st = sanitizeState(data); } catch (e) { UI.toast('Cannot restore', e.message, 'danger'); return; }
+    UI.modal({
+      title: 'Restore this progress?',
+      body: [
+        el('p', { text: 'It replaces your current progress, here and in your account. Your current progress is kept as a copy in this browser and as an earlier version in your account.' }),
+        table([{ title: 'Now', s: summaryOf(S) }, { title: 'Restored', s: summaryOf(st) }]),
+      ],
+      actions: [{ label: 'Cancel' }, { label: 'Restore', cls: 'primary', onClick: () => { restore(st); } }],
+    });
+  }
+  async function restore(st) {
+    const svc = service();
+    keepCopy('Replaced by a restored version');
+    st.lastSaved = Date.now();
+    quiet = true;
+    try { replaceState(st); } finally { quiet = false; }
+    save();
+    if (!svc || !sync.user) return;
+    const m = await svc.api('GET', '/api/save/meta');
+    const base = m.ok && m.data.save ? m.data.save.revision : 0;
+    S.ext.cloud = { owner: sync.user.key, revision: base, syncedTime: S.time };
+    setStatus('linking');
+    if (await upload('resolve', { force: true, base })) UI.toast('Progress restored', `Iteration ${S.iteration}.`, 'ach');
+  }
+  async function loadAccountSave() {
+    const svc = service();
+    const r = svc && await svc.api('GET', '/api/save');
+    if (r && r.ok && r.data.save) adopt(r.data.save, 'Changed with developer tools; replaced by your account’s save');
+  }
+  const ago = (ms) => fmtTime((performance.now() - ms) / 1000);
+  Exp.hook('ui:update', ID, () => {
+    if (deferred && !UI.modalOpen) { const fn = deferred; deferred = null; fn(); }
+    if (!row || !row.state.isConnected) return;
+    const st = sync.status;
+    const text = {
+      off: 'Cloud save is off.', checking: 'Checking your account’s save…', linking: 'Saving to your account…', saving: 'Saving to your account…',
+      synced: `Saved to your account${sync.lastOk ? ` ${ago(sync.lastOk)} ago` : ''}.`, offline: 'Not saved to your account: the server cannot be reached.',
+      error: 'Not saved to your account.', conflict: 'Your account and this browser have different progress.', waiting: 'Waiting for your choice.',
+      'paused-dev': 'Paused: developer tools changed this save, so it is not uploaded.', unavailable: 'This server does not keep saves.',
+    }[st] || '';
+    setText(row.state, text);
+    setText(row.note, st === 'paused-dev' ? 'Your account keeps its last clean save.' : sync.message || `Revision ${link() ? link().revision : 0}. Uploads about once a minute, at each noclip and when you sign out.`);
+    setText(row.now, st === 'conflict' ? 'Choose…' : st === 'paused-dev' ? 'Load my account’s save' : 'Save to account now');
+    setDis(row.now, st === 'checking' || st === 'saving' || st === 'linking' || st === 'waiting' || st === 'off' || st === 'unavailable');
+  });
+
+  Exp.hook('manual', ID, (add) => add('Cloud save', [
+    'While you are signed in, your save is kept with your account as well as in this browser: about once a minute, at every noclip and when you sign out. On another device, sign in to continue.',
+    'If two devices or tabs have different progress, nothing is overwritten: you choose which to keep, and the other is kept as an earlier version or a copy you can restore in Settings → Account. Saves changed with developer tools are never uploaded.',
+  ]));
+})();
+// <<< EXP-CLOUD-SAVE
+//
+// ---------------------------------------------------------------------------
+//
+// >>> EXP-NOCLIP-LEADERBOARD
+// Noclip leaderboard. While signed in to The Hum's server, every completed noclip is reported to it, once:
+// the report names this save (a random lineage id kept in ext.lb) and the iteration that ended, and the
+// server counts each pair once. The browser never sends a count. Reports wait in a queue in this browser
+// until the server confirms them, so a lost connection or a closed tab only delays them. Noclips in a save
+// changed with developer tools are never reported. Archive → Leaderboard shows the server's ranking
+// (rank, username, noclips), the player's own rank and pages; a copy without a server says so and shows no
+// list. Registry entry and rollback: docs/experiments/EXP-NOCLIP-LEADERBOARD.md
+(function noclipLeaderboardExperiment() {
+  const ID = 'EXP-NOCLIP-LEADERBOARD';
+  Exp.define({
+    id: ID,
+    name: 'Noclip leaderboard',
+    summary: 'Reports each completed noclip to the server once, and ranks accounts by the noclips the server recorded, in Archive → Leaderboard.',
+  });
+
+  const QUEUE = 'the-hum.noclip-reports';   // reports waiting for the server; not part of the save
+  Exp.ext.state.lb = (v) => (isObj(v) && typeof v.lineage === 'string' && /^[0-9a-f]{32}$/.test(v.lineage) ? { lineage: v.lineage } : undefined);
+  const service = () => (Exp.on(ID) ? Exp.ask('account:service') : undefined);
+  const ready = () => { const s = service(); const st = s && s.state(); return st && st.status === 'signed-in' && s.has(ID) ? { svc: s, user: st.user } : null; };
+  const devMarked = () => !!(S.ext.dev && S.ext.dev.actions > 0);
+  const lb = { me: null, list: null, page: 1, loading: false, error: '', fetchedAt: 0, flushing: false, retryAt: 0, note: '' };
+
+  function lineage() {
+    if (!S.ext.lb) {
+      const b = new Uint8Array(16);
+      crypto.getRandomValues(b);
+      S.ext.lb = { lineage: [...b].map((x) => x.toString(16).padStart(2, '0')).join('') };
+    }
+    return S.ext.lb.lineage;
+  }
+  function queue() { try { const v = JSON.parse(Store.get(QUEUE) || '[]'); return Array.isArray(v) ? v.filter(isObj).slice(0, 200) : []; } catch (e) { return []; } }
+  const setQueue = (q) => Store.set(QUEUE, JSON.stringify(q.slice(-200)));
+  const pendingFor = (key) => queue().filter((x) => x.user === key).length;
+
+  // ------------------------------------------------------------- reporting
+  // The lineage is created on the new run while signed in, so it is saved together with the noclip.
+  Exp.hook('noclip:newRun', ID, () => { if (ready() && !devMarked()) lineage(); });
+  Exp.hook('noclip:done', ID, (ended) => {
+    const r = ready();
+    if (!r || devMarked()) return;
+    const q = queue();
+    q.push({ user: r.user.key, lineage: lineage(), iteration: ended.iteration, at: Date.now(),
+      run: { level: ended.level, exitFound: !!ended.exitFound, time: ended.time, salvage: ended.salvage, gain: ended.gain } });
+    setQueue(q);
+    flush();
+  });
+  /** Sends this account's waiting reports one at a time, oldest first. */
+  async function flush() {
+    const r = ready();
+    if (!r || lb.flushing || Date.now() < lb.retryAt) return;
+    lb.flushing = true;
+    try {
+      for (;;) {
+        const q = queue();
+        const i = q.findIndex((x) => x.user === r.user.key);
+        if (i < 0) break;
+        const item = q[i];
+        const res = await r.svc.api('POST', '/api/noclips', { lineage: item.lineage, iteration: item.iteration, run: item.run, devMarked: false });
+        if (res.ok) {
+          const left = queue().filter((x) => !(x.user === item.user && x.lineage === item.lineage && x.iteration === item.iteration));
+          setQueue(left);
+          lb.me = { noclips: res.data.noclips, rank: res.data.rank };
+          lb.fetchedAt = 0;   // the open list refreshes
+          continue;
+        }
+        if (res.status === 429) { lb.retryAt = Date.now() + 1000 * Math.max(1, Number(res.data.retryAfter) || 30); setTimeout(flush, lb.retryAt - Date.now() + 50); break; }
+        if (res.status === 400 || res.status === 422) {   // refused for good: dropped, with the reason kept for Settings
+          lb.note = res.data.message || 'A noclip report was refused.';
+          setQueue(queue().filter((x) => !(x.user === item.user && x.lineage === item.lineage && x.iteration === item.iteration)));
+          continue;
+        }
+        lb.retryAt = Date.now() + 30000;   // offline or signed out: try again later
+        setTimeout(flush, 30500);
+        break;
+      }
+    } finally { lb.flushing = false; rt.structureDirty = true; }
+  }
+  async function fetchMe() {
+    const r = ready();
+    if (!r) { lb.me = null; return; }
+    const res = await r.svc.api('GET', '/api/leaderboard/me');
+    if (res.ok) lb.me = { noclips: res.data.noclips, rank: res.data.rank };
+  }
+  Exp.hook('account:changed', ID, (s) => { lb.me = null; lb.fetchedAt = 0; if (s.status === 'signed-in') { fetchMe(); flush(); } });
+
+  // ------------------------------------------------------------- Archive → Leaderboard
+  Exp.hook('archive:subtabs', ID, (subs) => subs.push(['lb', 'Leaderboard']));
+  let view = null;
+  Exp.hook('archive:build', ID, (tab, p) => {
+    if (tab !== 'lb') return undefined;
+    view = { status: el('p', { class: 'lb-status' }), mine: el('p', { class: 'lb-mine' }), list: el('ol', { class: 'lb-list' }), pager: el('div', { class: 'lb-pager' }), source: el('p', { class: 'panel-sub lb-source' }) };
+    const prev = el('button', { type: 'button', class: 'btn small', 'data-lb': 'prev' }, '← Previous');
+    const next = el('button', { type: 'button', class: 'btn small', 'data-lb': 'next' }, 'Next →');
+    const mineBtn = el('button', { type: 'button', class: 'btn small', 'data-lb': 'mine' }, 'My rank');
+    const refresh = el('button', { type: 'button', class: 'btn small', 'data-lb': 'refresh' }, 'Refresh');
+    view.pageText = el('span', { class: 'lb-page' });
+    view.pager.append(prev, view.pageText, next, mineBtn, refresh);
+    Object.assign(view, { prev, next, mineBtn, refresh });
+    const box = el('section', { class: 'lb', 'aria-label': 'Leaderboard' },
+      el('h3', { class: 'section-title', text: 'Leaderboard: completed noclips' }), view.status, view.mine, view.list, view.pager, view.source);
+    box.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-lb]');
+      if (!b || b.disabled) return;
+      const a = b.dataset.lb;
+      if (a === 'prev') load(lb.page - 1);
+      else if (a === 'next') load(lb.page + 1);
+      else if (a === 'mine' && lb.me && lb.me.rank) load(Math.ceil(lb.me.rank / ((lb.list && lb.list.perPage) || 25)));
+      else load(lb.page);
+    });
+    p.append(box);
+    lb.fetchedAt = 0;
+    draw();
+    return true;
+  });
+  async function load(page) {
+    const svc = Exp.on(ID) ? Exp.ask('account:service') : undefined;
+    const st = svc && svc.state();
+    if (!svc || !st || !svc.has(ID) || lb.loading) return;
+    lb.loading = true; lb.error = '';
+    const res = await svc.api('GET', `/api/leaderboard?page=${Math.max(1, page | 0)}`);
+    lb.loading = false;
+    lb.fetchedAt = performance.now();
+    if (res.ok && Array.isArray(res.data.entries)) { lb.list = res.data; lb.page = res.data.page; if (res.data.me) lb.me = res.data.me; }
+    else lb.error = (res.data && res.data.message) || 'The leaderboard cannot be loaded right now.';
+    draw();
+  }
+  function draw() {
+    if (!view || !view.list.isConnected) return;
+    const svc = Exp.on(ID) ? Exp.ask('account:service') : undefined;
+    const st = svc ? svc.state() : { status: 'none' };
+    const local = S.life.noclips;
+    const noServer = st.status === 'none' || st.status === 'checking';
+    const noBoard = !noServer && st.status !== 'error' && svc && !svc.has(ID);
+    setHidden(view.list, noServer || noBoard || !lb.list);
+    setHidden(view.pager, noServer || noBoard || !lb.list);
+    if (noServer) {
+      setText(view.status, 'There is no leaderboard in this copy of The Hum. The leaderboard lives on the game’s server, which records each noclip once; this copy runs without one, so nothing is ranked here.');
+      setText(view.mine, `Your own count is kept in your save: ${plural(local, 'noclip')}.`);
+      setText(view.source, '');
+      return;
+    }
+    if (noBoard) { setText(view.status, 'This server does not keep a leaderboard.'); setText(view.mine, ''); setText(view.source, ''); return; }
+    if (st.status === 'error') { setText(view.status, 'The server cannot be reached, so the leaderboard cannot be shown right now.'); setText(view.mine, ''); setText(view.source, ''); return; }
+    const L = lb.list;
+    setText(view.status, lb.error || (lb.loading && !L ? 'Loading the leaderboard…' : L && !L.total ? 'No noclips have been recorded yet. The first one puts you on the board.' : ''));
+    const waiting = st.user ? pendingFor(st.user.key) : 0;
+    let mine;
+    if (st.status !== 'signed-in') mine = `Sign in to appear on the leaderboard. Your save counts ${plural(local, 'noclip')}.`;
+    else if (devMarked()) mine = 'This save was changed with developer tools, so its noclips are not ranked.';
+    else {
+      const me = lb.me;
+      mine = me && me.rank ? `You (${st.user.username}): rank ${fmt(me.rank)}, ${plural(me.noclips, 'noclip')} recorded.` : `You (${st.user.username}) are not ranked yet: complete a noclip while signed in.`;
+      const recorded = me ? me.noclips : 0;
+      if (local > recorded) mine += ` Your save counts ${plural(local, 'noclip')}; only those the server has recorded are ranked (noclips made before signing in or without a server are not).`;
+      if (waiting) mine += ` ${plural(waiting, 'noclip')} waiting to be recorded.`;
+    }
+    setText(view.mine, mine);
+    if (L) {
+      const rows = L.entries.map((e) => el('li', { class: e.you ? 'you' : '' },
+        el('span', { class: 'lb-rank', text: `#${fmt(e.rank)}` }), el('span', { class: 'lb-name', text: e.username }),
+        el('span', { class: 'lb-count', text: plural(e.noclips, 'noclip') })));
+      view.list.replaceChildren(...rows);
+      setText(view.pageText, `Page ${L.page} of ${L.pages}`);
+      setDis(view.prev, L.page <= 1 || lb.loading);
+      setDis(view.next, L.page >= L.pages || lb.loading);
+      setDis(view.mineBtn, !(lb.me && lb.me.rank) || lb.loading);
+    }
+    setText(view.source, `Source: this server’s records, ${fmt(L ? L.total : 0)} ranked ${L && L.total === 1 ? 'account' : 'accounts'}. Each noclip counts once, recorded when the server receives it; ties go to whoever reached the count first. Only usernames and counts are shown.`);
+  }
+  Exp.hook('archive:update', ID, () => {
+    if (!view || rt.archiveTab !== 'lb' || rt.tab !== 'archive') return;
+    if (!lb.loading && (!lb.fetchedAt || performance.now() - lb.fetchedAt > 30000)) { const r = Exp.ask('account:service'); if (r && r.has(ID)) load(lb.page); }
+    if (rt.uiTick % 4 === 0) draw();
+  });
+
+  // ------------------------------------------------------------- lines in other panels
+  Exp.hook('noclip:records', ID, () => {
+    const r = ready();
+    if (!r) return undefined;
+    if (devMarked()) return 'Leaderboard: this save was changed with developer tools, so its noclips are not ranked.';
+    const w = pendingFor(r.user.key);
+    const me = lb.me;
+    return `Leaderboard: ${me ? `${plural(me.noclips, 'noclip')} recorded by the server${me.rank ? `, rank ${fmt(me.rank)}` : ''}` : 'checking…'}${w ? `; ${plural(w, 'noclip')} waiting to be sent` : ''}. See Archive → Leaderboard.`;
+  });
+  Exp.hook('account:sections', ID, (add) => {
+    const n = el('small');
+    add(el('div', { class: 'setting' }, el('div', { class: 'lbl' }, 'Noclip leaderboard', n)));
+    setText(n, lb.me && lb.me.rank ? `Rank ${fmt(lb.me.rank)} with ${plural(lb.me.noclips, 'noclip')} recorded. Archive → Leaderboard.` : 'Noclips you complete while signed in are recorded and ranked. Archive → Leaderboard.' + (lb.note ? ` Last refusal: ${lb.note}` : ''));
+  });
+
+  Exp.hook('manual', ID, (add) => add('The leaderboard', [
+    'Archive → Leaderboard ranks accounts by completed noclips. It is kept by The Hum’s server: each noclip you complete while signed in is reported and counted once. Your browser never sends a total.',
+    'On a tie, whoever reached that count first ranks higher. Noclips made before you signed in, or in a copy without a server, stay in your own save’s count but are not ranked. Noclips in a save changed with developer tools are never ranked.',
+  ]));
+})();
+// <<< EXP-NOCLIP-LEADERBOARD
+//
+// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // 9. BOOT AND MAIN LOOP
@@ -6097,7 +7532,7 @@ function boot() {
       get S() { return S; }, rt, CONFIG, LEVELS, FACILITIES, UPGRADES, RESEARCH, MEMORIES, EXPEDITIONS, ANOMALIES,
       step, catchUp, derive, survey, buyFacility, buyUpgrade, hire, assign, launchExpedition, doResearch, adoptDoctrine,
       noclip, buyMemory, killLights, drink, documentAnomaly, spawnAnomaly, scheduleIncident, dvPreview, canNoclip,
-      facVisible, upgradeVisible, buyQuote, facilityCost, maxAffordable, save, loadGame, sanitizeState, encodeSave, decodeSave,
+      facVisible, upgradeVisible, buyQuote, facilityCost, maxAffordable, facPrice, memoryCost, save, loadGame, sanitizeState, encodeSave, decodeSave,
       replaceState, exitRooms, crewIdle, canLaunch, canResearch, canBuyMemory, hireCost, UI,
       Exp, Wallet, contentOn, upgradeAvailable, upgradeHome, Panels, TABS, JOBS, FAC, UPG, CONDITIONS, ACHIEVEMENTS,
       setBuyMode(m) { rt.buyMode = m; },

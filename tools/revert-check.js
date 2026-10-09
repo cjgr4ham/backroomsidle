@@ -1,11 +1,14 @@
 // Proves that each experiment can be reverted on its own: in a throwaway clone, reverts every commit whose
-// subject starts with the experiment's identifier, then checks that its code slots are empty, that its test
-// file is gone, and that every remaining test suite and the equivalence check still pass.
+// subject starts with the experiment's identifier, then checks that its code slots are empty, that the test
+// files, server files and registry entry its commits added are gone, and that every remaining test suite and
+// the equivalence check still pass. Suites of experiments that need a reverted one report themselves as
+// skipped ("0 passed, 0 failed"), which counts as passing: their code stays and is inactive.
 // Usage: node tools/revert-check.js [EXP-ID ...] [--all]
 //   no ids   every experiment documented in docs/experiments (EXP-CORE excepted)
-//   --all    also takes back every change the experiment and EXP-CORE commits made to index.html, together,
-//            and checks the file is then byte-identical to the baseline revision (ebfa0c6) and that the
-//            original functional test passes on it
+//   --all    also takes back every change the experiment and EXP-CORE commits made outside docs/ and tools/
+//            (index.html, server/, package.json, .gitignore), together, and checks that index.html is then
+//            byte-identical to the baseline revision (ebfa0c6), that no server files remain, and that the
+//            original functional test passes
 // Works on committed history only; your working tree is never touched.
 const path = require('path');
 const fs = require('fs');
@@ -52,7 +55,7 @@ for (const id of ids) {
     const html = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
     row.slotsEmpty = slotEmpty(html, id);
     // The experiment's own test files and registry entry, as its commits added them, must be gone.
-    const added = commits.flatMap((c) => git(ROOT, 'show', '--format=', '--name-only', '--diff-filter=A', c).split('\n')).filter((f) => f.startsWith('tools/tests/') || f.startsWith('docs/experiments/'));
+    const added = commits.flatMap((c) => git(ROOT, 'show', '--format=', '--name-only', '--diff-filter=A', c).split('\n')).filter((f) => f.startsWith('tools/tests/') || f.startsWith('docs/experiments/') || f.startsWith('server/'));
     row.testGone = added.length > 0 && added.every((f) => !fs.existsSync(path.join(dir, f)));
     const t = run(dir, 'tools/run-tests.js');
     row.suites = (/All (\d+) suites passed \((\d+) checks\)/.exec(t.text) || [null, '?', '?']).slice(1).join(' suites, ') + ' checks' + (t.ok ? '' : ' — FAILED');
@@ -70,22 +73,24 @@ if (ALL) {
   const dir = clone();
   const row = { experiment: 'everything (all experiments and EXP-CORE)', commits: 0, reverted: false, slotsEmpty: null, testGone: null, suites: '', equivalence: false };
   try {
-    // Every commit that touched index.html, newest first; each must be an experiment or EXP-CORE commit.
-    const touching = git(dir, 'log', '--format=%H %s', `${BASELINE}..HEAD`, '--', 'index.html').split('\n').filter(Boolean);
+    // Every commit that touched the game or the server, newest first; each must be an experiment or EXP-CORE commit.
+    const PATHS = ['index.html', 'server', 'package.json', '.gitignore'];
+    const touching = git(dir, 'log', '--format=%H %s', `${BASELINE}..HEAD`, '--', ...PATHS).split('\n').filter(Boolean);
     const stray = touching.filter((l) => !/^[0-9a-f]{40} EXP-/.test(l));
-    if (stray.length) throw new Error(`index.html changed outside experiment commits: ${stray.join('; ')}`);
+    if (stray.length) throw new Error(`game or server files changed outside experiment commits: ${stray.join('; ')}`);
     row.commits = touching.length;
     for (const l of touching) {
       const c = l.slice(0, 40);
-      const patch = execFileSync('git', ['-C', dir, 'diff', `${c}^`, c, '--', 'index.html']);
-      execFileSync('git', ['-C', dir, 'apply', '-R'], { input: patch });
+      const patch = execFileSync('git', ['-C', dir, 'diff', `${c}^`, c, '--', ...PATHS]);
+      if (patch.length) execFileSync('git', ['-C', dir, 'apply', '-R'], { input: patch });
     }
     row.reverted = true;
     const now = fs.readFileSync(path.join(dir, 'index.html'));
     const base = execFileSync('git', ['-C', ROOT, 'show', `${BASELINE}:index.html`]);
-    row.equivalence = Buffer.compare(now, base) === 0;
+    const left = ['server', 'package.json'].filter((f) => fs.existsSync(path.join(dir, f)) && (fs.statSync(path.join(dir, f)).isFile() || fs.readdirSync(path.join(dir, f)).length));
+    row.equivalence = Buffer.compare(now, base) === 0 && !left.length;
     const t = run(dir, 'tools/functional-test.js', '');
-    row.suites = `index.html ${row.equivalence ? 'identical to' : 'DIFFERS from'} ${BASELINE}; original functional test ${t.ok ? 'passes' : 'FAILS'}`;
+    row.suites = `index.html ${Buffer.compare(now, base) === 0 ? 'identical to' : 'DIFFERS from'} ${BASELINE}; ${left.length ? `server files LEFT: ${left.join(', ')}` : 'no server files left'}; original functional test ${t.ok ? 'passes' : 'FAILS'}`;
   } catch (e) {
     row.suites = 'revert failed: ' + String(e.stderr || e.message).split('\n')[0];
   } finally {
@@ -95,6 +100,6 @@ if (ALL) {
 }
 
 console.table(results);
-const bad = results.filter((r) => !r.reverted || r.slotsEmpty === false || r.testGone === false || /FAIL|failed|DIFFERS/.test(r.suites) || !r.equivalence);
+const bad = results.filter((r) => !r.reverted || r.slotsEmpty === false || r.testGone === false || /FAIL|failed|DIFFERS|LEFT/.test(r.suites) || !r.equivalence);
 console.log(bad.length ? `${bad.length} revert check(s) failed` : 'Every revert check passed');
 process.exit(bad.length ? 1 : 0);
