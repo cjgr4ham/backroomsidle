@@ -6500,14 +6500,12 @@ function onKey(e) {
     { title: 'Automation', note: '', items: ['procure'] },
   ];
 
-  const lockUntil = {};
-  const canBuy = (it) => {
-    const L = it.level();
-    return L < it.max && performance.now() >= (lockUntil[it.id] || 0) && Wallet.can('dv', it.cost(L));
-  };
+  const lockUntil = {};   // card id -> time before which clicks are ignored (interface only)
+  const locked = (id) => performance.now() < (lockUntil[id] || 0);
+  const canBuy = (it) => { const L = it.level(); return L < it.max && Wallet.can('dv', it.cost(L)); };
   /** Levels this shop adds are paid here; the original Memories are bought through the game's own buyMemory(). */
   const ownLevel = (id, L) => id === 'stash' || id === 'bargain' || (id === 'friends' && L > 0);
-  /** Buys the next level of an upgrade. One purchase per call; a second within LOCK_MS of the first is refused. */
+  /** Buys the next level of an upgrade, one level per call. */
   function buy(id) {
     const it = ITEMS[id];
     if (!it || !canBuy(it)) return false;
@@ -6519,7 +6517,6 @@ function onKey(e) {
       Sound.play('research');
       log(`You remember: ${it.name}, level ${L + 1}. ${it.now(L + 1)}`, 'gain', 'MEMORY');
     } else if (!it.buy(L)) return false;
-    lockUntil[id] = performance.now() + LOCK_MS;
     return true;
   }
   const API = { ids: () => Object.keys(ITEMS), level: (id) => ITEMS[id].level(), max: (id) => ITEMS[id].max, cost: (id) => ITEMS[id].cost(ITEMS[id].level()),
@@ -6549,8 +6546,11 @@ function onKey(e) {
     }
     shop.addEventListener('click', (e) => {
       const b = e.target.closest('[data-action="djv-buy"]');
-      if (!b || b.disabled) return;
-      if (buy(b.dataset.id) && !rt.reducedMotion) { const n = b.closest('.slip'); n.classList.remove('bought'); void n.offsetWidth; n.classList.add('bought'); }
+      if (!b || b.disabled || locked(b.dataset.id)) return;
+      if (buy(b.dataset.id)) {
+        lockUntil[b.dataset.id] = performance.now() + LOCK_MS;
+        if (!rt.reducedMotion) { const n = b.closest('.slip'); n.classList.remove('bought'); void n.offsetWidth; n.classList.add('bought'); }
+      }
       UI.update();
     });
     p.append(shop);
@@ -6583,7 +6583,7 @@ function onKey(e) {
       const price = it.cost(L);
       setText(c.label, L ? `Level ${fmt(L + 1)}` : 'Remember');
       setText(c.cost, have >= price ? `${fmt(price)} Déjà Vu` : `${fmt(price)} Déjà Vu · need ${fmt(price - have)} more`);
-      setDis(c.btn, !canBuy(it));
+      setDis(c.btn, !canBuy(it) || locked(it.id));
       setAttr(c.btn, 'aria-label', `${it.name}: ${L ? `level ${L + 1}` : 'remember'} for ${fmt(price)} Déjà Vu`);
     }
   });

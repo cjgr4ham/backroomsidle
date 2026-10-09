@@ -9,7 +9,8 @@
 //                         lines nobody runs, as a player reading the Crew tab would; "base" never does
 //   --json                print one JSON object instead of the timeline
 // It buys by payback, hires and assigns crew, documents anomalies, kills the lights on warnings,
-// researches the cheapest project and noclips at the end of each iteration. The live frame loop is
+// researches the cheapest project, spends Déjà Vu (cheapest first in the Déjà Vu shop when it is on) and
+// noclips at the end of each iteration. The live frame loop is
 // paused and the random sequence seeded, so the same arguments always give the same result.
 const path = require('path');
 let playwright;
@@ -136,8 +137,18 @@ const say = (...x) => { if (!JSON_OUT) console.log(...x); };
           if (!best) break;
           if (!H.buyFacility(best.id)) break;
         }
-        for (const M of H.MEMORIES) if (H.canBuyMemory(M) && !M.repeatable) H.buyMemory(M.id);
-        for (const M of H.MEMORIES) if (H.canBuyMemory(M) && M.repeatable) H.buyMemory(M.id);
+        // Déjà Vu: with the Déjà Vu shop (EXP-DEJA-VU-SHOP), buy whatever is cheapest, one level at a time;
+        // without it, every one-off Memory first and then Recurrence, as before.
+        const djv = H.Exp.ask && H.Exp.ask('djv:api');
+        if (djv) {
+          for (let k = 0; k < 40; k++) {
+            const ids = djv.ids().filter((id) => djv.can(id)).sort((x, y) => djv.cost(x) - djv.cost(y));
+            if (!ids.length || !djv.buy(ids[0])) break;
+          }
+        } else {
+          for (const M of H.MEMORIES) if (H.canBuyMemory(M) && !M.repeatable) H.buyMemory(M.id);
+          for (const M of H.MEMORIES) if (H.canBuyMemory(M) && M.repeatable) H.buyMemory(M.id);
+        }
       },
       snapshot() {
         const S = H.S, r = S.run, D = H.derive();
