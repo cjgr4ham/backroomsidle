@@ -594,6 +594,18 @@ body.reduce-motion .vp-banner { animation: none; opacity: 1; }
 /* <<< EXP-DEV-MENU */
 /* -- */
 /* >>> EXP-FACILITY-SALVAGE-SCALING */
+.fs-group { display: grid; gap: 6px; }
+.fs-note { margin: 0; color: var(--dim); font-size: 13px; max-width: 72ch; }
+.fs-sum { margin: 0; font: 12px/1.45 var(--font-mono); color: var(--sodium); font-variant-numeric: tabular-nums; }
+.fs-gain { color: var(--ok); }
+.fs-locked { list-style: none; margin: 0; padding: 0; display: grid; border-top: 1px solid var(--line); }
+.fs-locked li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; padding: 8px 4px 8px 2px; border-bottom: 1px solid var(--line); }
+.fs-locked .ico { width: 16px; height: 16px; margin-top: 2px; color: var(--faint); }
+.fs-locked b { display: block; font: 700 14px/1.3 var(--font-sign); letter-spacing: 0.03em; color: var(--dim); }
+.fs-locked b .code { font: 10px var(--font-mono); color: var(--faint); letter-spacing: 0; }
+.fs-what, .fs-req { display: block; font: 12px/1.45 var(--font-mono); font-variant-numeric: tabular-nums; }
+.fs-what { color: var(--paper); }
+.fs-req { color: var(--dim); }
 /* <<< EXP-FACILITY-SALVAGE-SCALING */
 /* -- */
 /* >>> EXP-NOCLIP-STATISTICS */
@@ -6144,6 +6156,171 @@ function onKey(e) {
 // ---------------------------------------------------------------------------
 //
 // >>> EXP-FACILITY-SALVAGE-SCALING
+// Salvage-first Facilities shop. Facilities are grouped by what they do: salvage machines
+// (salvage per second) first, then support equipment (automatic surveys, almond water,
+// noise absorption, Echoes). Each row says what buying the chosen quantity adds and what
+// the totals become, in explicit units, worked out by the same derive() the game uses.
+// Every facility that is still locked is listed with what it would add and what unlocks
+// it. Each salvage machine has its own price curve, price of the next unit = base ×
+// growth^owned: cheap machines grow slowly so they stay worth stacking, and the big ones
+// grow faster so each one is a real decision.
+// Registry entry and rollback: docs/experiments/EXP-FACILITY-SALVAGE-SCALING.md
+(function facilitySalvageScalingExperiment() {
+  const ID = 'EXP-FACILITY-SALVAGE-SCALING';
+  Exp.define({
+    id: ID,
+    name: 'Salvage-first Facilities shop',
+    summary: 'Facilities grouped as salvage machines and support equipment, with the gain and resulting totals of each purchase, every locked facility with its requirement, and a price curve per machine.',
+  });
+
+  // Price curves. Anything not listed keeps its original curve (support equipment: 1.16–1.2).
+  const CURVES = {
+    cart: { growth: 1.12 },
+    bench: { growth: 1.13 },
+    vat: { growth: 1.14 },
+    foundry: { growth: 1.15 },
+    boiler: { growth: 1.16 },
+    switchboard: { growth: 1.165 },
+    fold: { growth: 1.17 },
+  };
+  Exp.hook('facility:price', ID, (f, p) => {
+    const c = CURVES[f.id];
+    if (!c) return;
+    if (c.base != null) p.base = c.base;
+    if (c.growth != null) p.growth = c.growth;
+  });
+
+  const GROUPS = [
+    { id: 'salvage', title: 'Salvage machines',
+      note: 'Each machine adds salvage every second, while you play and while you are away. The next one always costs more than the last.' },
+    { id: 'support', title: 'Support equipment',
+      note: 'Beacons make automatic surveys, and each automatic survey recovers a quarter of a survey’s base salvage. Condensers make almond water, dampeners absorb noise and arrays record Echoes.' },
+  ];
+  const groupOf = (f) => (f.kind === 'salvage' ? 'salvage' : 'support');
+  const SHORT = { cart: 'carts', bench: 'benches', condenser: 'condensers', beacon: 'beacons', dampener: 'dampeners', vat: 'vats',
+    foundry: 'foundries', boiler: 'boilers', array: 'arrays', switchboard: 'switchboards', fold: 'Fold Engines' };
+  const many = (f) => f.name.replace(/([^aeiou])y$/, '$1ie').replace(/(ch|sh|s|x)$/, '$1e') + 's';
+  const stepPct = (g) => { const v = (g - 1) * 100; return `${Math.abs(v - Math.round(v)) < 1e-9 ? Math.round(v) : v.toFixed(1)}%`; };
+
+  /** What unlocks a facility that is still locked, with progress. Facilities never need crew. */
+  function needs(f) {
+    const r = S.run, q = f.req || {}, out = [];
+    if (r.level < f.level) out.push(`reach Level ${f.level}: ${LEVELS[f.level].name}`);
+    if (q.level != null && r.level < q.level) out.push(`reach Level ${q.level}: ${LEVELS[q.level].name}`);
+    if (q.rooms != null && r.rooms < q.rooms) out.push(`map ${fmt(q.rooms)} rooms (${fmt(r.rooms)} so far)`);
+    if (q.fac && count(q.fac) < q.n) out.push(`own ${q.n} ${many(FAC[q.fac])} (you have ${fmt(count(q.fac))})`);
+    if (q.facTotal != null && totalFacilities() < q.facTotal) out.push(`own ${q.facTotal} facilities (you have ${fmt(totalFacilities())})`);
+    if (q.flag === 'water' && !r.flags.water) out.push('find almond water while surveying');
+    if (q.flag === 'expedition' && !r.flags.expedition) out.push('send an expedition');
+    const s = out.join(' and ');
+    return s ? s[0].toUpperCase() + s.slice(1) + '.' : 'Available.';
+  }
+
+  /** The figures with `n` more of a facility, from the game's own calculation. The save is left exactly as it was. */
+  function withMore(f, n) {
+    const r = S.run, had = r.facilities[f.id];
+    r.facilities[f.id] = (had || 0) + n;
+    try { return derive(); } finally { if (had === undefined) delete r.facilities[f.id]; else r.facilities[f.id] = had; }
+  }
+
+  /** "Buy 10: +2.40 salvage/s → carts 3.60/s, all passive salvage 9.10/s" and the like. */
+  function gainText(f, n, D) {
+    const D2 = withMore(f, n), a = D.fac[f.id], b = D2.fac[f.id];
+    const head = `Buy ${fmt(n)}: `;
+    let s;
+    if (f.kind === 'salvage') {
+      s = `${head}+${fmtRate(D2.spsNominal - D.spsNominal)} salvage/s → ${SHORT[f.id]} ${fmtRate(b.total)}/s, all passive salvage ${fmtRate(D2.spsNominal)}/s`;
+    } else if (f.kind === 'survey') {
+      const more = b.total - a.total;
+      s = `${head}+${fmtRate(more)} surveys/s (+${fmtRate(more * D.roomsPerSurvey)} rooms/s, +${fmtRate(D2.spsNominal - D.spsNominal)} salvage/s) → beacons ${fmtRate(b.total)} surveys/s`;
+    } else if (f.kind === 'water') {
+      s = `${head}+${fmtRate(b.total - a.total)} water/s → condensers ${fmtRate(b.total)}/s`;
+    } else if (f.kind === 'echo') {
+      s = `${head}+${fmtRate(b.total - a.total, 4)} Echoes/s → arrays ${fmtRate(b.total, 3)}/s`;
+    } else {
+      s = `${head}absorbs +${fmtRate(b.total - a.total)} noise → dampeners ${fmtRate(b.total)}`;
+    }
+    const at = Math.round(D.attnTarget), at2 = Math.round(D2.attnTarget);
+    if (at2 !== at && !D.lightsOut) s += ` · attention settles at ${at2} instead of ${at}`;
+    return s;
+  }
+
+  let view = null;
+  Exp.hook('facilities:layout', ID, (p, P) => {
+    view = { sums: {}, locked: [] };
+    for (const G of GROUPS) {
+      const facs = FACILITIES.filter((f) => groupOf(f) === G.id && facVisible(f));
+      if (!facs.length) continue;
+      const sum = el('p', { class: 'fs-sum' });
+      view.sums[G.id] = sum;
+      const rows = el('div', { class: 'rows' });
+      for (const f of facs) rows.append(P.row(f));
+      p.append(el('section', { class: 'fs-group', 'aria-label': G.title, 'data-group': G.id },
+        el('h3', { class: 'section-title', text: G.title }), el('p', { class: 'fs-note', text: G.note }), sum, rows));
+    }
+    const locked = FACILITIES.filter((f) => !facVisible(f));
+    if (locked.length) {
+      const list = el('ul', { class: 'fs-locked' });
+      for (const f of locked) {
+        const what = el('span', { class: 'fs-what' });
+        const req = el('span', { class: 'fs-req' });
+        list.append(el('li', { 'data-id': f.id }, icon('lock'), el('div', null, el('b', null, el('span', { class: 'code', text: f.code }), ' ', f.name), what, req)));
+        view.locked.push({ f, what, req });
+      }
+      p.append(el('section', { class: 'fs-group', 'aria-label': 'Locked facilities', 'data-group': 'locked' },
+        el('h3', { class: 'section-title', text: `Locked (${locked.length})` }),
+        el('p', { class: 'fs-note', text: 'Stronger machines open on deeper levels, and some need earlier machines first. Every iteration starts with no facilities, and they open again in the same order.' }),
+        list));
+    }
+    return true;
+  });
+
+  Exp.hook('facilities:row', ID, (f, R) => {
+    R.gain = el('p', { class: 'row-stats fs-gain' });
+    R.stats.after(R.gain);
+  });
+  Exp.hook('facilities:rowUpdate', ID, (f, R, D) => {
+    if (!R.gain) return;
+    const q = buyQuote(f);
+    setText(R.gain, `${gainText(f, q.n, D)} · each next one costs ${stepPct(facPrice(f).growth)} more`);
+    if (!Number.isFinite(q.cost)) setText(R.cost, 'beyond any budget');
+  });
+  Exp.hook('facilities:update', ID, (D) => {
+    if (!view) return;
+    if (view.sums.salvage) {
+      const facSal = FACILITIES.reduce((n, f) => n + (f.kind === 'salvage' ? D.fac[f.id].total : 0), 0);
+      const share = D.spsNominal > 0 ? facSal / D.spsNominal : 0;
+      setText(view.sums.salvage, `Machines make ${fmtRate(facSal)} salvage/s, ${pct(share)} of your passive salvage. Every machine’s output is multiplied by ×${fmtRate(D.facMult)} from levels, upgrades, research, achievements, Déjà Vu and crew.`);
+    }
+    if (view.sums.support) {
+      const parts = [];
+      const t = (id) => D.fac[id].total;
+      if (count('beacon')) parts.push(`beacons ${fmtRate(t('beacon'))} surveys/s (+${fmtRate(t('beacon') * D.surveyFlat * CONFIG.survey.autoShare)} salvage/s)`);
+      if (count('condenser')) parts.push(`condensers ${fmtRate(t('condenser'))} water/s`);
+      if (count('dampener')) parts.push(`dampeners absorb ${fmtRate(t('dampener'))} noise`);
+      if (count('array')) parts.push(`arrays ${fmtRate(t('array'), 3)} Echoes/s`);
+      setText(view.sums.support, parts.length ? `Now: ${parts.join(' · ')}.` : 'None built yet.');
+    }
+    for (const L of view.locked) {
+      const f = L.f, fd = D.fac[f.id], price = facPrice(f);
+      const first = `first one ${fmt(Math.ceil(facilityCost(f, 0, 1)))} salvage, then +${stepPct(price.growth)} per unit`;
+      let what;
+      if (f.kind === 'salvage') what = `+${fmtRate(fd.each)} salvage/s each at your current multipliers · ${first}`;
+      else if (f.kind === 'survey') what = `${fmtRate(fd.each)} automatic surveys/s each, each survey recovering ${fmtRate(D.surveyFlat * CONFIG.survey.autoShare)} salvage · ${first}`;
+      else if (f.kind === 'water') what = `+${fmtRate(fd.each)} almond water/s each · ${first}`;
+      else if (f.kind === 'echo') what = `+${fmtRate(fd.each, 4)} Echoes/s each · ${first}`;
+      else what = `absorbs ${fmtRate(fd.each)} noise each · ${first}`;
+      setText(L.what, what);
+      setText(L.req, `Unlocks: ${needs(f)}`);
+    }
+  });
+
+  Exp.hook('manual', ID, (add) => add('Facility prices', [
+    'Each facility’s price rises with every unit you own: price of the next one = first price × growth^owned. Cheap machines grow slowly, so they stay worth stacking; the big ones grow faster.',
+    `Salvage machines: ${FACILITIES.filter((f) => CURVES[f.id]).map((f) => `${f.name} +${stepPct(CURVES[f.id].growth)}`).join(', ')} per unit. Support equipment keeps its original curve.`,
+    'Each row shows what buying the chosen quantity adds and what your totals become. Locked facilities show what they would add and what unlocks them.',
+  ]));
+})();
 // <<< EXP-FACILITY-SALVAGE-SCALING
 //
 // ---------------------------------------------------------------------------
