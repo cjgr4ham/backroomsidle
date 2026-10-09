@@ -7096,7 +7096,14 @@ function onKey(e) {
       ],
       actions: [
         { label: 'Start a new game for this account', onClick: () => { freshStart(`Kept when starting a new game for ${sync.user.username}`); setStatus('linking'); upload('reset', { force: true }); UI.toast('New game', 'The previous progress is kept as a copy in Settings → Account.', ''); } },
-        { label: 'Upload this progress', cls: 'primary', onClick: () => { S.ext.cloud = { owner: sync.user.key, revision: 0, syncedTime: S.time }; setStatus('linking'); upload('migrate', { force: true }).then((ok) => { if (ok) UI.toast('Progress saved to your account', `Iteration ${S.iteration}.`, 'ach'); }); } },
+        { label: 'Upload this progress', cls: 'primary', onClick: () => {
+          S.ext.cloud = { owner: sync.user.key, revision: 0, syncedTime: S.time };
+          setStatus('linking');
+          upload('migrate', { force: true }).then((ok) => {
+            if (ok) UI.toast('Progress saved to your account', `Iteration ${S.iteration}.`, 'ach');
+            else UI.toast('Not uploaded yet', `${sync.message || 'The server did not accept it.'} Your progress is safe in this browser and will be uploaded when the server can be reached.`, 'danger');
+          });
+        } },
       ],
     });
   }
