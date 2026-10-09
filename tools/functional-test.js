@@ -1,9 +1,12 @@
 // Functional tests for The Hum. Drives the real page in headless Chromium.
 // Run: node tools/functional-test.js   (needs Playwright with a Chromium build)
+// These are the original checks. They run with every experiment switched off (?exp=none), which must
+// behave exactly as the pre-experiment game. Set HUM_QUERY to test another combination.
 const path = require('path');
 let playwright;
 try { playwright = require('playwright'); } catch (e) { playwright = require('/opt/node22/lib/node_modules/playwright'); }
-const URL = 'file://' + path.resolve(__dirname, '..', 'index.html') + '#debug';
+const QUERY = process.env.HUM_QUERY !== undefined ? process.env.HUM_QUERY : '?exp=none';
+const URL = 'file://' + path.resolve(__dirname, '..', 'index.html') + QUERY + '#debug';
 
 let failures = 0, passes = 0;
 function check(name, cond, detail) {

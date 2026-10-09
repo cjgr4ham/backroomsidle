@@ -487,6 +487,26 @@ body.reduce-motion .vp-banner { animation: none; opacity: 1; }
   .hide-narrow { display: none; }
   .float-gain { display: none; }
 }
+
+/* ------------------------------------------------------------------ experiment styles (one slot each; see docs/experiments) */
+/* >>> EXP-CLICK-POWER */
+/* <<< EXP-CLICK-POWER */
+/* -- */
+/* >>> EXP-CREW-AUTOMATION */
+/* <<< EXP-CREW-AUTOMATION */
+/* -- */
+/* >>> EXP-UPGRADE-CATEGORIES */
+/* <<< EXP-UPGRADE-CATEGORIES */
+/* -- */
+/* >>> EXP-RESOURCE-LEDGER */
+/* <<< EXP-RESOURCE-LEDGER */
+/* -- */
+/* >>> EXP-ATTENTION-BALANCE */
+/* <<< EXP-ATTENTION-BALANCE */
+/* -- */
+/* >>> EXP-DEV-MENU */
+/* <<< EXP-DEV-MENU */
+/* -- */
 </style>
 </head>
 <body>
@@ -1171,6 +1191,88 @@ const DOCS = [
 
 const DOC_KIND_LABEL = { terminal: 'Terminal record', note: 'Recovered note', transcript: 'Radio transcript', report: 'Operations report', handwriting: 'Your handwriting' };
 
+// ---------------------------------------------------------------------------
+// EXPERIMENTS (EXP-CORE)
+// Experimental changes register here and plug into named hook points, so each
+// one can be switched off, or deleted from this file, without touching the
+// others. With every experiment off or absent the game behaves exactly as the
+// baseline build. Flags are developer settings: they live in their own storage
+// key and never in the save. See docs/experiments/README.md.
+// ---------------------------------------------------------------------------
+const Exp = {
+  defs: {},          // id -> { id, name, summary, defaultOn }
+  ids: [],           // registration order
+  overrides: {},     // id -> boolean, chosen in the developer menu (persisted separately from saves)
+  session: {},       // id -> boolean, chosen with ?exp= in the URL (this page load only)
+  hooks: {},         // hook name -> [{ id, fn, priority }]
+  ext: { state: {}, run: {} },  // save namespaces owned by experiments: key -> sanitizer
+  storageKey: 'the-hum.experiments',
+  define(def) {
+    if (!this.defs[def.id]) this.ids.push(def.id);
+    this.defs[def.id] = { defaultOn: true, ...def };
+  },
+  on(id) {
+    if (!this.defs[id]) return false;
+    if (id in this.session) return this.session[id];
+    if (id in this.overrides) return this.overrides[id];
+    return this.defs[id].defaultOn;
+  },
+  /** Registers a handler tied to an experiment. Handlers of disabled experiments are skipped by run() and ask(). */
+  hook(name, id, fn, priority = 0) {
+    const list = this.hooks[name] || (this.hooks[name] = []);
+    list.push({ id, fn, priority });
+    list.sort((a, b) => a.priority - b.priority);
+  },
+  run(name, ...args) {
+    const list = this.hooks[name];
+    if (list) for (const h of list) if (this.on(h.id)) h.fn(...args);
+  },
+  /** Runs every handler, enabled or not. For work that must happen either way, such as keeping saves valid. */
+  runAll(name, ...args) {
+    const list = this.hooks[name];
+    if (list) for (const h of list) h.fn(...args);
+  },
+  /** Returns the first answer (anything but undefined) from an enabled handler. */
+  ask(name, ...args) {
+    const list = this.hooks[name];
+    if (list) for (const h of list) if (this.on(h.id)) { const v = h.fn(...args); if (v !== undefined) return v; }
+    return undefined;
+  },
+  /** A short string that changes whenever any flag changes, for interface rebuild checks. */
+  sig() { return this.ids.map((id) => (this.on(id) ? '1' : '0')).join(''); },
+  load() {
+    try {
+      const raw = JSON.parse(Store.get(this.storageKey) || '{}');
+      if (isObj(raw)) for (const k in raw) if (typeof raw[k] === 'boolean') this.overrides[k] = raw[k];
+    } catch (e) { /* unreadable flags are ignored; defaults apply */ }
+    // ?exp=none, ?exp=all, ?exp=EXP-A,-EXP-B (on, off) for tests. Not saved.
+    const m = /[?&]exp=([^&#]*)/.exec(window.location.search || '');
+    if (m) {
+      for (const tok of decodeURIComponent(m[1]).split(',')) {
+        if (tok === 'none' || tok === 'all') for (const id of this.ids) this.session[id] = tok === 'all';
+        else if (tok.startsWith('-')) this.session[tok.slice(1)] = false;
+        else if (tok) this.session[tok.replace(/^\+/, '')] = true;
+      }
+    }
+  },
+  set(id, value) {
+    if (!this.defs[id]) return;
+    delete this.session[id];
+    this.overrides[id] = !!value;
+    Store.set(this.storageKey, JSON.stringify(this.overrides));
+    this.runAll('flagsChanged', id, !!value);
+  },
+  /** Returns every flag to its default and forgets developer choices. */
+  reset() {
+    this.overrides = {};
+    this.session = {};
+    Store.remove(this.storageKey);
+    this.runAll('flagsChanged', null, null);
+  },
+};
+/** Content (such as an upgrade) tagged with an experiment exists only while that experiment is on. */
+const contentOn = (x) => !x || !x.exp || Exp.on(x.exp);
+
 // Generated facility tier upgrades (×2 output at 10 / 25 / 50 owned; beacons ×1.5).
 const TIER_UPGRADES = [];
 for (const f of FACILITIES) {
@@ -1295,6 +1397,8 @@ function defaultRun() {
     nextAnomalyAt: 0,
     flags: {},
     stats: { salvage: 0, surveys: 0, anomalies: 0, incidents: 0, averted: 0, expeditions: 0, drinks: 0, waterFinds: 0, time: 0 },
+    ext: {},        // per-run data owned by experiments (see Exp.ext)
+    dormant: {},    // ids this build does not know, kept so removed content can come back intact
   };
 }
 /** The whole save. Only data needed to rebuild the game lives here. */
@@ -1316,6 +1420,8 @@ function defaultState() {
     settings: { volume: 0.6, muted: false, ambience: true, sfx: true, crt: true, flicker: true, shake: true, distortion: true,
       motion: 'auto', numbers: 'suffix' },
     log: [],
+    ext: {},
+    dormant: {},
     run: defaultRun(),
   };
 }
@@ -1384,7 +1490,11 @@ function reqText(req) {
   return s[0].toUpperCase() + s.slice(1) + '.';
 }
 const facVisible = (f) => S.run.level >= f.level && reqMet(f.req);
-const upgradeVisible = (u) => !has(u.id) && reqMet(u.req);
+/** Purchasable now, wherever it is listed. */
+const upgradeAvailable = (u) => contentOn(u) && !has(u.id) && reqMet(u.req);
+/** The tab that lists an upgrade. Experiments may list some upgrades somewhere other than the Upgrades tab. */
+const upgradeHome = (u) => Exp.ask('upgradeHome', u) || 'upgrades';
+const upgradeVisible = (u) => upgradeAvailable(u) && upgradeHome(u) === 'upgrades';
 
 function sanityBand(s) {
   if (s >= 60) return { id: 'steady', name: 'Steady', cls: 'ok', salvage: 1, echo: 1 };
@@ -1403,11 +1513,26 @@ function attentionBand(a) {
 // and by every number the interface shows.
 // ---------------------------------------------------------------------------
 function derive() {
-  const r = S.run, L = LEVELS[r.level], c = condMods();
+  const r = S.run;
+  const X = { r, L: LEVELS[r.level], c: condMods(), on: lightsOut() ? 0 : 1 };
   const D = { fac: {} };
-  const on = lightsOut() ? 0 : 1;
-  D.lightsOut = on === 0;
+  D.lightsOut = X.on === 0;
+  deriveMultipliers(D, X);
+  deriveProduction(D, X);
+  Exp.run('derive:production', D, X);
+  deriveTotals(D, X);
+  deriveSurvey(D, X);
+  Exp.run('derive:survey', D, X);
+  deriveNoise(D, X);
+  Exp.run('derive:noise', D, X);
+  D.attnTarget = D.noise > 0 ? 100 * D.noise / (D.noise + D.absorb) : 0;
+  deriveSanity(D, X);
+  return D;
+}
 
+/** Crew efficiency and the global, facility, water, Echo and survey multipliers. */
+function deriveMultipliers(D, X) {
+  const r = X.r, L = X.L, c = X.c;
   // Crew
   let crewEff = 1;
   if (has('bunks')) crewEff *= 1.25;
@@ -1419,8 +1544,8 @@ function derive() {
   const jobs = r.crew.jobs;
   const idle = crewIdle();
   D.idle = idle;
-  const phantom = researched('phantom') ? idle * 0.5 : 0;
-  const scavengers = (jobs.scavenge + phantom) * crewEff;
+  X.phantom = researched('phantom') ? idle * 0.5 : 0;
+  const scavengers = (jobs.scavenge + X.phantom) * crewEff;
 
   // Global multipliers
   const recur = Math.pow(1.25, memRank('recur'));
@@ -1456,18 +1581,19 @@ function derive() {
   let em = recur * (c.echo || 1);
   if (relic('photo')) em *= 1.1;
   D.echoMult = em;
-  const passiveEcho = em * D.attnEcho * (researched('deeplisten') ? 2 : 1);
+  X.passiveEcho = em * D.attnEcho * (researched('deeplisten') ? 2 : 1);
 
-  // Surveys
-  let flat = CONFIG.survey.baseSalvage * L.surveyMult * D.dvMult * D.achMult * recur;
-  if (has('flashlight')) flat *= 2;
-  if (has('boots')) flat *= 3;
-  if (has('pedometer')) flat *= 4;
-  if (researched('pattern')) flat *= 2;
-  if (memRank('muscle')) flat *= 3;
-  if (r.doctrine === 'doc_wet') flat *= 0.5;
-  if (relic('vhs')) flat *= 1.1;
-  D.surveyFlat = flat;
+  // Surveys: every multiplier on a survey's salvage, applied to the base reward
+  let sm = L.surveyMult * D.dvMult * D.achMult * recur;
+  if (has('flashlight')) sm *= 2;
+  if (has('boots')) sm *= 3;
+  if (has('pedometer')) sm *= 4;
+  if (researched('pattern')) sm *= 2;
+  if (memRank('muscle')) sm *= 3;
+  if (r.doctrine === 'doc_wet') sm *= 0.5;
+  if (relic('vhs')) sm *= 1.1;
+  D.surveyMult = sm;
+  D.surveyFlat = CONFIG.survey.baseSalvage * sm;
   let rps = 1;
   if (has('wheel')) rps *= 2;
   if (has('chalk')) rps *= 2;
@@ -1482,8 +1608,11 @@ function derive() {
   if (has('clipboard')) surveyPct += 0.05;
   if (has('carbon')) surveyPct += 0.07;
   D.surveyPct = surveyPct;
+}
 
-  // Facilities (nominal = as if the lights were on)
+/** Facility and crew output, as if the lights were on. Results go into X for deriveTotals(). */
+function deriveProduction(D, X) {
+  const r = X.r, jobs = r.crew.jobs, crewEff = D.crewEff, fm = D.facMult, wm = D.waterMult;
   const dampMult = has('foamglue') ? 1.5 : 1;
   let facSal = 0, facWater = 0, facEcho = 0, facSurveys = 0, absorbFac = 0, rawNoise = 0;
   for (const f of FACILITIES) {
@@ -1493,7 +1622,7 @@ function derive() {
     let each = 0;
     if (f.kind === 'salvage') each = f.out * tm * fm;
     else if (f.kind === 'water') each = f.out * tm * wm;
-    else if (f.kind === 'echo') each = f.out * tm * passiveEcho;
+    else if (f.kind === 'echo') each = f.out * tm * X.passiveEcho;
     else if (f.kind === 'survey') each = f.out * tm;
     else if (f.kind === 'dampener') each = f.out * dampMult;
     const total = off ? 0 : each * n;
@@ -1505,35 +1634,45 @@ function derive() {
     else if (f.kind === 'dampener') absorbFac += total;
     if (!off) rawNoise += n * f.noise;
   }
+  Object.assign(X, { facSal, facWater, facEcho, facSurveys, absorbFac, rawNoise });
 
   // Crew output (nominal)
-  const crewSal = (jobs.scavenge + phantom) * CONFIG.crew.scavengeFlat * crewEff * D.dvMult * D.achMult * recur;
-  const crewSurveys = jobs.chart * CONFIG.crew.chartRate * crewEff;
-  const crewWater = jobs.dowse * CONFIG.crew.dowseRate * crewEff * wm;
-  const crewEcho = jobs.archive * CONFIG.crew.archiveRate * crewEff * passiveEcho;
+  X.crewSal = (jobs.scavenge + X.phantom) * CONFIG.crew.scavengeFlat * crewEff * D.dvMult * D.achMult * D.recur;
+  X.crewSurveys = jobs.chart * CONFIG.crew.chartRate * crewEff;
+  X.crewWater = jobs.dowse * CONFIG.crew.dowseRate * crewEff * wm;
+  X.crewEcho = jobs.archive * CONFIG.crew.archiveRate * crewEff * X.passiveEcho;
   D.crewAbsorb = jobs.watch * CONFIG.crew.watchAbsorb * crewEff * (has('nightwatch') ? 2 : 1);
   D.jobOut = {
-    scavenge: crewSal, chart: crewSurveys, dowse: crewWater, watch: D.crewAbsorb, archive: crewEcho,
+    scavenge: X.crewSal, chart: X.crewSurveys, dowse: X.crewWater, watch: D.crewAbsorb, archive: X.crewEcho,
   };
+}
 
-  const autoSurveys = facSurveys + crewSurveys;
-  const autoSal = autoSurveys * flat * CONFIG.survey.autoShare;
-  D.spsNominal = facSal + crewSal + autoSal;
-  D.facSalvage = facSal * on;
-  D.crewSalvage = crewSal * on;
+/** Per-second totals, with the lights applied. */
+function deriveTotals(D, X) {
+  const on = X.on;
+  const autoSurveys = X.facSurveys + X.crewSurveys;
+  const autoSal = autoSurveys * D.surveyFlat * CONFIG.survey.autoShare;
+  D.spsNominal = X.facSal + X.crewSal + autoSal;
+  D.facSalvage = X.facSal * on;
+  D.crewSalvage = X.crewSal * on;
   D.autoSalvage = autoSal * on;
   D.sps = D.spsNominal * on;
-  D.aws = (facWater + crewWater) * on;
-  D.eps = (facEcho + crewEcho) * on;
+  D.aws = (X.facWater + X.crewWater) * on;
+  D.eps = (X.facEcho + X.crewEcho) * on;
   D.autoSurveys = autoSurveys * on;
-  D.roomsPerSec = D.autoSurveys * rps;
+  D.roomsPerSec = D.autoSurveys * D.roomsPerSurvey;
+}
 
-  // Manual survey yield
-  const sb = sanityBand(r.sanity);
+/** What one manual survey recovers. */
+function deriveSurvey(D, X) {
+  const sb = sanityBand(X.r.sanity);
   D.sanityBand = sb;
-  D.manualSalvage = (flat + surveyPct * D.spsNominal) * sb.salvage * (D.lightsOut ? 0.5 : 1);
+  D.manualSalvage = (D.surveyFlat + D.surveyPct * D.spsNominal) * sb.salvage * (D.lightsOut ? 0.5 : 1);
+}
 
-  // Noise and attention
+/** Operational noise and how much of it the Backrooms absorbs. */
+function deriveNoise(D, X) {
+  const r = X.r, c = X.c;
   let nm = 1;
   if (r.doctrine === 'doc_industry') nm *= 1.3;
   if (r.doctrine === 'doc_quiet') nm *= 0.55;
@@ -1542,13 +1681,15 @@ function derive() {
   if (relic('badge')) nm *= 0.95;
   nm *= (c.noise || 1);
   D.noiseMult = nm;
-  D.noise = rawNoise * nm * on;
-  let absorb = CONFIG.attention.baseAbsorb + (researched('hum') ? 1 : 0) + absorbFac + D.crewAbsorb + (relic('tile') ? 0.5 : 0);
-  absorb *= (L.absorbMult || 1);
+  D.noise = X.rawNoise * nm * X.on;
+  let absorb = CONFIG.attention.baseAbsorb + (researched('hum') ? 1 : 0) + X.absorbFac + D.crewAbsorb + (relic('tile') ? 0.5 : 0);
+  absorb *= (X.L.absorbMult || 1);
   D.absorb = absorb;
-  D.attnTarget = D.noise > 0 ? 100 * D.noise / (D.noise + absorb) : 0;
+}
 
-  // Sanity
+/** How fast sanity drains or recovers at the current attention. */
+function deriveSanity(D, X) {
+  const r = X.r, c = X.c;
   let drain = Math.max(0, r.attention - CONFIG.sanity.drainStart) * CONFIG.sanity.drainPerPoint;
   if (has('earplugs')) drain *= 0.65;
   if (memRank('lucid')) drain *= 0.6;
@@ -1556,11 +1697,10 @@ function derive() {
   let regen = r.attention < CONFIG.sanity.drainStart ? CONFIG.sanity.regen : 0;
   if (has('breakroom')) regen += 0.06;
   if (relic('tube')) regen += 0.05;
-  if (L.sanityRegen) regen += L.sanityRegen;
+  if (X.L.sanityRegen) regen += X.L.sanityRegen;
   D.sanityDrain = drain;
   D.sanityRegen = regen;
   D.sanityNet = regen - drain;
-  return D;
 }
 
 // ---------------------------------------------------------------------------
@@ -1680,6 +1820,7 @@ function step(dt, offline) {
   if (rt.autobuyAcc >= 1) { rt.autobuyAcc = 0; autobuy(); }
   rt.checkAcc += dt;
   if (rt.checkAcc >= 0.5) { rt.checkAcc = 0; checkProgress(); }
+  Exp.run('step', dt, offline);
 }
 
 function updateTimers() {
@@ -1961,6 +2102,28 @@ function noteOffline(text) {
 // ---------------------------------------------------------------------------
 // 4. PLAYER ACTIONS
 // ---------------------------------------------------------------------------
+/** Every purchase checks and pays through here. Currencies: salvage, aw, echoes, dv. */
+const Wallet = {
+  balance(cur) {
+    const r = S.run;
+    return cur === 'aw' ? r.aw : cur === 'echoes' ? S.echoes : cur === 'dv' ? S.dv : r.salvage;
+  },
+  /** What purchases may treat as available. Developer tools can lift it. */
+  budget(cur) {
+    const v = Exp.ask('wallet:budget', cur);
+    return v !== undefined ? v : this.balance(cur);
+  },
+  can(cur, amount) { return this.budget(cur) >= amount; },
+  pay(cur, amount) {
+    if (Exp.ask('wallet:free', cur, amount)) return;
+    const r = S.run;
+    if (cur === 'aw') r.aw -= amount;
+    else if (cur === 'echoes') S.echoes -= amount;
+    else if (cur === 'dv') S.dv -= amount;
+    else r.salvage -= amount;
+  },
+};
+
 function facilityCost(f, owned, n) {
   const g = f.growth;
   return f.cost * Math.pow(g, owned) * (Math.pow(g, n) - 1) / (g - 1);
@@ -1978,11 +2141,11 @@ function maxAffordable(f, owned, budget) {
 /** Quantity and exact price for the current buy mode. */
 function buyQuote(f) {
   const owned = count(f.id);
-  let n = rt.buyMode === 'max' ? maxAffordable(f, owned, S.run.salvage) : rt.buyMode;
+  let n = rt.buyMode === 'max' ? maxAffordable(f, owned, Wallet.budget('salvage')) : rt.buyMode;
   const affordable = n > 0;
   if (!affordable) n = 1;
   const cost = Math.ceil(facilityCost(f, owned, n));
-  return { n, cost, ok: affordable && S.run.salvage >= cost };
+  return { n, cost, ok: affordable && Wallet.can('salvage', cost) };
 }
 
 function survey() {
@@ -1997,7 +2160,7 @@ function survey() {
   r.stats.surveys++;
   S.life.surveys++;
   if (!S.seen.firstSurvey) S.seen.firstSurvey = true;
-  if (Math.random() < CONFIG.survey.waterChance) {
+  if (Math.random() < CONFIG.survey.waterChance * (D.manualWaterMult || 1)) {
     const w = randInt(1, 3) * (1 + r.level) * (condMods().aw || 1);
     gainWater(w);
     if (!r.flags.water) {
@@ -2009,11 +2172,12 @@ function survey() {
     }
     r.stats.waterFinds++;
   }
-  if (r.rooms >= 25 && Math.random() < CONFIG.survey.echoChance * D.sanityBand.echo) {
+  if (r.rooms >= 25 && Math.random() < CONFIG.survey.echoChance * D.sanityBand.echo * (D.manualEchoMult || 1)) {
     const e = LEVELS[r.level].echoMult * D.echoMult * D.attnEcho;
     gainEchoes(e);
     log(`Something in the wallpaper repeats wrong. You write it down. +${fmtEcho(e)} Echoes.`, 'echo', 'ECHO');
   }
+  Exp.run('survey:manual', D);
   Sound.play('step');
   View.advance();
   UI.floatGain(D.manualSalvage);
@@ -2025,7 +2189,7 @@ function buyFacility(id) {
   if (!f || !facVisible(f)) return false;
   const q = buyQuote(f);
   if (!q.ok) return false;
-  S.run.salvage -= q.cost;
+  Wallet.pay('salvage', q.cost);
   S.run.facilities[id] = count(id) + q.n;
   Sound.play('buy');
   if (count(id) === q.n) log(`${f.name} commissioned.`, 'gain', 'BUILT');
@@ -2034,14 +2198,13 @@ function buyFacility(id) {
 
 function upgradeCurrency(u) { return u.cost.aw != null ? 'aw' : 'salvage'; }
 function upgradePrice(u) { return u.cost.aw != null ? u.cost.aw : u.cost.salvage; }
-function canAffordUpgrade(u) {
-  const cur = upgradeCurrency(u);
-  return (cur === 'aw' ? S.run.aw : S.run.salvage) >= upgradePrice(u);
-}
+function canAffordUpgrade(u) { return Wallet.can(upgradeCurrency(u), upgradePrice(u)); }
 function buyUpgrade(id) {
+  const custom = Exp.ask('upgrade:buy', id);   // repeatable upgrades from experiments buy themselves
+  if (custom !== undefined) return custom;
   const u = UPG[id];
-  if (!u || has(id) || !reqMet(u.req) || !canAffordUpgrade(u)) return false;
-  if (upgradeCurrency(u) === 'aw') S.run.aw -= upgradePrice(u); else S.run.salvage -= upgradePrice(u);
+  if (!u || !upgradeAvailable(u) || !canAffordUpgrade(u)) return false;
+  Wallet.pay(upgradeCurrency(u), upgradePrice(u));
   S.run.upgrades[id] = true;
   rt.structureDirty = true;
   Sound.play('buy');
@@ -2054,8 +2217,8 @@ function drinkCost() { return CONFIG.sanity.drinkBase + CONFIG.sanity.drinkPerLe
 function drinkRestore() { return has('cot') ? 60 : CONFIG.sanity.drinkRestore; }
 function drink(auto) {
   const r = S.run, cost = drinkCost();
-  if (r.aw < cost || r.sanity >= 99.5 || blackedOut()) return false;
-  r.aw -= cost;
+  if (!Wallet.can('aw', cost) || r.sanity >= 99.5 || blackedOut()) return false;
+  Wallet.pay('aw', cost);
   r.sanity = Math.min(100, r.sanity + drinkRestore());
   r.stats.drinks++;
   if (!auto) Sound.play('drink');
@@ -2096,8 +2259,8 @@ function hire() {
   const r = S.run;
   if (!crewUnlocked()) return false;
   const cost = hireCost();
-  if (r.aw < cost) return false;
-  r.aw -= cost;
+  if (!Wallet.can('aw', cost)) return false;
+  Wallet.pay('aw', cost);
   r.crew.total++;
   if (has('whistle') && jobUnlocked(r.crew.defaultJob)) r.crew.jobs[r.crew.defaultJob]++;
   log(pick(WANDERER_ARRIVALS), 'note', 'ARRIVAL');
@@ -2140,13 +2303,13 @@ function expeditionSalvage(e, sps) {
 }
 function canLaunch(e) {
   const r = S.run;
-  return r.level >= e.level && !r.expeditions[e.id] && crewIdle() >= e.crew && r.aw >= e.water;
+  return r.level >= e.level && !r.expeditions[e.id] && crewIdle() >= e.crew && Wallet.can('aw', e.water);
 }
 function launchExpedition(id) {
   const e = EXP[id];
   if (!e || !canLaunch(e)) return false;
   const r = S.run, D = rt.D || derive();
-  r.aw -= e.water;
+  Wallet.pay('aw', e.water);
   const dur = expeditionDuration(e);
   r.expeditions[id] = { start: S.time, end: S.time + dur, crew: e.crew, sps: D.spsNominal, hazard: expeditionHazard(e) };
   if (!r.flags.expedition) { r.flags.expedition = true; rt.structureDirty = true; }
@@ -2206,12 +2369,12 @@ function researchAvailable(R) { return R.req.every(researched); }
 function canResearch(R) {
   if (!researchAvailable(R)) return false;
   if (!R.repeatable && researched(R.id)) return false;
-  return S.echoes >= researchCost(R);
+  return Wallet.can('echoes', researchCost(R));
 }
 function doResearch(id) {
   const R = RES[id];
   if (!R || !canResearch(R)) return false;
-  S.echoes -= researchCost(R);
+  Wallet.pay('echoes', researchCost(R));
   if (R.repeatable) S.deepTheory++;
   else S.research[id] = true;
   rt.structureDirty = true;
@@ -2231,11 +2394,11 @@ function adoptDoctrine(id) {
 }
 
 function memoryCost(M) { return M.repeatable ? Math.ceil(M.baseCost * Math.pow(M.growth, memRank(M.id))) : M.cost; }
-function canBuyMemory(M) { return (M.repeatable || !memRank(M.id)) && S.dv >= memoryCost(M); }
+function canBuyMemory(M) { return (M.repeatable || !memRank(M.id)) && Wallet.can('dv', memoryCost(M)); }
 function buyMemory(id) {
   const M = MEM[id];
   if (!M || !canBuyMemory(M)) return false;
-  S.dv -= memoryCost(M);
+  Wallet.pay('dv', memoryCost(M));
   S.memories[id] = memRank(id) + 1;
   rt.structureDirty = true;
   Sound.play('research');
@@ -2330,6 +2493,44 @@ function numObj(v, defaults) {
   return out;
 }
 
+const ID_RE = /^[A-Za-z0-9_-]{1,48}$/;
+/**
+ * A flag set of known ids. Well-formed ids this build does not know (content from an experiment that has been
+ * removed) are kept in `dormant[key]`, and dormant ids this build does know are restored.
+ */
+function flagSetKeep(v, ids, oldDormant, dormant, key) {
+  const out = flagSet(v, ids);
+  const known = new Set(ids);
+  const keep = new Set();
+  if (isObj(v)) for (const id of Object.keys(v).slice(0, 500)) if (v[id] === true && !known.has(id) && ID_RE.test(id)) keep.add(id);
+  const old = isObj(oldDormant) && Array.isArray(oldDormant[key]) ? oldDormant[key] : [];
+  for (const id of old.slice(0, 500)) {
+    if (typeof id !== 'string' || !ID_RE.test(id)) continue;
+    if (known.has(id)) out[id] = true; else keep.add(id);
+  }
+  if (keep.size) dormant[key] = [...keep].slice(0, 500);
+  return out;
+}
+/** Experiment data: each experiment validates its own namespace; data of experiments not in this build is kept untouched. */
+function sanitizeExt(v, scope) {
+  const out = {};
+  if (!isObj(v)) return out;
+  const owners = Exp.ext[scope];
+  for (const key of Object.keys(v).slice(0, 40)) {
+    if (!ID_RE.test(key)) continue;
+    if (owners[key]) {
+      const clean = owners[key](v[key]);
+      if (clean !== undefined) out[key] = clean;
+    } else {
+      try {
+        const json = JSON.stringify(v[key]);
+        if (json && json.length <= 20000) out[key] = JSON.parse(json);
+      } catch (e) { /* not serialisable: drop */ }
+    }
+  }
+  return out;
+}
+
 /** Upgrades older save formats one version at a time. Version 1 is current. */
 function migrate(raw) {
   return raw;
@@ -2354,7 +2555,7 @@ function sanitizeState(raw) {
   d.echoes = num(raw.echoes, 0);
   d.dv = num(raw.dv, 0);
   d.dvTotal = Math.max(num(raw.dvTotal, 0), d.dv);
-  d.research = flagSet(raw.research, RESEARCH.filter((R) => !R.repeatable).map((R) => R.id));
+  d.research = flagSetKeep(raw.research, RESEARCH.filter((R) => !R.repeatable).map((R) => R.id), raw.dormant, d.dormant, 'research');
   d.deepTheory = int(raw.deepTheory, 0, 0, 10000);
   if (isObj(raw.memories)) {
     for (const M of MEMORIES) {
@@ -2363,9 +2564,10 @@ function sanitizeState(raw) {
     }
   }
   d.relics = countMap(raw.relics, RELICS.map((x) => x.id), 1e6);
-  d.achievements = flagSet(raw.achievements, ACHIEVEMENTS.map((x) => x.id));
-  d.docs = flagSet(raw.docs, DOCS.map((x) => x.id));
-  d.docsRead = flagSet(raw.docsRead, DOCS.map((x) => x.id));
+  d.achievements = flagSetKeep(raw.achievements, ACHIEVEMENTS.map((x) => x.id), raw.dormant, d.dormant, 'achievements');
+  d.docs = flagSetKeep(raw.docs, DOCS.map((x) => x.id), raw.dormant, d.dormant, 'docs');
+  d.docsRead = flagSetKeep(raw.docsRead, DOCS.map((x) => x.id), raw.dormant, d.dormant, 'docsRead');
+  d.ext = sanitizeExt(raw.ext, 'state');
   if (isObj(raw.seen)) {
     for (const k of Object.keys(raw.seen).slice(0, 200)) {
       if (/^[A-Za-z0-9_]{1,40}$/.test(k) && raw.seen[k] === true) d.seen[k] = true;
@@ -2404,7 +2606,7 @@ function sanitizeRun(raw, T) {
   r.rooms = num(raw.rooms, 0);
   r.exitFound = bool(raw.exitFound, false) && r.level === LEVELS.length - 1;
   r.facilities = countMap(raw.facilities, FACILITIES.map((f) => f.id), 1e6);
-  r.upgrades = flagSet(raw.upgrades, UPGRADES.map((u) => u.id));
+  r.upgrades = flagSetKeep(raw.upgrades, UPGRADES.map((u) => u.id), raw.dormant, r.dormant, 'upgrades');
   r.autobuy = flagSet(raw.autobuy, FACILITIES.map((f) => f.id));
   const c = isObj(raw.crew) ? raw.crew : {};
   r.crew.total = int(c.total, 0, 0, 1e6);
@@ -2444,6 +2646,7 @@ function sanitizeRun(raw, T) {
   r.pendingIncident = null; // a threat never survives a reload: you were away
   r.flags = flagSet(raw.flags, ['water', 'expedition']);
   r.stats = numObj(raw.stats, r.stats);
+  r.ext = sanitizeExt(raw.ext, 'run');
   return r;
 }
 
@@ -3117,13 +3320,14 @@ const TABS = [
   { id: 'archive', label: 'Archive', key: '7', unlocked: () => true },
   { id: 'settings', label: 'Settings', key: '8', unlocked: () => true },
 ];
-const tabVisible = (t) => t.id === 'facilities' || t.id === 'archive' || t.id === 'settings' || !!S.seen['tab_' + t.id];
+const tabVisible = (t) => (t.visible ? t.visible() : t.id === 'facilities' || t.id === 'archive' || t.id === 'settings' || !!S.seen['tab_' + t.id]);
+const tabUnlocked = (t) => { const v = Exp.ask('tabUnlocked', t); return v !== undefined ? v : t.unlocked(); };
 
 // ---------------------------------------------------------------- panels
 const Panels = {};
 
 Panels.facilities = {
-  sig: () => FACILITIES.filter(facVisible).map((f) => f.id).join() + '|' + memRank('procure') + '|' + rt.buyMode,
+  sig: () => FACILITIES.filter(facVisible).map((f) => f.id).join() + '|' + memRank('procure') + '|' + rt.buyMode + '|' + Exp.sig(),
   build(p) {
     const seg = el('div', { class: 'seg', role: 'group', 'aria-label': 'Purchase quantity' });
     for (const m of [1, 10, 25, 'max']) {
@@ -3149,6 +3353,7 @@ Panels.facilities = {
     }
     p.append(rows);
     if (memRank('procure')) p.append(el('p', { class: 'panel-sub', text: 'Auto-buy purchases one unit at a time whenever you hold at least twice its price, so it never spends your last salvage.' }));
+    Exp.run('facilities:afterRows', p);
   },
   row(f) {
     const count_ = el('span', { class: 'count' });
@@ -3165,14 +3370,16 @@ Panels.facilities = {
       auto.checked = !!S.run.autobuy[f.id];
       act.append(el('label', { class: 'toggle-line', for: 'auto-' + f.id }, auto, 'Auto-buy'));
     }
+    const body = el('div', { class: 'row-body' },
+      el('div', { class: 'row-title' }, el('h3', { text: f.name }), count_, status),
+      stats,
+      el('p', { class: 'flavor', text: f.flavor }));
     const row = el('article', { class: 'row' },
       el('div', { class: 'row-icon' }, icon(f.icon), el('span', { class: 'code', text: f.code })),
-      el('div', { class: 'row-body' },
-        el('div', { class: 'row-title' }, el('h3', { text: f.name }), count_, status),
-        stats,
-        el('p', { class: 'flavor', text: f.flavor })),
+      body,
       act);
-    this.rows[f.id] = { row, count: count_, stats, status, buy, qty, cost, wait, auto };
+    this.rows[f.id] = { row, body, act, count: count_, stats, status, buy, qty, cost, wait, auto };
+    Exp.run('facilities:row', f, this.rows[f.id]);
     return row;
   },
   update() {
@@ -3182,15 +3389,17 @@ Panels.facilities = {
       if (!R) continue;
       const fd = D.fac[f.id];
       setText(R.count, '×' + fmt(count(f.id)));
-      let line;
-      if (f.kind === 'salvage') {
-        const share = D.spsNominal > 0 ? fd.total / D.spsNominal : 0;
-        line = `+${fmtRate(fd.each)} salvage/s each · ${fmtRate(fd.total)}/s total (${pct(share)})`;
-      } else if (f.kind === 'water') line = `+${fmtRate(fd.each)} water/s each · ${fmtRate(fd.total)}/s total`;
-      else if (f.kind === 'survey') line = `${fmtRate(fd.each)} surveys/s each · maps ${fmtRate(fd.total * D.roomsPerSurvey)} rooms/s · +${fmtRate(fd.total * D.surveyFlat * CONFIG.survey.autoShare)} salvage/s`;
-      else if (f.kind === 'echo') line = `+${fmtRate(fd.each, 4)} Echoes/s each · ${fmtRate(fd.total, 3)}/s total`;
-      else line = `absorbs ${fmtRate(fd.each)} noise each · ${fmtRate(fd.total)} total`;
-      if (f.noise > 0) line += ` · noise ${fmtRate(f.noise * D.noiseMult, 3)}/s each`;
+      let line = Exp.ask('facilities:line', f, fd, D);
+      if (line === undefined) {
+        if (f.kind === 'salvage') {
+          const share = D.spsNominal > 0 ? fd.total / D.spsNominal : 0;
+          line = `+${fmtRate(fd.each)} salvage/s each · ${fmtRate(fd.total)}/s total (${pct(share)})`;
+        } else if (f.kind === 'water') line = `+${fmtRate(fd.each)} water/s each · ${fmtRate(fd.total)}/s total`;
+        else if (f.kind === 'survey') line = `${fmtRate(fd.each)} surveys/s each · maps ${fmtRate(fd.total * D.roomsPerSurvey)} rooms/s · +${fmtRate(fd.total * D.surveyFlat * CONFIG.survey.autoShare)} salvage/s`;
+        else if (f.kind === 'echo') line = `+${fmtRate(fd.each, 4)} Echoes/s each · ${fmtRate(fd.total, 3)}/s total`;
+        else line = `absorbs ${fmtRate(fd.each)} noise each · ${fmtRate(fd.total)} total`;
+        if (f.noise > 0) line += ` · noise ${fmtRate(f.noise * D.noiseMult, 3)}/s each`;
+      }
       setText(R.stats, line);
       if (fd.off) {
         setHidden(R.status, false);
@@ -3203,12 +3412,13 @@ Panels.facilities = {
       setDis(R.buy, !q.ok);
       setAttr(R.buy, 'aria-label', `Buy ${q.n} ${f.name} for ${fmt(q.cost)} salvage`);
       if (R.auto && R.auto.checked !== !!S.run.autobuy[f.id]) R.auto.checked = !!S.run.autobuy[f.id];
+      Exp.run('facilities:rowUpdate', f, R, D);
     }
   },
 };
 
 Panels.upgrades = {
-  sig: () => UPGRADES.filter(upgradeVisible).map((u) => u.id).join() + '|' + Object.keys(S.run.upgrades).length,
+  sig: () => UPGRADES.filter(upgradeVisible).map((u) => u.id).join() + '|' + Object.keys(S.run.upgrades).length + '|' + Exp.sig(),
   build(p) {
     p.append(el('div', { class: 'panel-head' }, el('div', null,
       el('h2', { text: 'Upgrades' }),
@@ -3222,39 +3432,47 @@ Panels.upgrades = {
     if (!avail.length) p.append(el('p', { class: 'empty', text: 'Nothing to requisition right now. Map more rooms, build more facilities, or go deeper.' }));
     else {
       const grid = el('div', { class: 'slips' });
-      for (const u of avail) {
-        const cur = upgradeCurrency(u);
-        const sub = el('span', { class: 'sub' });
-        const btn = el('button', { type: 'button', class: 'btn btn-stack primary', 'data-action': 'buy-upg', 'data-id': u.id },
-          el('span', { text: 'Requisition' }), el('span', { class: 'sub', text: costLabel(upgradePrice(u), cur) }), sub);
-        this.btns.push({ u, btn, sub, cur });
-        grid.append(el('article', { class: 'slip' },
-          el('div', { class: 'slip-head' }, el('span', { text: u.cat }), el('span', { text: cur === 'aw' ? 'Water' : 'Salvage' })),
-          el('h3', { text: u.name }),
-          el('p', { class: 'effect', text: u.effect }),
-          el('p', { class: 'flavor', text: u.flavor }),
-          btn));
-      }
+      for (const u of avail) grid.append(this.slip(u, this.btns));
       p.append(grid);
     }
-    const hidden = UPGRADES.filter((u) => !has(u.id) && !reqMet(u.req)).length;
+    const hidden = UPGRADES.filter((u) => contentOn(u) && !has(u.id) && !reqMet(u.req) && upgradeHome(u) === 'upgrades').length;
     if (hidden) p.append(el('p', { class: 'panel-sub', text: `${hidden} more requisitions will become available as the operation grows and you go deeper.` }));
-    const owned = UPGRADES.filter((u) => has(u.id));
+    const owned = UPGRADES.filter((u) => contentOn(u) && has(u.id) && upgradeHome(u) === 'upgrades');
     if (owned.length) {
       const list = el('ul');
       for (const u of owned) list.append(el('li', { text: `${u.name}: ${u.effect}` }));
       p.append(el('details', { class: 'installed' }, el('summary', { text: `Installed (${owned.length})` }), list));
     }
   },
-  update() {
-    for (const b of this.btns) {
+  /** A requisition slip with its buy button. Other tabs that list upgrades use it too. */
+  slip(u, refs) {
+    const cur = upgradeCurrency(u);
+    const sub = el('span', { class: 'sub' });
+    const btn = el('button', { type: 'button', class: 'btn btn-stack primary', 'data-action': 'buy-upg', 'data-id': u.id },
+      el('span', { text: 'Requisition' }), el('span', { class: 'sub', text: costLabel(upgradePrice(u), cur) }), sub);
+    const card = el('article', { class: 'slip' },
+      el('div', { class: 'slip-head' }, el('span', { text: u.cat }), el('span', { text: cur === 'aw' ? 'Water' : 'Salvage' })),
+      el('h3', { text: u.name }),
+      el('p', { class: 'effect', text: u.effect }),
+      el('p', { class: 'flavor', text: u.flavor }),
+      btn);
+    const ref = { u, btn, sub, cur, card };
+    refs.push(ref);
+    Exp.run('upgrades:slip', ref);
+    return card;
+  },
+  /** Refreshes slips made by slip(). */
+  updateSlips(refs) {
+    for (const b of refs) {
       const ok = canAffordUpgrade(b.u);
       setDis(b.btn, !ok);
-      const have = b.cur === 'aw' ? S.run.aw : S.run.salvage;
+      const have = Wallet.balance(b.cur);
       const rate = b.cur === 'aw' ? rt.D.aws : rt.D.sps;
       setText(b.sub, ok ? '' : affordIn(upgradePrice(b.u), have, rate));
+      Exp.run('upgrades:slipUpdate', b);
     }
   },
+  update() { this.updateSlips(this.btns); },
 };
 
 Panels.crew = {
@@ -3325,8 +3543,8 @@ Panels.crew = {
     setText(R.eff, '×' + D.crewEff.toFixed(2));
     const cost = hireCost();
     setText(R.hireCost, `${fmt(cost)} almond water`);
-    setText(R.hireWait, S.run.aw >= cost ? '' : affordIn(cost, S.run.aw, D.aws));
-    setDis(R.hire, S.run.aw < cost);
+    setText(R.hireWait, Wallet.can('aw', cost) ? '' : affordIn(cost, S.run.aw, D.aws));
+    setDis(R.hire, !Wallet.can('aw', cost));
     const idle = crewIdle();
     for (const id in R.jobs) {
       const J = R.jobs[id];
@@ -3567,19 +3785,23 @@ Panels.noclip = {
 };
 
 Panels.archive = {
-  sig: () => `${rt.archiveTab}|${Object.keys(S.docs).length}|${rt.openDoc}|${Object.keys(S.achievements).length}|${relicsFound()}|${JSON.stringify(S.relics).length}`,
+  sig: () => `${rt.archiveTab}|${Object.keys(S.docs).length}|${rt.openDoc}|${Object.keys(S.achievements).length}|${relicsFound()}|${JSON.stringify(S.relics).length}|${Exp.sig()}`,
   build(p) {
     p.append(el('div', { class: 'panel-head' }, el('div', null,
       el('h2', { text: 'Archive' }),
       el('p', { class: 'panel-sub', text: 'Recovered documents, relics, achievements, statistics and the field manual.' }))));
     const sub = el('div', { class: 'subtabs', role: 'group', 'aria-label': 'Archive sections' });
     const unread = DOCS.filter((d) => S.docs[d.id] && !S.docsRead[d.id]).length;
-    for (const [id, label] of [['docs', `Documents${unread ? ` (${unread} new)` : ''}`], ['relics', 'Relics'], ['ach', 'Achievements'], ['stats', 'Statistics'], ['manual', 'Field manual']]) {
+    const subs = [['docs', `Documents${unread ? ` (${unread} new)` : ''}`], ['relics', 'Relics'], ['ach', 'Achievements'], ['stats', 'Statistics'], ['manual', 'Field manual']];
+    Exp.run('archive:subtabs', subs);
+    if (!subs.some(([id]) => id === rt.archiveTab)) rt.archiveTab = 'docs';
+    for (const [id, label] of subs) {
       sub.append(el('button', { type: 'button', 'data-action': 'subtab', 'data-id': id, 'aria-pressed': String(rt.archiveTab === id) }, label));
     }
     p.append(sub);
     this.stats = null;
-    if (rt.archiveTab === 'docs') this.buildDocs(p);
+    if (Exp.ask('archive:build', rt.archiveTab, p)) { /* built by an experiment */ }
+    else if (rt.archiveTab === 'docs') this.buildDocs(p);
     else if (rt.archiveTab === 'relics') this.buildRelics(p);
     else if (rt.archiveTab === 'ach') this.buildAch(p);
     else if (rt.archiveTab === 'stats') this.buildStats(p);
@@ -3726,15 +3948,29 @@ Panels.archive = {
       sec('Controls', [], [
         'S: survey · D: document anomaly · W: drink almond water · L: kill the lights · M: mute',
         '1–8: switch tabs · Escape: close a dialog',
-      ])));
+      ]),
+      ...this.extraManual(sec)));
+  },
+  /** Field-manual sections contributed by experiments. */
+  extraManual(sec) {
+    const extra = [];
+    Exp.run('manual', (title, paras, items) => extra.push(sec(title, paras, items)));
+    return extra;
   },
   update() {
     if (this.stats && (rt.uiTick % 8 === 0)) this.fillStats();
+    Exp.run('archive:update');
   },
 };
 
 Panels.settings = {
-  sig: () => 'settings',
+  sig: () => 'settings|' + Exp.sig(),
+  /** Settings sections contributed by experiments. */
+  extraSections() {
+    const extra = [];
+    Exp.run('settings:sections', (node) => extra.push(node));
+    return extra;
+  },
   build(p) {
     const s = S.settings;
     const check = (id, key, label, help) => {
@@ -3777,6 +4013,7 @@ Panels.settings = {
           framed ? null : el('button', { type: 'button', class: 'btn', 'data-action': 'download' }, 'Download file'),
           el('button', { type: 'button', class: 'btn', 'data-action': 'import' }, 'Import pasted save')),
         this.saveBox, this.saveMsg,
+        ...this.extraSections(),
         el('h3', { class: 'section-title', text: 'Danger' }),
         el('div', { class: 'setting' }, el('div', { class: 'lbl' }, 'Erase this save', el('small', { text: 'Deletes everything, including Déjà Vu and achievements. You will be asked to confirm.' })),
           el('button', { type: 'button', class: 'btn danger', 'data-action': 'reset' }, 'Erase…'))));
@@ -3832,6 +4069,7 @@ const UI = {
     $('anomalyHit').addEventListener('click', () => { documentAnomaly(); this.update(); });
     $('btnSave').addEventListener('click', () => save(true));
     $('btnMute').addEventListener('click', () => toggleMute());
+    Exp.runAll('ui:init');
     this.selectTab(rt.tab);
     this.built = true;
   },
@@ -4008,7 +4246,7 @@ const UI = {
     else if (sbd.id === 'unravelling') sNote += 'Surveys −35%, Echo finds +60%, some anomalies are not real.';
     else if (sbd.id === 'frayed') sNote += 'Surveys −15%, Echo finds +25%.';
     else sNote += r.attention >= CONFIG.sanity.drainStart ? 'Draining while attention is 25 or more.' : 'Recovering while attention stays below 25.';
-    setText($('sanityNote'), sNote);
+    setText($('sanityNote'), Exp.ask('ui:sanityNote', D, sNote) || sNote);
     const ab = attentionBand(r.attention);
     setText($('attnVal'), Math.floor(r.attention));
     setText($('attnState'), ab.name);
@@ -4025,14 +4263,14 @@ const UI = {
       : D.noise <= 0 ? 'No noise yet.'
         : `Noise ${fmtRate(D.noise)} vs absorption ${fmtRate(D.absorb)}: heading to ${Math.round(D.attnTarget)}. Echoes ×${D.attnEcho.toFixed(2)}.`;
     if (r.attention >= CONFIG.incidents.threshold) aNote += ' Incidents possible.';
-    setText($('attnNote'), aNote);
+    setText($('attnNote'), Exp.ask('ui:attentionNote', D, aNote) || aNote);
 
     // Actions
     const bd = $('btnDrink');
     setHidden(bd, !(r.flags.water || r.aw > 0));
     const dc = drinkCost();
-    setText($('drinkSub'), r.sanity >= 99.5 ? 'Sanity is full' : r.aw < dc ? `Needs ${fmt(dc)} water (have ${fmt(r.aw)})` : `+${drinkRestore()} sanity · ${fmt(dc)} water`);
-    setDis(bd, r.aw < dc || r.sanity >= 99.5 || blackedOut());
+    setText($('drinkSub'), r.sanity >= 99.5 ? 'Sanity is full' : !Wallet.can('aw', dc) ? `Needs ${fmt(dc)} water (have ${fmt(r.aw)})` : `+${drinkRestore()} sanity · ${fmt(dc)} water`);
+    setDis(bd, !Wallet.can('aw', dc) || r.sanity >= 99.5 || blackedOut());
     const bl = $('btnLights');
     setHidden(bl, !lightsUnlocked());
     let lSub = `Halts production ${CONFIG.lights.duration}s · attention −${CONFIG.lights.drop}`;
@@ -4054,7 +4292,7 @@ const UI = {
 
     // Tabs
     for (const t of TABS) {
-      if (!S.seen['tab_' + t.id] && t.unlocked() && t.id !== 'facilities' && t.id !== 'archive' && t.id !== 'settings') {
+      if (!t.visible && !S.seen['tab_' + t.id] && tabUnlocked(t) && t.id !== 'facilities' && t.id !== 'archive' && t.id !== 'settings') {
         S.seen['tab_' + t.id] = true;
         if (!rt.offline) this.toast('New section', `${t.label} is open.`, '');
       }
@@ -4065,6 +4303,7 @@ const UI = {
       if (t.id === 'research') dot = dot || RESEARCH.some(canResearch);
       if (t.id === 'archive') dot = DOCS.some((d) => S.docs[d.id] && !S.docsRead[d.id]);
       if (t.id === 'noclip') dot = dot || (canNoclip() && !S.seen.noclipReadySeen);
+      dot = dot || (vis && !!Exp.ask('tabDot', t.id));
       setHidden(this.tabBtns[t.id].dot, !dot || rt.tab === t.id);
     }
     if (rt.tab === 'noclip' && canNoclip()) S.seen.noclipReadySeen = true;
@@ -4096,6 +4335,7 @@ const UI = {
     const use = mb.querySelector('use');
     const href = muted ? '#i-mute' : '#i-sound';
     if (use.getAttribute('href') !== href) use.setAttribute('href', href);
+    Exp.runAll('ui:update', D);
     Sound.mood();
   },
   renderLog() {
@@ -4268,6 +4508,8 @@ function objective() {
   const r = S.run;
   if (blackedOut()) return 'Wait. It will pass.';
   if (r.pendingIncident) return 'Something is coming. Kill the lights before it arrives.';
+  const extra = Exp.ask('objective');
+  if (extra !== undefined) return extra;
   if (r.rooms < 3) return 'Survey the rooms around you. Each survey recovers salvage.';
   if (!count('cart')) return 'Build a Salvage Cart in Facilities. It recovers salvage on its own.';
   if (!has('flashlight') && r.rooms >= 5 && r.level === 0) return 'Requisition the Flashlight in Upgrades.';
@@ -4336,6 +4578,7 @@ function confirmReset() {
 /** Swaps in a whole new state (import, reset) and resets everything derived from the old one. */
 function replaceState(st) {
   S = st;
+  Exp.runAll('afterLoad');
   rt.anomaly = null;
   rt.D = derive();
   rt.openDoc = null;
@@ -4393,10 +4636,48 @@ function onKey(e) {
   else if (k === 'w') { if (!e.repeat) drink(false); }
   else if (k === 'l') killLights();
   else if (k === 'm') toggleMute();
-  else if (/^[1-8]$/.test(k)) { const t = TABS.find((x) => x.key === k); if (t) UI.selectTab(t.id); }
+  else if (/^[1-9]$/.test(k)) { const t = TABS.find((x) => x.key === k); if (t) UI.selectTab(t.id); }
   else handled = false;
   if (handled) { e.preventDefault(); UI.update(); }
 }
+
+// ===========================================================================
+// EXPERIMENT MODULES
+// Each experiment lives between its own markers, so its code can be removed
+// or reverted on its own. Keep the separator lines between slots unchanged:
+// they let version control revert one experiment without touching another.
+// Registry and rollback steps: docs/experiments/README.md.
+// ===========================================================================
+//
+// >>> EXP-CLICK-POWER
+// <<< EXP-CLICK-POWER
+//
+// ---------------------------------------------------------------------------
+//
+// >>> EXP-CREW-AUTOMATION
+// <<< EXP-CREW-AUTOMATION
+//
+// ---------------------------------------------------------------------------
+//
+// >>> EXP-UPGRADE-CATEGORIES
+// <<< EXP-UPGRADE-CATEGORIES
+//
+// ---------------------------------------------------------------------------
+//
+// >>> EXP-RESOURCE-LEDGER
+// <<< EXP-RESOURCE-LEDGER
+//
+// ---------------------------------------------------------------------------
+//
+// >>> EXP-ATTENTION-BALANCE
+// <<< EXP-ATTENTION-BALANCE
+//
+// ---------------------------------------------------------------------------
+//
+// >>> EXP-DEV-MENU
+// <<< EXP-DEV-MENU
+//
+// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // 9. BOOT AND MAIN LOOP
@@ -4428,8 +4709,10 @@ function frame(nowMs) {
 }
 
 function boot() {
+  Exp.load();
   const loaded = loadGame();
   S = loaded.state;
+  Exp.runAll('afterLoad');
   applyVisualSettings();
   View.init($('view'));
   UI.init();
@@ -4475,6 +4758,7 @@ function boot() {
       noclip, buyMemory, killLights, drink, documentAnomaly, spawnAnomaly, scheduleIncident, dvPreview, canNoclip,
       facVisible, upgradeVisible, buyQuote, facilityCost, maxAffordable, save, loadGame, sanitizeState, encodeSave, decodeSave,
       replaceState, exitRooms, crewIdle, canLaunch, canResearch, canBuyMemory, hireCost, UI,
+      Exp, Wallet, contentOn, upgradeAvailable, upgradeHome, Panels, TABS, JOBS, FAC, UPG, CONDITIONS, ACHIEVEMENTS,
       setBuyMode(m) { rt.buyMode = m; },
     };
   }
