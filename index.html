@@ -6599,6 +6599,96 @@ function onKey(e) {
 // ---------------------------------------------------------------------------
 //
 // >>> EXP-ACCOUNT-AUTH
+// Accounts, in the browser. When the game is served by The Hum server (server/), this finds it through
+// /api/health and restores the session from its cookie, so a valid session never sees a sign-in screen
+// again after a refresh. It offers registration, sign-in and sign-out to the account interface
+// (EXP-ACCOUNT-UI) and an API helper to the cloud save and leaderboard. The session token is an HttpOnly
+// cookie: the page never sees or stores it. Opened from disk or from any static host (such as the
+// published artifact) there is no server: accounts are simply unavailable and nothing is requested.
+// Registry entry and rollback: docs/experiments/EXP-ACCOUNT-AUTH.md
+(function accountAuthExperiment() {
+  const ID = 'EXP-ACCOUNT-AUTH';
+  Exp.define({
+    id: ID,
+    name: 'Accounts',
+    summary: 'Username and password accounts when the game is served by its server: the session survives refreshes, and other features can use the account.',
+  });
+
+  // status: 'checking' | 'none' (no account server for this copy) | 'error' (server unreachable) | 'signed-out' | 'signed-in'
+  // reason: why the status last changed: 'restored', 'registered', 'login', 'logout', 'expired', 'unreachable'
+  const A = { status: 'checking', user: null, reason: '', features: [], message: '' };
+  const snapshot = () => ({ status: A.status, user: A.user ? { ...A.user } : null, reason: A.reason, features: [...A.features], message: A.message });
+  function set(status, user, reason, message) {
+    A.status = status; A.user = user; A.reason = reason || ''; A.message = message || '';
+    rt.structureDirty = true;
+    Exp.run('account:changed', snapshot());
+  }
+  /** The username's case-insensitive key: the server treats "Wanderer" and "wanderer" as one account. */
+  const keyOf = (u) => String(u || '').toLowerCase();
+
+  /** Calls the server. Never throws: network failures come back as { ok: false, status: 0 }. */
+  async function api(method, path, body, options) {
+    let res;
+    try {
+      res = await fetch(path, {
+        method, credentials: 'same-origin', cache: 'no-store', keepalive: !!(options && options.keepalive),
+        headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+    } catch (e) {
+      return { ok: false, status: 0, data: { error: 'network', message: 'The server cannot be reached. Your progress is still saved in this browser.' } };
+    }
+    let data;
+    try { data = await res.json(); } catch (e) { data = { error: 'bad_response', message: 'The server sent an unexpected reply.' }; }
+    if (!isObj(data)) data = {};
+    // Any request refused because the session ended means the player is signed out now.
+    if (res.status === 401 && data.error === 'signed_out' && A.status === 'signed-in') set('signed-out', null, 'expired');
+    return { ok: res.ok, status: res.status, data };
+  }
+
+  let started = false;
+  async function start() {
+    if (started) return;
+    started = true;
+    if (!/^https?:$/.test(window.location.protocol)) { set('none', null, ''); return; }
+    const h = await api('GET', '/api/health');
+    if (h.status === 0 || h.status >= 500) { set('error', null, 'unreachable', h.data.message); return; }
+    if (!h.ok || h.data.service !== 'the-hum' || !Array.isArray(h.data.features) || !h.data.features.includes(ID)) { set('none', null, ''); return; }
+    A.features = h.data.features.filter((f) => typeof f === 'string');
+    const s = await api('GET', '/api/auth/session');
+    if (s.ok && isObj(s.data.user)) set('signed-in', { username: String(s.data.user.username), key: keyOf(s.data.user.username) }, 'restored');
+    else if (s.ok) set('signed-out', null, '');
+    else set('error', null, 'unreachable', s.data.message);
+  }
+  /** Tries again after the server could not be reached. */
+  function retry() { if (A.status === 'error') { started = false; A.status = 'checking'; start(); } }
+
+  async function signIn(path, username, password, reason) {
+    const r = await api('POST', path, { username, password });
+    if (r.ok && isObj(r.data.user)) set('signed-in', { username: String(r.data.user.username), key: keyOf(r.data.user.username) }, reason);
+    return r;
+  }
+  async function logout() {
+    // Features finish what they are doing first (the cloud save uploads the latest progress), for up to 4 s.
+    const waits = [];
+    Exp.run('account:beforeLogout', (p) => waits.push(p));
+    await Promise.race([Promise.allSettled(waits), new Promise((res) => setTimeout(res, 4000))]);
+    const r = await api('POST', '/api/auth/logout', {});
+    set('signed-out', null, 'logout');
+    return r;
+  }
+
+  const SERVICE = {
+    state: snapshot, api, retry, logout,
+    register: (u, p) => signIn('/api/auth/register', u, p, 'registered'),
+    login: (u, p) => signIn('/api/auth/login', u, p, 'login'),
+    has: (feature) => A.features.includes(feature),
+  };
+  Exp.hook('account:service', ID, () => SERVICE);
+  // ui:init runs for every experiment, on or off; the account check starts only when this one is on.
+  Exp.hook('ui:init', ID, () => { if (Exp.on(ID)) start(); else set('none', null, ''); });
+  Exp.hook('flagsChanged', ID, (id, on) => { if (id === ID && on && !started) start(); });
+})();
 // <<< EXP-ACCOUNT-AUTH
 //
 // ---------------------------------------------------------------------------
