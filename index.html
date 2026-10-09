@@ -622,6 +622,15 @@ body.reduce-motion .vp-banner { animation: none; opacity: 1; }
 /* <<< EXP-NOCLIP-STATISTICS */
 /* -- */
 /* >>> EXP-DEJA-VU-SHOP */
+.djv-shop { display: grid; gap: 10px; }
+.djv-intro, .djv-balance { margin: 0; font-size: 13px; color: var(--paper); max-width: 72ch; }
+.djv-balance { color: var(--dim); }
+.djv-balance .num { color: var(--deja); font-weight: 600; }
+.djv-note { margin: -4px 0 0; }
+.slip.djv { border-top: 2px solid var(--deja); }
+.slip.djv .slip-head span:last-child { color: var(--deja); }
+.slip.djv .djv-next { margin: 0; font: 12px/1.45 var(--font-mono); color: var(--ok); }
+.slip.djv.bought { animation: bought 0.6s ease-out; }
 /* <<< EXP-DEJA-VU-SHOP */
 /* -- */
 /* >>> EXP-ACCOUNT-UI */
@@ -6408,6 +6417,183 @@ function onKey(e) {
 // ---------------------------------------------------------------------------
 //
 // >>> EXP-DEJA-VU-SHOP
+// Déjà Vu shop. The Memories section of the Noclip tab becomes a shop of its own, a Noclip
+// sub-tab: permanent upgrades paid with Déjà Vu and kept through every noclip. Each upgrade
+// shows its level and maximum, what it does now, what the next level does, and the next
+// price. The original eleven Memories keep their effects and prices (one level each;
+// Recurrence has no limit). Three leveled upgrades are added: Stashed Salvage (starting
+// salvage), Remembered Prices (cheaper facilities) and four more levels of Old Friends
+// (more starting wanderers). Their levels live in ext.djv; the original Memories stay in
+// S.memories. Starting bonuses are applied once per iteration, in noclip:newRun, and never
+// on load. Registry entry and rollback: docs/experiments/EXP-DEJA-VU-SHOP.md
+(function dejaVuShopExperiment() {
+  const ID = 'EXP-DEJA-VU-SHOP';
+  Exp.define({
+    id: ID,
+    name: 'Déjà Vu shop',
+    summary: 'A Déjà Vu shop in the Noclip tab: every permanent upgrade with its level, current and next effect and next price, plus starting salvage, cheaper facilities and more starting wanderers.',
+  });
+
+  // ------------------------------------------------------------- configuration (documented in the registry entry)
+  const CFG = {
+    stash: { max: 8, cost: (L) => Math.ceil(4 * Math.pow(2.5, L)), amount: (L) => (L > 0 ? 250 * Math.pow(6, L - 1) : 0) },
+    bargain: { max: 5, cost: (L) => Math.ceil(6 * Math.pow(2.2, L)), off: (L) => 0.06 * L },
+    friends: { max: 5, cost: (L) => Math.ceil(5 * Math.pow(2, L - 1)), crew: (L) => (L > 0 ? 3 + 2 * (L - 1) : 0) },   // level 1 is the original Memory
+  };
+  const LOCK_MS = 500;   // a card ignores clicks this long after a purchase, so a double click buys once
+
+  // ------------------------------------------------------------- save data
+  Exp.ext.state.djv = (v) => {
+    if (!isObj(v) || !isObj(v.levels)) return undefined;
+    const levels = {};
+    for (const id of Object.keys(CFG)) { const n = int(v.levels[id], 0, 0, CFG[id].max); if (n > 0) levels[id] = n; }
+    return { levels };
+  };
+  const lv = (id) => (S.ext.djv && S.ext.djv.levels[id]) || 0;
+  const setLv = (id, n) => { if (!S.ext.djv) S.ext.djv = { levels: {} }; S.ext.djv.levels[id] = n; };
+  const friendsLevel = () => (memRank('friends') ? Math.max(1, lv('friends')) : 0);
+  const stashAmount = () => CFG.stash.amount(lv('stash'));
+
+  // ------------------------------------------------------------- effects
+  Exp.hook('facility:price', ID, (f, p) => { const L = lv('bargain'); if (L) p.base *= 1 - CFG.bargain.off(L); });
+  /** Starting bonuses, applied once to each new iteration. Old Friends' first level is applied by the game itself. */
+  function topUp() {
+    const r = S.run;
+    if (stashAmount() > r.salvage) r.salvage = stashAmount();   // to the balance only, not to salvage recovered: it earns no Déjà Vu
+    const fl = friendsLevel();
+    if (fl > 1 && r.crew.total < CFG.friends.crew(fl)) { r.upgrades.radio = true; r.crew.total = CFG.friends.crew(fl); }
+  }
+  Exp.hook('noclip:newRun', ID, topUp);
+
+  // ------------------------------------------------------------- the upgrades
+  const mult = (x) => `×${Math.abs(x - Math.round(x)) < 1e-9 ? fmt(Math.round(x)) : x < 10 ? x.toFixed(2) : fmtRate(x)}`;
+  const memory = (id) => ({
+    id, name: MEM[id].name, flavor: MEM[id].flavor, max: 1, level: () => memRank(id), cost: () => MEM[id].cost,
+    now: (L) => (L ? MEM[id].effect : 'Not remembered yet.'), next: () => MEM[id].effect, buy: () => buyMemory(id),
+  });
+  const ITEMS = {
+    recur: { id: 'recur', name: MEM.recur.name, flavor: MEM.recur.flavor, max: Infinity, level: () => memRank('recur'), cost: () => memoryCost(MEM.recur),
+      now: (L) => (L ? `All salvage, water and Echo production ${mult(Math.pow(1.25, L))}.` : 'No bonus yet.'),
+      next: (L) => `All salvage, water and Echo production ${mult(Math.pow(1.25, L + 1))}.`, buy: () => buyMemory('recur') },
+    muscle: memory('muscle'), thirst: memory('thirst'), hoard: memory('hoard'), lucid: memory('lucid'), remembers: memory('remembers'),
+    route: memory('route'), shift: memory('shift'), sleep: memory('sleep'), procure: memory('procure'),
+    stash: { id: 'stash', name: 'Stashed Salvage', flavor: 'Behind the third ceiling tile from the door. You always leave something there for next time.',
+      max: CFG.stash.max, level: () => lv('stash'), cost: (L) => CFG.stash.cost(L),
+      now: (L) => (L ? `Every iteration starts with ${fmt(CFG.stash.amount(L))} salvage.` : 'Iterations start with no salvage.'),
+      next: (L) => `Every iteration starts with ${fmt(CFG.stash.amount(L + 1))} salvage. You also get it now if you have less.`,
+      buy: (L) => { setLv('stash', L + 1); topUp(); } },
+    friends: { id: 'friends', name: MEM.friends.name, flavor: MEM.friends.flavor, max: CFG.friends.max, level: friendsLevel,
+      cost: (L) => (L ? CFG.friends.cost(L) : MEM.friends.cost),
+      now: (L) => (L ? `Every iteration starts with the radio and ${CFG.friends.crew(L)} wanderers.` : 'Not remembered yet.'),
+      next: (L) => `Every iteration starts with the radio and ${CFG.friends.crew(L + 1)} wanderers. They join you now too.`,
+      buy: (L) => { if (!L) return buyMemory('friends'); setLv('friends', L + 1); topUp(); return true; } },
+    bargain: { id: 'bargain', name: 'Remembered Prices', flavor: 'You have bought every one of these before. You know what they are really worth.',
+      max: CFG.bargain.max, level: () => lv('bargain'), cost: (L) => CFG.bargain.cost(L),
+      now: (L) => (L ? `Facilities cost ${pct(CFG.bargain.off(L))} less.` : 'Facilities cost the full price.'),
+      next: (L) => `Facilities cost ${pct(CFG.bargain.off(L + 1))} less.`, buy: (L) => { setLv('bargain', L + 1); } },
+  };
+  const GROUPS = [
+    { title: 'Production', note: 'Multiplies output for good.', items: ['recur', 'muscle', 'thirst'] },
+    { title: 'Starting each iteration', note: 'Set up every new iteration once, when it begins. Never added again when a save loads.', items: ['stash', 'friends', 'hoard'] },
+    { title: 'Prices', note: 'Lowers what run purchases cost.', items: ['bargain'] },
+    { title: 'Survival and travel', note: '', items: ['lucid', 'remembers', 'route', 'shift', 'sleep'] },
+    { title: 'Automation', note: '', items: ['procure'] },
+  ];
+
+  const lockUntil = {};
+  const canBuy = (it) => {
+    const L = it.level();
+    return L < it.max && performance.now() >= (lockUntil[it.id] || 0) && Wallet.can('dv', it.cost(L));
+  };
+  /** Levels this shop adds are paid here; the original Memories are bought through the game's own buyMemory(). */
+  const ownLevel = (id, L) => id === 'stash' || id === 'bargain' || (id === 'friends' && L > 0);
+  /** Buys the next level of an upgrade. One purchase per call; a second within LOCK_MS of the first is refused. */
+  function buy(id) {
+    const it = ITEMS[id];
+    if (!it || !canBuy(it)) return false;
+    const L = it.level();
+    if (ownLevel(id, L)) {
+      Wallet.pay('dv', it.cost(L));
+      it.buy(L);
+      rt.structureDirty = true;
+      Sound.play('research');
+      log(`You remember: ${it.name}, level ${L + 1}. ${it.now(L + 1)}`, 'gain', 'MEMORY');
+    } else if (!it.buy(L)) return false;
+    lockUntil[id] = performance.now() + LOCK_MS;
+    return true;
+  }
+  const API = { ids: () => Object.keys(ITEMS), level: (id) => ITEMS[id].level(), max: (id) => ITEMS[id].max, cost: (id) => ITEMS[id].cost(ITEMS[id].level()),
+    can: (id) => canBuy(ITEMS[id]), buy, startingSalvage: stashAmount, discount: () => CFG.bargain.off(lv('bargain')) };
+  Exp.hook('djv:api', ID, () => API);
+
+  // ------------------------------------------------------------- the shop, a Noclip sub-tab
+  let view = null, pointer = null;
+  Exp.hook('noclip:subtabs', ID, (subs) => subs.push(['djv', 'Déjà Vu shop']));
+  Exp.hook('noclip:memories', ID, (p) => {
+    pointer = el('span', { class: 'num' });
+    p.append(el('h3', { class: 'section-title', text: 'Déjà Vu shop' }),
+      el('p', { class: 'panel-sub' }, 'Permanent upgrades, including the Memories, are in the Déjà Vu shop. You have ', pointer, ' Déjà Vu to spend.'),
+      el('div', null, el('button', { type: 'button', class: 'btn', 'data-action': 'noclip-subtab', 'data-id': 'djv' }, 'Open the Déjà Vu shop')));
+    return true;
+  });
+  Exp.hook('noclip:build', ID, (tab, p) => {
+    if (tab !== 'djv') return undefined;
+    view = { cards: [], dv: el('span', { class: 'num' }), total: el('span', { class: 'num' }) };
+    const shop = el('div', { class: 'djv-shop' },
+      el('p', { class: 'djv-intro' }, 'Permanent upgrades, paid with Déjà Vu. Requisitions, facilities and wanderers are lost when you noclip; these never are.'),
+      el('p', { class: 'djv-balance' }, 'You have ', view.dv, ' Déjà Vu to spend, ', view.total, ' earned in all. Every point ever earned also adds +1% production, and spending never reduces it.'));
+    for (const G of GROUPS) {
+      const grid = el('div', { class: 'slips' });
+      for (const id of G.items) grid.append(card(ITEMS[id]));
+      shop.append(el('h3', { class: 'section-title', text: G.title }), G.note ? el('p', { class: 'panel-sub djv-note', text: G.note }) : null, grid);
+    }
+    shop.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-action="djv-buy"]');
+      if (!b || b.disabled) return;
+      if (buy(b.dataset.id) && !rt.reducedMotion) { const n = b.closest('.slip'); n.classList.remove('bought'); void n.offsetWidth; n.classList.add('bought'); }
+      UI.update();
+    });
+    p.append(shop);
+    return true;
+  });
+  function card(it) {
+    const level = el('span'), now = el('p', { class: 'effect djv-now' }), next = el('p', { class: 'djv-next' });
+    const label = el('span'), cost = el('span', { class: 'sub' });
+    const btn = el('button', { type: 'button', class: 'btn btn-stack primary', 'data-action': 'djv-buy', 'data-id': it.id }, label, cost);
+    const node = el('article', { class: 'slip djv', 'data-id': it.id },
+      el('div', { class: 'slip-head' }, level, el('span', { text: 'Permanent' })),
+      el('h3', { text: it.name }), now, next, el('p', { class: 'flavor', text: it.flavor }), btn);
+    view.cards.push({ it, node, level, now, next, label, cost, btn });
+    return node;
+  }
+  Exp.hook('noclip:update', ID, (tab) => {
+    if (pointer && pointer.isConnected) setText(pointer, fmt(S.dv));
+    if (tab !== 'djv' || !view || !view.dv.isConnected) return;
+    setText(view.dv, fmt(S.dv));
+    setText(view.total, fmt(S.dvTotal));
+    const have = Wallet.budget('dv');
+    for (const c of view.cards) {
+      const it = c.it, L = it.level(), maxed = L >= it.max;
+      setText(c.level, it.max === Infinity ? `Level ${fmt(L)} · no limit` : `Level ${L} / ${it.max}`);
+      setText(c.now, `Now: ${it.now(L)}`);
+      setHidden(c.next, maxed);
+      if (!maxed) setText(c.next, `Next: ${it.next(L)}`);
+      c.node.classList.toggle('done', maxed);
+      if (maxed) { setText(c.label, 'Max level'); setText(c.cost, ''); setDis(c.btn, true); continue; }
+      const price = it.cost(L);
+      setText(c.label, L ? `Level ${fmt(L + 1)}` : 'Remember');
+      setText(c.cost, have >= price ? `${fmt(price)} Déjà Vu` : `${fmt(price)} Déjà Vu · need ${fmt(price - have)} more`);
+      setDis(c.btn, !canBuy(it));
+      setAttr(c.btn, 'aria-label', `${it.name}: ${L ? `level ${L + 1}` : 'remember'} for ${fmt(price)} Déjà Vu`);
+    }
+  });
+
+  Exp.hook('manual', ID, (add) => add('The Déjà Vu shop', [
+    'Noclip → Déjà Vu shop sells permanent upgrades for Déjà Vu. They are never lost when you noclip. Each one shows its level, what it does now, what the next level does and its price.',
+    `Stashed Salvage starts every iteration with salvage (${fmt(CFG.stash.amount(1))} at level 1, ×6 per level, ${CFG.stash.max} levels). Remembered Prices makes facilities ${pct(CFG.bargain.off(1))} cheaper per level (${CFG.bargain.max} levels). Old Friends goes up to level ${CFG.friends.max}, two more starting wanderers per level.`,
+    'Starting salvage is added to your balance, not to the salvage you recover, so it never earns Déjà Vu by itself.',
+  ]));
+})();
 // <<< EXP-DEJA-VU-SHOP
 //
 // ---------------------------------------------------------------------------
