@@ -65,15 +65,16 @@ const ID = 'EXP-RESOURCE-LEDGER';
   c.check('after upgrading the Scavenger passive salvage updates and survey power does not', v3.sps !== v2.sps && v3.power === v2.power && v3.headerSps === `${v3.sps}/s passive`.replace('/s/s', '/s') && /Scavenger 3/.test(v3.levels), { v2, v3 });
 
   // Footstep noise comes from EXP-ATTENTION-BALANCE; when that experiment is not in the build, only the plain wording is checked.
+  // The row is looked up again after the update: a changed flag can rebuild the panel, which replaces the row.
   const noise = await ev(() => {
-    const row = [...document.querySelectorAll('#ledger-attention dl > div')].find((d) => d.querySelector('dt').textContent === 'Noise');
-    const plain = row.querySelector('dd span').textContent;
+    const note = () => [...document.querySelectorAll('#ledger-attention dl > div')].find((d) => d.querySelector('dt').textContent === 'Noise').querySelector('dd span').textContent;
+    const plain = note();
     const present = !!HUM.Exp.defs['EXP-ATTENTION-BALANCE'];
     let split = null;
     if (present) {
       HUM.Exp.session['EXP-ATTENTION-BALANCE'] = true;
       HUM.UI.update();
-      split = row.querySelector('dd span').textContent;
+      split = note();
       HUM.Exp.session['EXP-ATTENTION-BALANCE'] = false;
     }
     return { plain, present, split };
