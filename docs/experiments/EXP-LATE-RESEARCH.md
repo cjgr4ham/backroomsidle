@@ -18,13 +18,14 @@ Six research projects, shown as Tier 6. They open once the level has been reache
 | Filing Theory | Level 4 | Automated Documentation | 1,500 | 8m | research started afterwards takes 25% less time | research efficiency |
 | Corridor Acoustics | Level 4 | Deep Listening | 2,500 | 10m | noise ×0.7, +2 noise absorption | noise |
 | Night Logistics | Level 4 | Expedition Cartography | 4,000 | 12m | missions 25% shorter, ×1.5 salvage | missions |
-| Crew Craft | Level 5 | Phantom Labour | 12,000 | 15m | specialists work ×1.5 | specialist output |
+| Crew Craft | Level 5 | Phantom Labour | 12,000 | 15m | specialists work ×1.25 (×1.5 in its first commit; see below) | specialist output |
 | Hallway Cartography (repeatable) | Level 5 | Cartographic Recursion, Night Logistics | 8,000 × 1.7^rank | 10m × 1.15^rank | +10% rooms per survey per rank | mapping, Level FUN |
 | Signal Theory (repeatable) | Level 5 | Crew Craft | 15,000 × 1.75^rank | 15m × 1.15^rank | +12% specialist work per rank | specialist output, Level FUN |
 
 - Research stays as it was: paid once in Echoes, timed on the game clock, one project at a time, and kept through noclips.
 - **Independent ranks.** Each repeatable keeps its own rank in `S.ext.ranks`, with its own cost and time. Deep Survey Theory keeps `S.deepTheory` and is unaffected.
-- The two repeatables keep scaling in Level FUN, where Echo income keeps growing.
+- The two repeatables keep scaling in Level FUN, where Echo income keeps growing. They are the two scalable paths this experiment adds to Level FUN. Each rank takes longer to research than the last (×1.15), so they grow steadily, not explosively.
+- **Crew Craft tuned after the balance runs** (its own commit), from ×1.5 to ×1.25. The late requisitions and facilities were tuned at the same time. Together they had made Level FUN run away; the measurements are in [UPDATE-2.1.md](UPDATE-2.1.md).
 - **Echo prices** sit between the last older projects (up to 120 Echoes) and what players hold by then. Before the update, the balance bot reached Level 4 with about 3,000 unspent Echoes and finished with about 70,000 unspent, because research had run out. The measured figures are in [UPDATE-2.1.md](UPDATE-2.1.md).
 
 ## 2. Files and functions

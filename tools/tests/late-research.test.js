@@ -71,7 +71,7 @@ const IDS = ['late_filing', 'late_acoustics', 'late_logistics', 'late_crewcraft'
   c.check('Filing Theory: research started afterwards takes 25% less time', Math.abs(fx.timeAfterFiling - 0.75) < 1e-9 && Math.abs(fx.acoustics.time - 600 * 0.75) < 1e-6, fx);
   c.check('Corridor Acoustics: noise ×0.7 and +2 absorption', Math.abs(fx.noise - 0.7) < 1e-9 && Math.abs(fx.absorb - 2) < 1e-9, fx);
   c.check('Night Logistics: missions 25% shorter, ×1.5 salvage', Math.abs(fx.dur - 0.75) < 1e-9 && Math.abs(fx.haul - 1.5) < 1e-9, fx);
-  c.check('Crew Craft: specialists ×1.5', Math.abs(fx.spec - 1.5) < 1e-9, fx);
+  c.check('Crew Craft: specialists ×1.25', Math.abs(fx.spec - 1.25) < 1e-9, fx);
 
   const ranks = await ev(() => {
     const H = HUM;
