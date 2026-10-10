@@ -37,7 +37,7 @@ const { open, Checker } = require('./harness');
   });
   const expectAt = (l) => Object.entries(content.waves).filter(([lv]) => Number(lv) <= l).flatMap(([, ids]) => ids).sort().join();
   c.check('at each level exactly the waves up to that level are open', [0, 1, 2, 3, 4, 5].every((l) => vis.out[l].slice().sort().join() === expectAt(l)), vis.out);
-  c.check('Level FUN keeps every wave open', vis.out[6].length === 11, vis.out[6]);
+  c.check('Level FUN keeps every wave open', vis.out[6].length === Object.values(content.waves).flat().length, vis.out[6]);
   c.check('a wave facility can be bought at once, with nothing else owned', vis.bench && vis.boiler && vis.owned.bench === 1 && vis.owned.boiler === 1 && !vis.owned.cart, vis);
 
   // The panel: open waves as rows, the coming waves with their level and what each facility will do.
@@ -64,7 +64,7 @@ const { open, Checker } = require('./harness');
   c.check('the next wave then moves on to Level 2', p1.next === 'Next wave: Level 2: The Ducts', p1.next);
   await ev(() => { const H = HUM; H.S.run.level = H.FUN_LEVEL; H.S.run.exitFound = true; H.rt.structureDirty = true; H.UI.update(true); });
   const pf = await ev(() => ({ rows: document.querySelectorAll('#panel-facilities .row[data-fac]').length, waves: document.querySelectorAll('#panel-facilities .fs-wave').length }));
-  c.check('in Level FUN every facility is listed and no wave is still to come', pf.rows === 11 && pf.waves === 0, pf);
+  c.check('in Level FUN every facility is listed and no wave is still to come', pf.rows === Object.values(content.waves).flat().length && pf.waves === 0, pf);
 
   // Tiers live on the facility row: locked, ready, installed.
   await ev(() => {

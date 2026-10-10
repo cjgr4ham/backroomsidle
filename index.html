@@ -7722,6 +7722,60 @@ function onKey(e) {
 // ---------------------------------------------------------------------------
 //
 // >>> EXP-LATE-FACILITIES
+// Late facilities. Two more facilities in the Night Office wave (Level 4) and two in the Long Hallway wave (Level 5),
+// each with three tiers at 10, 25 and 50 owned. Like every facility they produce nothing on their own: the Carbon
+// Copier and the Signal Relay are support equipment with a share toward specialist work and research speed, the Tube
+// Network adds rooms to every survey, and the Door-Number Lathe adds to the facility multiplier on your surveys.
+// Content ids: facility:copier, facility:tubes, facility:lathe, facility:relay (and their tiers with them).
+// Registry entry and rollback: docs/experiments/EXP-LATE-FACILITIES.md
+(function lateFacilitiesExperiment() {
+  const ID = 'EXP-LATE-FACILITIES';
+  Exp.define({
+    id: ID,
+    name: 'Late facilities',
+    summary: 'Adds the Carbon Copier and the Pneumatic Tube Network to the Level 4 wave, and the Door-Number Lathe and the Hallway Signal Relay to the Level 5 wave.',
+  });
+  Content.facility(ID, {
+    id: 'copier', code: 'F-12', name: 'Carbon Copier', kind: 'share', target: 'spec', shareLabel: 'specialist work', icon: 'doc', level: 4,
+    cost: 2e9, growth: 1.3, bonus: 0.04, noise: 0.08,
+    flavor: 'A photocopier left warm. Feed it the specialists’ notes and it prints a second shift of the same work.',
+    tiers: [
+      { name: 'Toner Drums', flavor: 'It never runs out. Nobody refills it.' },
+      { name: 'Collating Tray', flavor: 'The copies come out in an order nobody asked for. It is always the right order.' },
+      { name: 'Copies of Copies', flavor: 'Each copy is a little sharper than the one before.' },
+    ] });
+  Content.facility(ID, {
+    id: 'tubes', code: 'F-13', name: 'Pneumatic Tube Network', kind: 'survey', icon: 'beacon', level: 4,
+    cost: 6e9, growth: 1.45, bonus: 0.1, noise: 0.06,
+    flavor: 'Brass tubes in every wall of the office. Drop a survey sheet in one and it comes back with the next wing measured.',
+    tiers: [
+      { name: 'Canister Seals', flavor: 'The canisters arrive warm, as if someone had been holding them.' },
+      { name: 'Express Line', flavor: 'Sheets arrive before they are sent. We file them anyway.' },
+      { name: 'The Tubes Know the Way', flavor: 'Send an empty canister. It comes back with a map.' },
+    ] });
+  Content.facility(ID, {
+    id: 'lathe', code: 'F-14', name: 'Door-Number Lathe', kind: 'salvage', icon: 'fold', level: 5,
+    cost: 2e11, growth: 1.22, bonus: 600, noise: 0.9,
+    flavor: 'It cuts new numbers into the hallway doors. Behind every renumbered door, a room of salvage that was not there before.',
+    tiers: [
+      { name: 'Carbide Bits', flavor: 'They cut the numbers faster than the doors can grow them back.' },
+      { name: 'Second Spindle', flavor: 'Two doors at once. One of them always has your number.' },
+      { name: 'Every Door a Number', flavor: 'The numbers are all ours now. They go up while we sleep.' },
+    ] });
+  Content.facility(ID, {
+    id: 'relay', code: 'F-15', name: 'Hallway Signal Relay', kind: 'share', target: 'researchSpeed', shareLabel: 'research speed', icon: 'array', level: 5,
+    cost: 8e10, growth: 1.5, bonus: 0.05, noise: 0.12,
+    flavor: 'A relay at every hundredth door, passing notes down the hallway. Research arrives sooner when the hallway carries it.',
+    tiers: [
+      { name: 'Repeater Coils', flavor: 'The signal comes back stronger, and slightly in your voice.' },
+      { name: 'Phase Splitter', flavor: 'Two answers to every question. Both are correct.' },
+      { name: 'Long-Range Hum', flavor: 'It hums at the frequency of finished research.' },
+    ] });
+  Exp.hook('manual', ID, (add) => add('Late facilities', [
+    'The Night Office wave adds the Carbon Copier (each one: specialists work 4% more) and the Pneumatic Tube Network (each one: +10% rooms per survey). The Long Hallway wave adds the Door-Number Lathe, the largest salvage facility, and the Hallway Signal Relay (each one: research 5% faster, for projects started after you build it).',
+    'They make nothing on their own, have three tiers each, and reset when you noclip like every facility.',
+  ]));
+})();
 // <<< EXP-LATE-FACILITIES
 //
 // ---------------------------------------------------------------------------
