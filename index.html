@@ -7995,6 +7995,43 @@ function onKey(e) {
 
 // ---------------------------------------------------------------------------
 //
+// >>> EXP-DV-PRICES
+// Déjà Vu prices. A first run earns about 150 to 175 Déjà Vu, and the shop's first prices (1 to 10 a Memory) let it buy
+// nearly everything at once: every Memory, several Recurrence ranks and the first levels of everything else. The
+// shop is priced again so that a run buys a few things and choosing matters: the one-off Memories cost about ten
+// times as much (420 for all ten, instead of 45), Recurrence five times, and the shop's own levels four to six times.
+// Nothing already bought is lost or taken back, Déjà Vu earned is unchanged (and so is its +1% production per point),
+// and with this experiment off every price is the old one again.
+// Registry entry and rollback: docs/experiments/EXP-DV-PRICES.md
+(function dejaVuPricesExperiment() {
+  const ID = 'EXP-DV-PRICES';
+  Exp.define({
+    id: ID,
+    name: 'Déjà Vu prices',
+    summary: 'The Déjà Vu shop priced so one run cannot buy it out: Memories about ten times their first prices, Recurrence ×5, the shop’s own levels ×4 to ×6.',
+  });
+  // One-off Memories: a price each (their first prices were 1 to 10).
+  const MEMORY = { muscle: 10, friends: 20, thirst: 30, hoard: 30, lucid: 40, remembers: 50, shift: 50, sleep: 50, route: 60, procure: 80 };
+  // Levels: × the shop's own curve. Recurrence is a Memory with ranks; the others are the Déjà Vu shop's levels.
+  const SCALE = { recur: 5, stash: 4, bargain: 5, friends: 6 };
+  Exp.hook('dv:price', ID, (id, level, base, kind) => {
+    if (kind === 'memory') {
+      const M = MEM[id];
+      if (!M) return undefined;
+      if (M.repeatable) return SCALE[id] ? Math.ceil(base * SCALE[id]) : undefined;
+      return MEMORY[id];
+    }
+    if (kind === 'level') return SCALE[id] ? Math.ceil(base * SCALE[id]) : undefined;
+    return undefined;
+  });
+  Exp.hook('dvprices:api', ID, () => ({ MEMORY: { ...MEMORY }, SCALE: { ...SCALE } }));
+})();
+// <<< EXP-DV-PRICES
+//
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+//
 // >>> EXP-MISSION-AUTOREPEAT
 // Dispatch Protocol. A salvage requisition in the Missions tab that gives every mission an Auto-repeat switch (off
 // until you turn it on). A mission with Auto-repeat on is sent again the moment it returns, through launchMission():
