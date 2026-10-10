@@ -135,6 +135,7 @@ Shared machinery for the features of update 2.1 ([UPDATE-2.1.md](UPDATE-2.1.md))
   - `facilities:row`, `facilities:rowUpdate`, `facilities:sig`, `facilities:autoControl`, `facilities:autoNote`.
   - `crew:row`, `crew:rowUpdate`, `crew:sig`.
   - `missions:head`, `missions:card`, `missions:cardUpdate`, `missions:update`, `missions:sig`.
+  - `upgrades:head` (under the Upgrades tab's heading, in the plain layout and the categories layout alike) and `upgrades:update`.
   - `view:frame`, `view:segment` (inside the corridor loop, after each stretch, so nearer walls hide what is drawn), `view:overlay` (under the entity and the anomaly) and `view:reset`.
   - `page:visible`.
   - `automation:summary`: experiments that automate something add a short phrase to a list. The Automation category joins the phrases.

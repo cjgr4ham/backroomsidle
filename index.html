@@ -4535,6 +4535,7 @@ Panels.upgrades = {
     p.append(el('div', { class: 'panel-head' }, el('div', null,
       el('h2', { text: 'Upgrades' }),
       el('p', { class: 'panel-sub', text: 'One-off requisitions. Most cost salvage; some cost almond water. All are lost when you noclip. Crew requisitions are in the Crew tab, and facility tiers on each facility’s row.' }))));
+    Exp.run('upgrades:head', p);
     const avail = UPGRADES.filter(upgradeVisible).sort((a, b) => {
       const ca = upgradeCurrency(a), cb = upgradeCurrency(b);
       if (ca !== cb) return ca === 'salvage' ? -1 : 1;
@@ -4595,7 +4596,7 @@ Panels.upgrades = {
       Exp.run('upgrades:slipUpdate', b);
     }
   },
-  update() { this.updateSlips(this.btns); },
+  update() { this.updateSlips(this.btns); Exp.run('upgrades:update'); },
 };
 
 /** The current and next effect of a specialist, in words. */
@@ -6025,6 +6026,7 @@ function onKey(e) {
     p.append(el('div', { class: 'panel-head' }, el('div', null,
       el('h2', { text: 'Upgrades' }),
       el('p', { class: 'panel-sub', text: 'One-off requisitions, grouped by what they do. Most cost salvage; some cost almond water. All are lost when you noclip.' }))));
+    Exp.run('upgrades:head', p);
     const avail = listed().sort(byPrice);
     const count = {};
     for (const u of avail) count[catOf(u)] = (count[catOf(u)] || 0) + 1;
