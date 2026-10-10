@@ -16,19 +16,25 @@ Eight one-off requisitions, all paid in salvage:
 | Requisition | Opens | Price | Effect | Covers |
 | --- | --- | --- | --- | --- |
 | Industrial Stapler | Level 4 | 6B | +6 base salvage on every survey you make by hand | manual salvage |
-| Green Desk Lamp | Level 4 | 25B | surveys you make by hand ×1.5 | manual salvage |
-| Night Shift Coffee | Level 4, 3 specialists | 6B (was 15B in its first commit) | specialists work ×1.5 (Crew tab) | specialist output |
+| Green Desk Lamp | Level 4 | 12B | surveys you make by hand ×1.25 | manual salvage |
+| Night Shift Coffee | Level 4, 3 specialists | 6B | specialists work ×1.25 (Crew tab) | specialist output |
 | Hold Music | Level 4 | 8B | noise ×0.75 | noise |
 | Speed Dial | Level 4, a mission sent | 12B | missions 25% shorter and 25% cheaper in almond water | missions |
-| Door Wedges | Level 5 | 150B | every survey maps ×1.5 rooms | mapping |
-| Master Key | Level 5 | 300B (was 600B in its first commit) | surveys you make by hand ×2 | manual salvage |
-| Hallway Runner | Level 5, the Cartographer | 250B | the Cartographer works ×2 (Crew tab) | mapping, specialist output |
+| Door Wedges | Level 5 | 80B | every survey maps ×1.2 rooms | mapping |
+| Master Key | Level 5 | 200B | surveys you make by hand ×1.5 | manual salvage |
+| Hallway Runner | Level 5, the Cartographer | 120B | the Cartographer works ×1.25 (Crew tab) | mapping, specialist output |
 
 - Before the update, Levels 4 and 5 had three salvage requisitions between them: the Compass (1B), Unpaid Overtime (2B) and Carbon Copies (30B).
 - The new ones are priced for the income there. They range from about a minute of income to the largest late purchase, the Master Key. The measured times are in [UPDATE-2.1.md](UPDATE-2.1.md).
-- **Price tuning, in its own commit after the balance runs.** Both changes make the game easier, not harder.
-  - **Night Shift Coffee: 15B → 6B.** At 15B it cost about 6 minutes of income when it went on sale in Level 4, so it was bought only near the end of the level. At 6B it costs about 2.7 minutes, so it can help in the Night Office, the longest stretch of a run.
-  - **Master Key: 600B → 300B.** At 600B it cost about 22 minutes of income when it went on sale, beyond the 5–12 minute band for major purchases. At 300B it costs about 11 minutes.
+- **Tuned after the balance runs, in two commits.**
+  - **First, prices.** Both changes made the game easier.
+    - Night Shift Coffee went from 15B to 6B. At 15B it cost about 6 minutes of income when it went on sale in Level 4, so it was bought only near the end of the level.
+    - The Master Key went from 600B to 300B. At 600B it cost about 22 minutes of income when it went on sale, beyond the 5–12 minute band for major purchases.
+  - **Then, effects.** The first effects were Lamp ×1.5, Coffee ×1.5, Wedges ×1.5, Master Key ×2 and Runner ×2.
+    - Levels 4 and 5 were fine with them. But together with the late facilities they made Level FUN run away: its depth grows with every room mapped, and these multiply both the rooms mapped and the salvage that buys more mapping. A 30-minute stay there gave 12 times the Déjà Vu of the game before the update, and the next iteration's stay about 1,000 times.
+    - The effects are now ×1.25 (Lamp, Coffee, Runner), ×1.2 (Wedges) and ×1.5 (Master Key).
+    - The prices of the Lamp, Wedges, Master Key and Runner came down with them, so each stays worth its price: 12B, 80B, 200B and 120B.
+    - The Night Office's shorter exit (`EXP-LATE-BALANCE`) keeps Level 4 at about 15 minutes. That lever has no effect in Level FUN.
 - Each effect is declared as data (`fx`). `derive()` and the mission functions apply it through the same path as everything else.
 - The survey slips and the survey line project what the Stapler, the Lamp, the Master Key and Door Wedges do to a survey.
 

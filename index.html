@@ -7874,20 +7874,20 @@ function onKey(e) {
   const add = (def) => Content.upgrade(ID, def);
   add({ id: 'stapler', cat: 'Survey', name: 'Industrial Stapler', cost: { salvage: 6e9 }, req: { level: 4 }, fx: { hand: 6 },
     effect: '+6 base salvage on every survey you make by hand.', flavor: 'Wall-mounted, bolted to nothing. Everything you staple stays stapled, including the walls.' });
-  add({ id: 'lamp', cat: 'Survey', name: 'Green Desk Lamp', cost: { salvage: 2.5e10 }, req: { level: 4 }, fx: { survey: 1.5 },
-    effect: 'Surveys you make by hand recover ×1.5 salvage.', flavor: 'Brass, green glass, a pull chain. It only lights what is worth taking.' });
-  add({ id: 'coffee', cat: 'Crew', name: 'Night Shift Coffee', cost: { salvage: 6e9 }, req: { level: 4, spec: 3 }, fx: { spec: 1.5 },
-    effect: 'Specialists work ×1.5.', flavor: 'The pot is always full and always fresh. Nobody has ever made coffee here.' });
+  add({ id: 'lamp', cat: 'Survey', name: 'Green Desk Lamp', cost: { salvage: 1.2e10 }, req: { level: 4 }, fx: { survey: 1.25 },
+    effect: 'Surveys you make by hand recover ×1.25 salvage.', flavor: 'Brass, green glass, a pull chain. It only lights what is worth taking.' });
+  add({ id: 'coffee', cat: 'Crew', name: 'Night Shift Coffee', cost: { salvage: 6e9 }, req: { level: 4, spec: 3 }, fx: { spec: 1.25 },
+    effect: 'Specialists work ×1.25.', flavor: 'The pot is always full and always fresh. Nobody has ever made coffee here.' });
   add({ id: 'holdmusic', cat: 'Risk', name: 'Hold Music', cost: { salvage: 8e9 }, req: { level: 4 }, fx: { noise: 0.75 },
     effect: 'Noise ×0.75.', flavor: 'Pipe it through every speaker. Whatever is listening waits patiently for its turn.' });
   add({ id: 'speeddial', cat: 'Expedition', name: 'Speed Dial', cost: { salvage: 1.2e10 }, req: { level: 4, flag: 'expedition' }, fx: { missionTime: 0.75, missionWater: 0.75 },
     effect: 'Missions take 25% less time and need 25% less almond water.', flavor: 'One button for every mission room. The line picks up before it rings.' });
-  add({ id: 'wedges', cat: 'Survey', name: 'Door Wedges', cost: { salvage: 1.5e11 }, req: { level: 5 }, fx: { rooms: 1.5 },
-    effect: 'Every survey maps ×1.5 rooms.', flavor: 'Rubber wedges under every door. Rooms stay open long enough to measure the ones behind them.' });
-  add({ id: 'masterkey', cat: 'Survey', name: 'Master Key', cost: { salvage: 3e11 }, req: { level: 5 }, fx: { survey: 2 },
-    effect: 'Surveys you make by hand recover ×2 salvage.', flavor: 'It opens every door on the hallway. Once it opened a door on a hallway we have not reached yet.' });
-  add({ id: 'runner', cat: 'Crew', name: 'Hallway Runner', cost: { salvage: 2.5e11 }, req: { level: 5, specId: 'chart' }, fx: { chart: 2 },
-    effect: 'The Cartographer works ×2.', flavor: 'A carpet runner unrolled ahead of the Cartographer. It is always a little longer than the hallway.' });
+  add({ id: 'wedges', cat: 'Survey', name: 'Door Wedges', cost: { salvage: 8e10 }, req: { level: 5 }, fx: { rooms: 1.2 },
+    effect: 'Every survey maps ×1.2 rooms.', flavor: 'Rubber wedges under every door. Rooms stay open long enough to measure the ones behind them.' });
+  add({ id: 'masterkey', cat: 'Survey', name: 'Master Key', cost: { salvage: 2e11 }, req: { level: 5 }, fx: { survey: 1.5 },
+    effect: 'Surveys you make by hand recover ×1.5 salvage.', flavor: 'It opens every door on the hallway. Once it opened a door on a hallway we have not reached yet.' });
+  add({ id: 'runner', cat: 'Crew', name: 'Hallway Runner', cost: { salvage: 1.2e11 }, req: { level: 5, specId: 'chart' }, fx: { chart: 1.25 },
+    effect: 'The Cartographer works ×1.25.', flavor: 'A carpet runner unrolled ahead of the Cartographer. It is always a little longer than the hallway.' });
   // The survey line and the slips project what these do to a survey, like the requisitions they sit beside.
   SURVEY_LADDER.push('stapler', 'lamp', 'masterkey');
   ROOM_LADDER.add('wedges');

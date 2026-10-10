@@ -63,12 +63,12 @@ const { open, Checker } = require('./harness');
   });
   c.check('all eight can be bought with salvage', fx.bought.every(Boolean), fx.bought);
   c.check('the Industrial Stapler adds 6 to the base of every survey you make by hand', fx.base[1] - fx.base[0] === 6, fx.base);
-  c.check('the Green Desk Lamp and the Master Key multiply your surveys by 1.5 and 2', Math.abs(fx.surveyUpg - 3) < 1e-9, fx);
-  c.check('Night Shift Coffee: specialists ×1.5; the Hallway Runner: the Cartographer ×2 on top', Math.abs(fx.specEff - 1.5) < 1e-9 && Math.abs(fx.auto - 3) < 1e-9, fx);
-  c.check('Door Wedges: every survey maps ×1.5 rooms', Math.abs(fx.rooms - 1.5) < 1e-9, fx);
+  c.check('the Green Desk Lamp and the Master Key multiply your surveys by 1.25 and 1.5', Math.abs(fx.surveyUpg - 1.875) < 1e-9, fx);
+  c.check('Night Shift Coffee: specialists ×1.25; the Hallway Runner: the Cartographer ×1.25 on top', Math.abs(fx.specEff - 1.25) < 1e-9 && Math.abs(fx.auto - 1.5625) < 1e-9, fx);
+  c.check('Door Wedges: every survey maps ×1.2 rooms', Math.abs(fx.rooms - 1.2) < 1e-9, fx);
   c.check('Hold Music: noise ×0.75', Math.abs(fx.noise - 0.75) < 1e-9, fx);
   c.check('Speed Dial: missions 25% shorter and 25% cheaper in water (rounded up)', Math.abs(fx.dur - 0.75) < 1e-9 && fx.water[1] === Math.ceil(3 * 0.75) && fx.water[3] === Math.ceil(600 * 0.75), fx);
-  c.check('the survey power breakdown names the late survey requisitions', /Industrial Stapler \+6/.test(fx.detail) && /Green Desk Lamp ×1\.5/.test(fx.detail) && /Master Key ×2/.test(fx.detail), fx.detail.slice(0, 400));
+  c.check('the survey power breakdown names the late survey requisitions', /Industrial Stapler \+6/.test(fx.detail) && /Green Desk Lamp ×1\.25/.test(fx.detail) && /Master Key ×1\.5/.test(fx.detail), fx.detail.slice(0, 400));
 
   const slip = await ev(() => {
     const H = HUM;
@@ -83,7 +83,7 @@ const { open, Checker } = require('./harness');
     const card = [...document.querySelectorAll('#panel-upgrades .slip')].find((s) => s.querySelector('[data-id="lamp"]'));
     return card ? { proj: card.querySelector('.spower-proj') && card.querySelector('.spower-proj').textContent, effect: card.querySelector('.effect').textContent } : null;
   });
-  c.check('a late survey requisition’s slip shows what it does to a survey', slip && /^Survey power \+[\d.,]+[A-Za-z]* → \+[\d.,]+[A-Za-z]* \(\+50%\)$/.test(slip.proj) && slip.effect === 'Surveys you make by hand recover ×1.5 salvage.', slip);
+  c.check('a late survey requisition’s slip shows what it does to a survey', slip && /^Survey power \+[\d.,]+[A-Za-z]* → \+[\d.,]+[A-Za-z]* \(\+25%\)$/.test(slip.proj) && slip.effect === 'Surveys you make by hand recover ×1.25 salvage.', slip);
 
   const off = await ev(() => {
     const H = HUM, E = H.Exp;
@@ -117,7 +117,7 @@ const { open, Checker } = require('./harness');
     out.noRebuy = H.buyUpgrade('lamp') === false && H.S.run.salvage === sal;
     E.setItem('upgrade:masterkey', false);
     const one = H.derive();
-    out.single = Math.abs(back.surveyPower / one.surveyPower - 2) < 1e-9 && one.sps === back.sps;
+    out.single = Math.abs(back.surveyPower / one.surveyPower - 1.5) < 1e-9 && one.sps === back.sps;
     E.reset();
     // A noclip resets them, like every requisition.
     H.completeFiniteSurvey(0); H.S.run.stats.salvage = 1e13;
