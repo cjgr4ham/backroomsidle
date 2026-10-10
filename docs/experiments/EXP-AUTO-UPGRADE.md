@@ -101,7 +101,7 @@ Switched back on, buying resumes with the same choices. Nothing is bought twice:
 
 ## 5. How to reverse the code
 
-`git revert` this experiment's commits, newest first: the suite fix that stops it needing `EXP-LATE-UPGRADES`, then the experiment's own commit. It fills only its own JavaScript and CSS slots and adds its test and this entry.
+`git revert` this experiment's commit. It fills only its own JavaScript and CSS slots and adds its test and this entry.
 - `ext.procure` stays in saves as data of an experiment the build does not have.
 - The requisition id is kept in `run.dormant.upgrades`.
 - Procurement Notes keeps working the old way with `run.autobuy`.
