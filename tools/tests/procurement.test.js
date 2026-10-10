@@ -47,6 +47,7 @@ const setup = () => {
     out.slipToggles = [...document.querySelectorAll('#panel-upgrades .slip')].map((s) => [s.querySelector('h3').textContent, (s.querySelector('.auto-toggle') || {}).textContent]);
     out.waterSlip = out.slipToggles.filter(([n]) => /Auto-Drink Valve|Folding Cot/.test(n));
     out.listRows = [...document.querySelectorAll('#panel-upgrades .procure-row .procure-name')].map((x) => x.textContent);
+    out.late = H.Exp.on('EXP-LATE-UPGRADES');
     return out;
   })()`);
   c.check('a salvage requisition from Level 2, in the Upgrades tab (Automation), with its own content id',
@@ -56,8 +57,11 @@ const setup = () => {
     /^primary:Upgrade to level 2/.test(unlock.crewOrder[0]) && unlock.crewOrder[1] === 'auto-toggle:Auto-upgrade: ON' && unlock.crewAll.every((t) => /^Auto-upgrade: (ON|OFF)$/.test(t)), unlock);
   c.check('facility rows get Auto-buy and Auto-tier under the buy button', /^Buy 1/.test(unlock.facOrder[0]) && unlock.facOrder[1] === 'Auto-buy: ON' && unlock.facOrder[2] === 'Auto-tier: OFF', unlock.facOrder);
   c.check('salvage requisitions get Auto-buy, off by default; water requisitions get none', unlock.slipToggles.filter(([, t]) => t).every(([, t]) => t === 'Auto-buy: OFF') && unlock.waterSlip.every(([, t]) => !t), unlock.slipToggles);
+  // Requisitions not on sale yet at Level 2: the Hydraulic Spreader (Level 3) and Carbon Copies (Level 5), and the
+  // Master Key (Level 5) when EXP-LATE-UPGRADES is in the build.
   c.check('the Upgrades tab shows the purchaser, Pause all, and every salvage requisition (also those not on sale yet)',
-    /Procurement Controller/.test(unlock.box) && /Pause all/.test(unlock.box) && unlock.listRows.includes('Hydraulic Spreader') && unlock.listRows.includes('Master Key') && !unlock.listRows.includes('Auto-Drink Valve'), unlock);
+    /Procurement Controller/.test(unlock.box) && /Pause all/.test(unlock.box) && unlock.listRows.includes('Hydraulic Spreader') && unlock.listRows.includes('Carbon Copies')
+      && (!unlock.late || unlock.listRows.includes('Master Key')) && !unlock.listRows.includes('Auto-Drink Valve'), unlock);
 
   const example = await ev(() => {
     const H = HUM, E = H.Exp;
