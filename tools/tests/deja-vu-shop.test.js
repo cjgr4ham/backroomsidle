@@ -7,7 +7,8 @@ const ID = 'EXP-DEJA-VU-SHOP';
 
 (async () => {
   const c = new Checker('EXP-DEJA-VU-SHOP: permanent upgrades bought with Déjà Vu');
-  const g = await open('');
+  // The shop's own prices: the update 2.1 price table (EXP-DV-PRICES) has its own test.
+  const g = await open('?exp=-EXP-DV-PRICES');
   const { ev, page } = g;
   c.check('the experiment is on by default', await ev((id) => HUM.Exp.on(id), ID));
 

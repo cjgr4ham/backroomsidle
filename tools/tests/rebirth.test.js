@@ -2,6 +2,8 @@
 // only once the finite survey is complete (the last room of Level 5, which leads into Level FUN); completing the
 // survey never counts a noclip. A noclip pays the previewed Déjà Vu, counts once, starts the next iteration at Level 0
 // with a fresh run, and keeps research (with a project under way), Echoes, relics, achievements and Memories.
+// EXP-DV-PRICES deliberately changes what Memories cost; it is left off on the "every experiment on" page here and has
+// its own test (dv-prices.test.js).
 const { open, Checker } = require('./harness');
 
 function scenario() {
@@ -128,7 +130,7 @@ function scenario() {
 (async () => {
   const c = new Checker('Rebirth regression: Noclip with every experiment off and on');
   const off = await open('?exp=none');
-  const on = await open('?exp=all');
+  const on = await open('?exp=all,-EXP-DV-PRICES');
   const a = await off.ev(scenario);
   const b = await on.ev(scenario);
   const both = (fn) => fn(a) && fn(b);

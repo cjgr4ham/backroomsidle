@@ -37,7 +37,7 @@ const { open, Checker } = require('./harness');
   });
   const expectAt = (l) => Object.entries(content.waves).filter(([lv]) => Number(lv) <= l).flatMap(([, ids]) => ids).sort().join();
   c.check('at each level exactly the waves up to that level are open', [0, 1, 2, 3, 4, 5].every((l) => vis.out[l].slice().sort().join() === expectAt(l)), vis.out);
-  c.check('Level FUN keeps every wave open', vis.out[6].length === 11, vis.out[6]);
+  c.check('Level FUN keeps every wave open', vis.out[6].length === Object.values(content.waves).flat().length, vis.out[6]);
   c.check('a wave facility can be bought at once, with nothing else owned', vis.bench && vis.boiler && vis.owned.bench === 1 && vis.owned.boiler === 1 && !vis.owned.cart, vis);
 
   // The panel: open waves as rows, the coming waves with their level and what each facility will do.
@@ -64,7 +64,7 @@ const { open, Checker } = require('./harness');
   c.check('the next wave then moves on to Level 2', p1.next === 'Next wave: Level 2: The Ducts', p1.next);
   await ev(() => { const H = HUM; H.S.run.level = H.FUN_LEVEL; H.S.run.exitFound = true; H.rt.structureDirty = true; H.UI.update(true); });
   const pf = await ev(() => ({ rows: document.querySelectorAll('#panel-facilities .row[data-fac]').length, waves: document.querySelectorAll('#panel-facilities .fs-wave').length }));
-  c.check('in Level FUN every facility is listed and no wave is still to come', pf.rows === 11 && pf.waves === 0, pf);
+  c.check('in Level FUN every facility is listed and no wave is still to come', pf.rows === Object.values(content.waves).flat().length && pf.waves === 0, pf);
 
   // Tiers live on the facility row: locked, ready, installed.
   await ev(() => {
@@ -128,9 +128,14 @@ const { open, Checker } = require('./harness');
     const sample = () => { window.__log.heights.push([...panel.querySelectorAll('.row')].map((x) => Math.round(x.getBoundingClientRect().height)).join(',')); window.__raf = requestAnimationFrame(sample); };
     sample();
   });
-  // Scroll the page part-way and focus a buy button, as a player about to buy would.
-  await ev(() => { document.querySelector('#panel-facilities .row[data-fac="vat"] [data-action="buy-fac"]').focus(); window.scrollTo(0, 200); });
-  const before = await ev(() => ({ scroll: window.scrollY, active: document.activeElement && document.activeElement.dataset.id }));
+  // Scroll the panel part-way and focus a buy button, as a player about to buy would. On this screen the tab panels
+  // scroll in their own column; the page itself has nothing to scroll.
+  await ev(() => {
+    const tp = document.getElementById('tabpanels'), b = document.querySelector('#panel-facilities .row[data-fac="vat"] [data-action="buy-fac"]');
+    tp.scrollTop += b.getBoundingClientRect().top - tp.getBoundingClientRect().top - 80;
+    b.focus();
+  });
+  const before = await ev(() => ({ scroll: document.getElementById('tabpanels').scrollTop, active: document.activeElement && document.activeElement.dataset.id }));
   for (let i = 0; i < 60; i++) { await page.click('#btnSurvey'); await page.waitForTimeout(70); }
   await ev(() => document.querySelector('#panel-facilities .row[data-fac="vat"] [data-action="buy-fac"]').focus());
   for (let i = 0; i < 40; i++) { await page.keyboard.press('s'); await page.waitForTimeout(70); }
@@ -150,7 +155,7 @@ const { open, Checker } = require('./harness');
     return { rebuilds: L.rebuilds, lines, heightChanges: hs.length - 1, heights: hs.slice(0, 3),
       flavorsSame: JSON.stringify([...panel.querySelectorAll('.row .flavor')].map((n) => n.textContent)) === JSON.stringify(L.flavors),
       titlesSame: JSON.stringify([...panel.querySelectorAll('.row h3')].map((n) => n.textContent)) === JSON.stringify(L.titles),
-      surveys: HUM.S.run.stats.surveys, scroll: window.scrollY, active: document.activeElement && document.activeElement.dataset.id };
+      surveys: HUM.S.run.stats.surveys, scroll: document.getElementById('tabpanels').scrollTop, active: document.activeElement && document.activeElement.dataset.id };
   });
   const flips = Object.entries(res.lines).filter(([, v]) => v.flips > 0);
   const many = Object.entries(res.lines).filter(([, v]) => v.wordings > 1);

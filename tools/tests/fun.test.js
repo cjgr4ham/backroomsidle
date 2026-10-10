@@ -81,7 +81,7 @@ const { open, Checker } = require('./harness');
   const floors = await ev(() => {
     const H = HUM, r = H.S.run, F = H.CONFIG.fun;
     const d0 = H.derive();
-    H.addRooms(F.floorRooms * 3);
+    H.addRooms(H.funFloorRooms() * 3);   // the floor size in force (update 2.1's late balance sets it)
     const d1 = H.derive();
     H.addRooms(1e300);   // an absurd amount: still Level FUN, never a level after it
     return { floor0: d0.floor, depth0: d0.depth, floor1: d1.floor, depth1: d1.depth, level: r.level, base: H.LEVELS[6].surveyMult, bonus: F.floorBonus, finite: Number.isFinite(r.levelRooms) };

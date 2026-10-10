@@ -262,9 +262,12 @@ const v1Save = (owner, revision, now) => ({
     await d2.page.evaluate(() => { const box = document.createElement('div'); box.id = 'csProbe'; document.getElementById('panel-settings').append(box); HUM.Exp.run('account:sections', (n) => box.append(n)); HUM.UI.update(); });
     await d2.page.click('#csProbe button:has-text("Show earlier versions")');
   }
-  await until(d2.page, () => document.querySelectorAll('.cs-item').length > 0);
-  const firstVersion = await d2.page.evaluate(() => document.querySelector('.cs-item span').textContent);
-  await d2.page.click('.cs-item button');
+  // The account's versions arrive from the server, while copies kept in this browser are listed at once (also as
+  // .cs-item): wait for the account's list, and restore its newest version.
+  await until(d2.page, () => [...document.querySelectorAll('.cs-item span')].some((s) => /^Revision \d+/.test(s.textContent)));
+  const accountVersion = d2.page.locator('.cs-item', { hasText: /^Revision \d+/ }).first();
+  const firstVersion = await accountVersion.locator('span').textContent();
+  await accountVersion.locator('button').click();
   await until(d2.page, () => document.querySelector('.modal h2') && document.querySelector('.modal h2').textContent === 'Restore this progress?');
   const revR = serverSave('mira').revision;
   await click(d2.page, 'Restore');

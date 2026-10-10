@@ -81,6 +81,7 @@ All these numbers are in the `CFG` object at the top of the module.
   - Configuration: `CFG`. Upgrade definitions: `ITEMS` and `GROUPS`.
   - Purchases: `buy()`, `canBuy()`. Starting bonuses: `topUp()`.
   - Hooks: `facility:price`, `noclip:newRun`, `noclip:subtabs`, `noclip:memories`, `noclip:build`, `noclip:update`, `djv:api` (the API the tools use), `manual`.
+  - Prices of its own levels (Stashed Salvage, Remembered Prices, Old Friends levels 2–5) go through the core's `dvPrice(id, level, base, 'level')`. A balance experiment can then set them (`EXP-DV-PRICES` does). With no answer they are the prices in `CFG`.
 - **Stylesheet slot:** `.djv-*` and `.slip.djv`.
 - **`tools/tests/deja-vu-shop.test.js`:** 30 checks.
 - **`tools/balance-bot.js`:** with the shop on, it buys whatever is cheapest. This change is part of the experiment's commit, because the bot uses the shop's `djv:api` hook.
@@ -89,7 +90,7 @@ All these numbers are in the `CFG` object at the top of the module.
 ## 3. Dependencies
 
 - `EXP-CORE`, for the Noclip sub-tab hooks, `noclip:memories`, `noclip:newRun` and `facility:price`.
-- It uses the original Memories' own `buyMemory()`, `memoryCost()` and `memRank()`.
+- It uses the original Memories' own `buyMemory()`, `memoryCost()` and `memRank()`, and the core's `dvPrice()` (update 2.1).
 - Nothing depends on this experiment. `EXP-NOCLIP-LEADERBOARD` adds its own sub-tab to the Noclip tab independently.
 
 ## 4. How to disable it
@@ -103,6 +104,8 @@ The original Memories section returns to the Noclip tab, prices lose the discoun
 ## 5. How to reverse the code
 
 `git revert` its commits, newest first. They touch only its two slots, its test file, the bot's Déjà Vu step and this entry.
+
+Revert `EXP-DV-PRICES` before the update 2.1 commit that prices this shop's levels through `dvPrice()`.
 
 ## 6. Does it modify persistent data?
 
