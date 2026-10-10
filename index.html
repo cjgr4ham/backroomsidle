@@ -8579,13 +8579,19 @@ function onKey(e) {
     const k = Math.floor(V.camZ + rr(4, 6));
     return { k, side: rnd() < 0.5 ? -1 : 1, kind: 'stand', x: rr(-0.5, 0.5), z: k + 0.5 };
   }
-  /** The nearest doorway ahead within reach, for coming out of one or going into one. */
-  function doorAhead(V, from, to, avoid) {
+  /** A doorway ahead within reach: the first one, or with `near` the one closest to that actor (same side first). */
+  function doorAhead(V, from, to, avoid, near) {
+    let best = null, bestCost = Infinity;
     for (let k = Math.floor(V.camZ + from); k <= Math.floor(V.camZ + to); k++) {
       const f = features(k);
-      for (const side of [-1, 1]) if (passable(wallKind(f, side)) && !(avoid && avoid.k === k && avoid.side === side)) return { k, side, f };
+      for (const side of [-1, 1]) {
+        if (!passable(wallKind(f, side)) || (avoid && avoid.k === k && avoid.side === side)) continue;
+        if (!near) return { k, side, f };
+        const cost = Math.abs(k + 0.5 - near.z) + Math.abs(side * HW() - near.x) * 0.8;
+        if (cost < bestCost) { bestCost = cost; best = { k, side, f }; }
+      }
     }
-    return null;
+    return best;
   }
 
   // ------------------------------------------------------------- movement: across first inside a doorway, never through walls
@@ -8606,7 +8612,7 @@ function onKey(e) {
       a.phase += Math.abs(step) * 9;
     }
     if (Math.abs(dx) > 1e-4) {
-      const step = Math.sign(dx) * Math.min(Math.abs(dx), SIDE * dt * (inWall || targetInWall ? 0.8 : 1));
+      const step = Math.sign(dx) * Math.min(Math.abs(dx), SIDE * dt * (speed / WALK) * (inWall || targetInWall ? 0.8 : 1));
       a.x += step;
       a.phase += Math.abs(step) * 6;
     }
@@ -8647,10 +8653,12 @@ function onKey(e) {
     a.state = 'moving';
     a.t = 0;
   }
-  function leave(a, V) {
+  function leave(a, V, hurry) {
     a.site = null;
-    const d = doorAhead(V, 1.5, 7, null);
-    if (d && Math.abs(d.k + 0.5 - a.z) < 4) {
+    a.hurry = !!hurry;
+    const d = doorAhead(V, 1.5, 7, null, a);
+    if (hurry && !(d && Math.abs(d.k + 0.5 - a.z) < 2)) { a.state = 'vanish'; a.t = 0; return; }   // slips away into the dark
+    if (d && Math.abs(d.k + 0.5 - a.z) < (hurry ? 2 : 4)) {
       const sp = span(d.f, d.side);
       a.state = 'leaving';
       setTarget(a, d.side * (HW() + 0.5), d.k + (sp[0] + sp[1]) / 2);
@@ -8660,7 +8668,7 @@ function onKey(e) {
     }
     a.t = 0;
   }
-  function goOut(a) { a.state = 'out'; a.site = null; a.outSince = crew.clock; a.leaveNext = false; }
+  function goOut(a) { a.state = 'out'; a.site = null; a.outSince = crew.clock; a.leaveNext = false; a.hurry = false; }
 
   /** One frame of the director: who is on stage, and what each of them does. dt is frame time, capped. */
   function direct(V, dt) {
@@ -8674,9 +8682,9 @@ function onKey(e) {
     for (const id in crew.actors) {
       const a = crew.actors[id];
       if (ids.includes(id)) continue;
-      // Taken by an incident, or gone: off stage now; never drawn again until back.
+      // Taken by an incident, or gone: off stage at once, through the nearest doorway or into the dark.
       if (a.state === 'out' || !visibleNow(a, V)) { delete crew.actors[id]; continue; }
-      if (a.state !== 'leaving') leave(a, V);
+      if (!a.hurry) leave(a, V, true);
     }
     if (!crew.composed) { compose(V); crew.composed = true; }
     const encounter = !!rt.encounter, dark = lightsOut();
@@ -8708,7 +8716,7 @@ function onKey(e) {
       if (a.state === 'emerge' || (a.state === 'catchup' && rel < View.near)) return;
       a.tx = Math.sign(a.x || 1) * (HW() - 0.4);
       a.tz = a.z;
-      walk(a, dt, 0.4);
+      walk(a, dt, WALK);   // a quick step aside, then still
       return;
     }
     if (a.alpha < 1) a.alpha = Math.min(1, a.alpha + dt / 0.6);
@@ -8741,8 +8749,12 @@ function onKey(e) {
       case 'packing':
         if (crew.clock >= a.until) { if (a.leaveNext) leave(a, V); else toSite(a, V); }
         break;
+      case 'vanish':
+        a.alpha = Math.max(0, a.alpha - dt);
+        if (a.alpha <= 0) goOut(a);
+        break;
       case 'leaving':
-        if (walk(a, dt, WALK) || Math.abs(a.x) > HW() + 0.42) goOut(a);
+        if (walk(a, dt, a.hurry ? CATCH : WALK) || Math.abs(a.x) > HW() + 0.42) goOut(a);
         else if (a.tz < V.camZ && a.z - V.camZ < View.near) goOut(a);
         if (Math.abs(a.x) > HW()) a.alpha = Math.max(0, a.alpha - dt / 0.5);
         break;

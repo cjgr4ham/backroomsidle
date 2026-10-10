@@ -106,7 +106,7 @@ const helpers = () => {
       for (const a of cur.actors) {
         const p = prev.actors.find((x) => x.id === a.id);
         if (a.visible && p && p.visible) {
-          const d = Math.max(Math.abs(a.z - p.z) / 0.08, Math.abs(a.x - p.x) / 0.06);   // max speed × frame time, with margin
+          const d = Math.max(Math.abs(a.z - p.z) / 0.08, Math.abs(a.x - p.x) / 0.09);   // fastest pace × frame time, with margin
           if (d > 1 && d > jump) { jump = d; jumpAt = { a, p }; }
         }
         if (Math.abs(a.x) > hw - 0.2 && a.state !== 'out') {
