@@ -6847,7 +6847,7 @@ function onKey(e) {
   // ------------------------------------------------------------- the upgrades
   const mult = (x) => `×${Math.abs(x - Math.round(x)) < 1e-9 ? fmt(Math.round(x)) : x < 10 ? x.toFixed(2) : fmtRate(x)}`;
   const memory = (id) => ({
-    id, name: MEM[id].name, flavor: MEM[id].flavor, max: 1, level: () => memRank(id), cost: () => MEM[id].cost,
+    id, name: MEM[id].name, flavor: MEM[id].flavor, max: 1, level: () => memRank(id), cost: () => memoryCost(MEM[id]),   // what buyMemory() charges
     now: (L) => (L ? MEM[id].effect : 'Not remembered yet.'), next: () => MEM[id].effect, buy: () => buyMemory(id),
   });
   const ITEMS = {
