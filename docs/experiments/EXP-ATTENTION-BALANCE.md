@@ -1,5 +1,7 @@
 # EXP-ATTENTION-BALANCE: footsteps and readable Attention
 
+> **In v2:** The wording says facilities rather than machines. Entities come more often with attention (see the v2 entry), separately from this experiment's footstep noise. See [V2-REDESIGN.md](V2-REDESIGN.md).
+
 | Field | Value |
 | --- | --- |
 | Identifier | `EXP-ATTENTION-BALANCE` |

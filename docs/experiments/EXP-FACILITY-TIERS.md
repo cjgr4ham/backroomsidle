@@ -1,5 +1,7 @@
 # EXP-FACILITY-TIERS: facility tiers on facility rows
 
+> **Folded into the core in v2** (commit `a52658d`). This entry is kept as the record of the experiment as it was. Installing tiers from each facility's row is now how the game works. The flag, the code slot and `tiers.test.js` no longer exist; `facilities.test.js` covers tiers. See [V2-REDESIGN.md](V2-REDESIGN.md).
+
 | Field | Value |
 | --- | --- |
 | Identifier | `EXP-FACILITY-TIERS` |

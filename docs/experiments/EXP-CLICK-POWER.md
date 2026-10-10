@@ -1,5 +1,7 @@
 # EXP-CLICK-POWER: click-power progression
 
+> **Folded into the core in v2** (commit `a52658d`). This entry is kept as the record of the experiment as it was. Its survey power line and breakdown, hand tools, survey upgrades and Survey Drills are now part of the game: survey power is the core stat (see the v2 entry). The flag, the code slot and `click-power.test.js` no longer exist; `economy.test.js` covers survey power. See [V2-REDESIGN.md](V2-REDESIGN.md).
+
 | Field | Value |
 | --- | --- |
 | Identifier | `EXP-CLICK-POWER` |

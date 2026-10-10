@@ -24,10 +24,78 @@ Entries from the first update have twelve fields. Entries from the final specifi
 | --- | --- |
 | [BASELINE.md](BASELINE.md) | The original game (commit `ebfa0c6`) |
 | [AUDIT-META-ACCOUNTS.md](AUDIT-META-ACCOUNTS.md) | Phase A of the final update. Hosting reality, the Noclip sequence, the existing Déjà Vu shop, facility rules, the save schema and the state classification. |
-| [PRODUCTION.md](PRODUCTION.md) | How salvage is produced, and where each figure is counted once |
-| [server/README.md](../../server/README.md) | The game server: deployment, environment variables, backups and the security model |
+| [V2-REDESIGN.md](V2-REDESIGN.md) | **The v2 redesign (current game)**: survey power, specialists, missions, timed research, entities, Level FUN, save format 2 |
+| [PRODUCTION.md](PRODUCTION.md) | How salvage is produced in v2, and where each figure is counted once |
+| [server/README.md](../../server/README.md) | The game server: environment variables, backups and the security model |
+| [DEPLOYMENT.md](../DEPLOYMENT.md) | Deploying the game and server at a public URL: what was verified, the steps, and what is still needed |
 
-## Scope
+## Version 2 (current)
+
+The v2 redesign rebuilt the game around what one survey by hand recovers. Its full entry is [V2-REDESIGN.md](V2-REDESIGN.md).
+
+**What changed:**
+- Facilities are the click multiplier.
+- The Scavenger is the only passive salvage.
+- Five unique specialists replace the workforce, and missions replace expeditions.
+- Research is timed.
+- Hostile entities appear in the corridor.
+- Completing the Long Hallway leads into endless Level FUN.
+- Saves move to format 2, with a repeat-safe migration.
+
+**Folded into the core.** Five experiments no longer have a flag, a code slot or their own suite. Their entries carry a banner saying where their behaviour lives now:
+- `EXP-CLICK-POWER`;
+- `EXP-CREW-AUTOMATION`;
+- `EXP-FACILITY-TIERS`;
+- `EXP-FACILITY-INDEPENDENCE`;
+- `EXP-FACILITY-SALVAGE-SCALING`.
+
+**Still experiments, with their flags:**
+- `EXP-UPGRADE-CATEGORIES`, `EXP-RESOURCE-LEDGER`, `EXP-ATTENTION-BALANCE`, `EXP-DEV-MENU`;
+- `EXP-NOCLIP-STATISTICS`, `EXP-DEJA-VU-SHOP`;
+- `EXP-ACCOUNT-AUTH`, `EXP-ACCOUNT-UI`, `EXP-CLOUD-SAVE`, `EXP-NOCLIP-LEADERBOARD`.
+
+Each entry has an "In v2" note on what changed for it. `EXP-CORE` remains the infrastructure.
+
+**Proofs from before v2.** The revert proof (`tools/revert-check.js`) and the all-off equivalence check (`tools/equivalence-check.js`) were removed with the redesign. Both compared against the pre-experiment build, which the redesigned core deliberately no longer matches. What the redesign's rollback was actually tested with is in section 10 of [its entry](V2-REDESIGN.md).
+
+**The sections below the v2 tests** describe the experiments as of the final specification update, before v2. They are kept as the record.
+
+### Tests (v2)
+
+`node tools/run-tests.js` runs 23 suites with 629 checks. The last full run passed every one; see the commit history for the date.
+
+| Suite | What it covers | Checks |
+| --- | --- | --- |
+| `functional-test.js` | The core game with every experiment off: surveying, purchases, specialists and missions, incidents, sanity, anomalies, levels, completion and noclip, saving, time away, damaged and hostile saves, export and import, reset, keys | 58 |
+| `economy.test.js` | Fresh game +1 per survey and nothing passive. The first cart +1 → +1.25. The facility multiplier formula. No passive or offline salvage without the Scavenger, which starts at once. Survey power and passive salvage independent. Missions follow the Scavenger. The displays | 35 |
+| `facilities.test.js` | Level waves and the coming-waves list. Tiers on the rows. Under rapid surveying by button and keyboard: stable wording, no panel rebuilds, no layout jumps, scroll and focus kept | 30 |
+| `specialists.test.js` | Five unique specialists: recruiting, upgrading, prices, immediate effects, level gates, the Crew tab, crew requisitions, taken and returned. Missions without allocation, completing once on the game clock and while away | 38 |
+| `research.test.js` | Paid once, one project at a time, progress shown. Completes once and on time, including across a reload and while the page was closed. A step across the end applies the benefit only after it. Kept through noclip. Deep Survey Theory. Doctrines. Invalid saved projects dropped | 25 |
+| `encounters.test.js` | Regular entities, more with attention, none while standing still. Warning, then danger. A survey in danger (button or key) checked before any reward, a bounded penalty, once, then a cooldown. Buying, menus and the Cartographer never trigger it. Background tabs, time away and reloads never punish. Visible with every effect reduced | 33 |
+| `fun.test.js` | Noclip locked until the last room of Level 5. Completion enters Level FUN with everything kept, carries overflow, counts no noclip and sends no report. FUN's look, endless count and floors. FUN and eligibility survive a reload. Rebirth resets the run and counts one noclip | 27 |
+| `migration.test.js` | Saves written by the version-1 build: everything permanent kept, crew converted with a cap and refund, expeditions carried over, a completed survey into FUN. Repeat-safe, no double compensation. Import and backup paths, developer marks kept | 25 |
+| `core.test.js` | `EXP-CORE`: the registry, flags, dormant data, wallet, hooks; folded experiments leave no flags | 37 |
+| `all.test.js` | Every experiment on: a save from the original build, the v2 systems in play and away, every tab | 16 |
+| `rebirth.test.js` | The noclip with experiments off and on | 25 |
+| `categories.test.js`, `ledger.test.js`, `attention.test.js`, `dev-menu.test.js` | Their experiments, on and off | 14, 17, 19, 30 |
+| `noclip-statistics.test.js`, `deja-vu-shop.test.js` | Their experiments, on and off | 23, 40 |
+| `account-auth.test.js`, `account-ui.test.js`, `cloud-save.test.js`, `leaderboard.test.js`, `server-core.test.js` | Accounts, cloud saves (formats 1 and 2) and the leaderboard (Level FUN reports) against real test servers | 27, 22, 32, 28, 19 |
+| `viewports.test.js` | Every tab and sub-tab at four screen sizes, from disk and served while signed in, on Level 4 and in Level FUN | 9 |
+
+### Pacing (v2)
+
+Medians of 7 seeds, two iterations, from `node tools/pacing-compare.js --seeds=7 --runs=2 "v2="`. Times in minutes; "complete" is the last room of Level 5.
+
+| Player | Iteration | L1 | L2 | L3 | L4 | L5 | Complete | Déjà Vu | By hand | Scavenger | Entities met / caught |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Active (3 surveys/s) | 1 | 3.7 | 10.3 | 19.5 | 36.4 | 56.2 | 73.6 | 192 | 52% | 37% | 57 / 0 |
+| Active | 2 | 0.4 | 0.9 | 3.1 | 6.5 | 11.9 | 18.3 | 427 | 62% | 28% | 15 / 0 |
+| Casual (1 survey/s) | 1 | 10.3 | 24.1 | 42.5 | 68.9 | 91.5 | 113 | 160 | 30% | 53% | 89 / 0 |
+| Casual | 2 | 0.9 | 2.1 | 5.2 | 9.9 | 16.5 | 24.0 | 323 | 47% | 39% | 19 / 0 |
+
+The bot stands still for every entity; `--reckless` makes it keep surveying.
+
+## Scope (before v2)
 
 **First update (PR #2):**
 - click power;
@@ -49,7 +117,7 @@ Three new levels were cancelled. No levels were added in either update: the game
 
 **Hosting.** Accounts, cloud saves and the leaderboard need a server. One is implemented in `server/` and tested here, but **it is not deployed anywhere**. Copies without it run as before, saving in the browser, and say plainly that those features are unavailable. This covers the published artifact and files opened from disk.
 
-## The experiments
+## The experiments (before v2)
 
 | Identifier | What it changes | Default | Commits | Entry | Tests |
 | --- | --- | --- | --- | --- | --- |
@@ -91,14 +159,11 @@ Three new levels were cancelled. No levels were added in either update: the game
   - Without it, their code stays in place but is inactive.
   - On the server, the features that need it are skipped, with a log line.
   - Their tests report themselves as skipped.
-- **`EXP-FACILITY-INDEPENDENCE`** answers a switch that `EXP-CREW-AUTOMATION` asks (`crew:staffing`).
-  - Without the crew experiment there is nothing to switch, and facilities need no crew anyway.
-  - Without independence, the crew experiment's staffing rule applies again.
 - **Optional cooperation.** Each of these works without the other:
   - the Records panel shows a leaderboard line;
   - Settings → Account shows cloud-save and leaderboard rows;
-  - the Déjà Vu shop's discount and the per-machine price curves compose in `facility:price`;
-  - the ledger and the developer menu show staffing figures when staffing is on.
+  - the ledger shows footstep noise when `EXP-ATTENTION-BALANCE` is on.
+- **Before v2:** `EXP-FACILITY-INDEPENDENCE` answered a staffing switch asked by `EXP-CREW-AUTOMATION`, and the per-machine price curves composed with the shop's discount in `facility:price`. Both experiments are now folded into the core, so these dependencies no longer exist.
 
 ## Four different operations
 
@@ -108,7 +173,7 @@ These are not interchangeable.
 | --- | --- | --- |
 | **Turn an experiment off** | The original behaviour returns at once. The experiment's saved data is kept. | **Browser:** Dev tab → Experiments, `?exp=-EXP-ID` for one page load, or `HUM.Exp.set('EXP-ID', false)` with `#debug`. **Server:** `HUM_DISABLE=EXP-ID`. Its routes disappear, and its tables and rows stay. |
 | **Restore previous settings** | Every experiment returns to its default. | Dev tab → "Reset all experiments to their defaults", or `HUM.Exp.reset()` |
-| **Revert its code** | Removes the experiment from the game permanently. | `git revert` its commits, newest first, from the table above. Revert dependents first, or accept that they become inactive. Revert `EXP-CORE` last. **Never use a blanket hard reset.** **Server data is never dropped by a revert:** take a backup of `DATA_DIR/the-hum.db` before deploying a rollback, and the tables of a removed feature simply stay unused. |
+| **Revert its code** | Removes the change from the game permanently. | `git revert` its commits, newest first. Revert dependents first, or accept that they become inactive. Revert `EXP-CORE` last. **Never use a blanket hard reset.** **Server data is never dropped by a revert:** take a backup of `DATA_DIR/the-hum.db` before deploying a rollback, and the tables of a removed feature simply stay unused. Since v2 rewrote the code around them, an experiment's pre-v2 commits no longer revert cleanly on their own. Switching it off is the supported way, and reverting v2 itself is described in [its entry](V2-REDESIGN.md). |
 | **Restore a prior save** | Puts back a save from earlier. | Settings → Import. While signed in: Settings → Account → an earlier version or a kept copy. The game never does this automatically, so progress made after an update is never erased behind your back. |
 
 **Rolling back persistent account data means restoring compatible behaviour while keeping the data.** No rollback in this registry deletes:
@@ -118,7 +183,7 @@ These are not interchangeable.
 - recorded noclips;
 - Déjà Vu shop levels.
 
-## Proof of reversibility
+## Proof of reversibility (before v2; its tools were removed with the redesign)
 
 `node tools/revert-check.js --all` reverts each experiment on its own in a throwaway clone. It then checks:
 - that its code slots are empty;
@@ -155,7 +220,7 @@ Each row's remaining checks plus the reverted experiment's own suite add up to t
 - **Equivalence check.** `tools/equivalence-check.js` plays 8 seeded sessions in the original build and in this build with every experiment off. The sessions include noclips, offline time and save round trips. The full state and every derived rate match at all 96 checkpoints.
 - **Rebirth suite.** `tools/tests/rebirth.test.js` requires the same noclip with every experiment off and every experiment on. It still passes, because nothing a player has not bought in the Déjà Vu shop changes a noclip.
 
-## Save compatibility
+## Save compatibility (before v2: format 1; v2 uses format 2, see its entry)
 
 **The save format stays version 1, and every change is additive.**
 
@@ -176,7 +241,7 @@ Each row's remaining checks plus the reverted experiment's own suite add up to t
 - Saves from the original build load with everything intact. Saves from this build load in the original build, which ignores the extra fields.
 - Developer settings never enter the save. Saves changed with the developer tools carry a mark in `ext.dev`. Such saves are never uploaded to an account, and their noclips are never ranked.
 
-## Tests and tools
+## Tests and tools (before v2)
 
 | Command | What it does |
 | --- | --- |
@@ -186,7 +251,7 @@ Each row's remaining checks plus the reverted experiment's own suite add up to t
 | `node tools/balance-bot.js` and `node tools/pacing-compare.js` | Deterministic pacing measurements. Builds can be named as `@revision`, `?flags` or `file?flags`. |
 | `npm start` | Runs the game server; see `server/README.md` |
 
-## Combined effect on pacing
+## Combined effect on pacing (before v2)
 
 Measured with `node tools/pacing-compare.js --seeds=7 --runs=2 "original=?exp=none" "all-on="`. The balance bot plays the real game code. Figures are medians of 7 seeds over two iterations, in minutes, and Déjà Vu is what the iteration's noclip paid.
 
@@ -206,7 +271,7 @@ Measured with `node tools/pacing-compare.js --seeds=7 --runs=2 "original=?exp=no
 - **Déjà Vu earned** moves by up to a quarter either way. The casual player earns less with the per-machine price curves, because big machines cost more; the active player earns more from click power.
 - Each experiment's own measurements are in its entry.
 
-## Required test cases (final specification, section 10)
+## Required test cases (final specification, section 10; before v2)
 
 | Case | Where it is tested |
 | --- | --- |

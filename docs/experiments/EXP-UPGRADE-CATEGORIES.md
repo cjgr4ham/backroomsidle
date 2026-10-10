@@ -1,5 +1,7 @@
 # EXP-UPGRADE-CATEGORIES: upgrade categories
 
+> **In v2:** The category summaries speak in survey power, facilities, specialists and missions. Crew requisitions are listed in the Crew tab and facility tiers on facility rows, as before. See [V2-REDESIGN.md](V2-REDESIGN.md).
+
 | Field | Value |
 | --- | --- |
 | Identifier | `EXP-UPGRADE-CATEGORIES` |

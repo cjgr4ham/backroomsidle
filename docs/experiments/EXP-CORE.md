@@ -1,5 +1,7 @@
 # EXP-CORE: experiment scaffolding
 
+> **In v2:** The registry, flags, wallet and save namespaces are unchanged. The hook points that only the folded experiments used are gone with them: `derive:survey`, `derive:production`, `upgrade:buy`, the `crew:*` hooks and the `facilities:*` layout hooks. The game now does that work itself, so no experiment overrides the survey formula. See [V2-REDESIGN.md](V2-REDESIGN.md).
+
 | Field | Value |
 | --- | --- |
 | Identifier | `EXP-CORE` |

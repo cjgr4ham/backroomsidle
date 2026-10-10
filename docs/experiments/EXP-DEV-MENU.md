@@ -1,5 +1,7 @@
 # EXP-DEV-MENU: developer menu
 
+> **In v2:** The controls follow v2. The level select stops at Level 5: Level FUN is reached only with Complete the survey, which uses the game's own completion. Research has Finish it now. Specialists can be set to any level, or all five recruited. Send an entity is added. Developer marks still keep a save out of the cloud and the leaderboard, also after migration. See [V2-REDESIGN.md](V2-REDESIGN.md).
+
 | Field | Value |
 | --- | --- |
 | Identifier | `EXP-DEV-MENU` |

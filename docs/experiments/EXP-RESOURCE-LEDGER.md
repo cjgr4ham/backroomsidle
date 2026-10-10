@@ -1,5 +1,7 @@
 # EXP-RESOURCE-LEDGER: resource ledger
 
+> **In v2:** The entries follow the v2 economy. Salvage shows survey power, one survey now, the facility multiplier and passive salvage from the Scavenger. A Specialists entry replaces Wanderers. Rooms show the Cartographer and Level FUN's floors, and Déjà Vu says when noclip opens. See [V2-REDESIGN.md](V2-REDESIGN.md).
+
 | Field | Value |
 | --- | --- |
 | Identifier | `EXP-RESOURCE-LEDGER` |

@@ -1,5 +1,7 @@
 # EXP-NOCLIP-STATISTICS: noclip counter and records
 
+> **In v2:** Only a noclip (a rebirth) counts. Completing the survey and entering Level FUN never do. Records describe Level FUN and its floors. See [V2-REDESIGN.md](V2-REDESIGN.md).
+
 | Field | Value |
 | --- | --- |
 | Identifier | `EXP-NOCLIP-STATISTICS` |
