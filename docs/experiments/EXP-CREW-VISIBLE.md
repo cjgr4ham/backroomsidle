@@ -49,7 +49,14 @@ The specialists you have recruited can be seen at work in the camera feed.
 - One taken by an incident walks off stage and is never drawn while away.
 - Missions never remove anyone.
 - With the lights out the work stops, as production does.
-- With an entity in the corridor, everyone keeps still against a wall, and the entity is always drawn over them.
+- With an entity in the corridor, everyone keeps still against a wall, and the entity is always drawn over them. Once it has gone, they walk back to their own work sites.
+
+**Drawn to a sound.**
+- Another experiment can draw a crew member's attention to a spot in the corridor through `crew:attend(id, spot)`. Ambient events use it for the Watcher.
+- Only someone at work and in view goes, and never while an entity is in the corridor.
+- They walk over within the corridor, stop short of the doorway, turn their light on it for 2–3 seconds, then go back to their work site, or to a new one if it has fallen behind.
+- `crew:attend(id, null)` sends them back at once.
+- Under reduced motion their label reads "WATCHER · CHECKING".
 
 **Reset and return.**
 - A new level, an import, an erase or a noclip clears the scene.
@@ -70,8 +77,9 @@ The specialists you have recruited can be seen at work in the camera feed.
 - movement: `walk()`, which crosses the wall line only inside a doorway's span;
 - sites: `pickSite()`, `doorAhead()`;
 - drawing: `drawActor()`, `roleProps()`, `label()`;
+- drawn to a sound: `attend()`, `back()`;
 - hooks: `view:frame`, `view:segment`, `view:reset`, `page:visible`, `flagsChanged` and `manual`;
-- it offers `crew:where`, `crew:api` and the `crew:kit` and `crew:result` hook points to other experiments.
+- it offers `crew:where`, `crew:attend`, `crew:api` and the `crew:kit` and `crew:result` hook points to other experiments.
 
 Tests: `tools/tests/crew-visible.test.js`, which drives the simulation and every frame itself.
 
@@ -82,7 +90,7 @@ Tests: `tools/tests/crew-visible.test.js`, which drives the simulation and every
   - `EXP-CREW-EQUIPMENT` draws kit on the figures through `crew:kit`;
   - `EXP-ROOM-VARIETY` leaves traces where work results land, through `crew:result`, and adds doorways and rooms the crew can use, through `view:features`;
   - `EXP-PRODUCTION-FEEDBACK` places captions over a visible crew member, through `crew:where`;
-  - `EXP-AMBIENT-EVENTS` has the Watcher check a sound only if the Watcher is on stage.
+  - `EXP-AMBIENT-EVENTS` has the Watcher check a sound, through `crew:attend`, only if the Watcher is on stage.
 - None of them is needed.
 
 ## 4. How to disable it
@@ -91,7 +99,14 @@ Dev tab → Experiments, `?exp=-EXP-CREW-VISIBLE` for one page load, or `HUM.Exp
 
 ## 5. How to reverse the code
 
-`git revert` this experiment's commit. It fills only its own slot and adds its test, this entry and a manual-frames option in the test harness.
+`git revert` this experiment's commits, newest first:
+1. the `crew:attend` commit;
+2. the commit for a specialist taken by an incident;
+3. the experiment's own commit.
+
+Revert `EXP-AMBIENT-EVENTS` before the `crew:attend` commit, since it calls that hook. Without the hook it simply never sends the Watcher.
+
+The experiment fills only its own slot and adds its test, this entry and a manual-frames option in the test harness.
 
 ## 6. Persistent data
 
@@ -111,7 +126,7 @@ None.
 
 ## 10. Rollback tests actually performed
 
-`crew-visible.test.js`, 21 checks:
+`crew-visible.test.js`, 23 checks:
 - only recruited specialists, and none while taken;
 - two on stage;
 - world-space positions that the camera moves past;
@@ -122,7 +137,8 @@ None.
 - reduced motion still with labels;
 - the scene cleared on a level change and an import;
 - a representative scene after a hidden tab;
-- still during an entity;
+- still during an entity, and back at their own sites once it has gone;
+- drawn to a sound: the Watcher walks over within the corridor, looks and goes back to work; a null spot sends them back at once; nobody is sent during an entity;
 - no page structure changes;
 - frame cost about 1.4 ms with the simulation step;
 - **the same seeded session, rendered every frame with the crew on and off, ends in exactly the same state**;

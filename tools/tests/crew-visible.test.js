@@ -125,6 +125,41 @@ const helpers = () => {
   c.check('never more than two on stage', motion.maxOn <= 2 && motion.maxOn >= 1, motion);
   c.check('nobody crosses a wall: past the wall line only inside an open doorway', motion.wall === 0, motion);
 
+  const attend = await ev(() => {
+    // Another experiment draws the Watcher's attention to a spot beside them (crew:attend): they walk over within the
+    // corridor, look, and go back to work. Never while an entity is in the corridor; a null spot sends them back.
+    const H = HUM, api = H.Exp.ask('crew:api'), hw = H.View.hw;
+    window.fresh({ watch: 3 });
+    let w = null;
+    for (let i = 0; i < 400 && !w; i++) { window.frames(1); w = api.actors().find((a) => a.id === 'watch' && a.state === 'working' && a.visible && a.rel > 3); }
+    if (!w) return { setup: false };
+    const side = w.x < 0 ? 1 : -1;
+    const spot = { k: Math.floor(w.z) + 1, side, z: Math.floor(w.z) + 1.5 };
+    const yes = H.Exp.ask('crew:attend', 'watch', spot);
+    const path = window.frames(300).map((f) => f.actors.find((a) => a.id === 'watch')).filter(Boolean);
+    const arrived = path.find((a) => a.check && a.check.arrived);
+    const firstBack = path.findIndex((a, i) => i > 0 && path[i - 1].state === 'checking' && a.state !== 'checking');
+    const outOfCorridor = path.filter((a) => a.state === 'checking' && Math.abs(a.x) > hw - 0.25 + 0.01).length;
+    const working = path.slice(firstBack).some((a) => a.state === 'working');
+    // A null spot: back at once. During an entity: refused.
+    let w2 = null;
+    for (let i = 0; i < 400 && !w2; i++) { window.frames(1); w2 = api.actors().find((a) => a.id === 'watch' && a.state === 'working' && a.visible && a.rel > 3); }
+    const again = w2 && H.Exp.ask('crew:attend', 'watch', { k: Math.floor(w2.z) + 1, side: w2.x < 0 ? 1 : -1, z: Math.floor(w2.z) + 1.5 });
+    window.frames(5);
+    H.Exp.ask('crew:attend', 'watch', null);
+    window.frames(1);
+    const cancelled = api.actors().find((a) => a.id === 'watch').state !== 'checking';
+    H.rt.lastSurveyTime = H.S.time; H.spawnEncounter();
+    window.frames(2);
+    const during = H.rt.encounter ? H.Exp.ask('crew:attend', 'watch', { k: Math.floor(H.View.camZ) + 4, side: 1, z: Math.floor(H.View.camZ) + 4.5 }) : 'no entity';
+    H.endEncounter('test');
+    return { setup: true, yes, arrived: arrived && { x: arrived.x, z: arrived.z, want: [side * (hw - 0.55), spot.z] }, firstBack, outOfCorridor, working, again, cancelled, during };
+  });
+  c.check('drawn to a sound (crew:attend), the Watcher walks over within the corridor, looks, and goes back to work',
+    attend.setup && attend.yes === true && attend.arrived && Math.abs(attend.arrived.x - attend.arrived.want[0]) < 0.03 && Math.abs(attend.arrived.z - attend.arrived.want[1]) < 0.03
+      && attend.firstBack > 0 && attend.outOfCorridor === 0 && attend.working, attend);
+  c.check('a null spot sends them back at once, and nobody is sent while an entity is in the corridor', attend.again === true && attend.cancelled && attend.during === false, attend);
+
   const rest = await ev(() => {
     const H = HUM, api = H.Exp.ask('crew:api');
     const out = {};
@@ -165,6 +200,10 @@ const helpers = () => {
     const e2 = api.actors().filter((a) => a.visible).map((a) => ({ id: a.id, z: a.z, x: a.x }));
     out.still = e1.length > 0 && e1.every((a) => { const b = e2.find((x) => x.id === a.id); return b && b.z === a.z && Math.abs(b.x - a.x) < 0.02; });
     H.endEncounter('test');
+    // Once it has gone, whoever works is back at their own work site.
+    window.frames(150);
+    const workers = api.actors().filter((a) => a.state === 'working' && a.site);
+    out.backAtSite = workers.length > 0 && workers.every((a) => Math.abs(a.x - a.site.x) < 0.06 && Math.abs(a.z - a.site.z) < 0.06);
     // No page structure changes while frames are drawn.
     let mutations = 0;
     const mo = new MutationObserver((list) => { mutations += list.length; });
@@ -182,7 +221,7 @@ const helpers = () => {
   c.check('reduced motion: still poses with name labels', rest.reduced.labels.length > 0 && rest.reduced.labels.every(Boolean) && rest.reduced.still, rest.reduced);
   c.check('a level change and an import clear the scene', rest.level && rest.importCleared, rest);
   c.check('back from a hidden tab, a representative scene: the crew at work ahead', rest.visible >= 1, rest);
-  c.check('while an entity is in the corridor the crew keep still', rest.still, rest);
+  c.check('while an entity is in the corridor the crew keep still; once it has gone they work at their own sites again', rest.still && rest.backAtSite, rest);
   c.check('drawing the crew changes nothing in the page structure', rest.mutations === 0, rest);
   c.check(`a frame with the crew stays cheap (${rest.ms.toFixed(2)} ms including the simulation step)`, rest.ms < 8, rest.ms);
 

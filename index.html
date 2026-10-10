@@ -8543,7 +8543,7 @@ function onKey(e) {
 
   function actor(id) {
     return { id, role: ROLES[id], state: 'out', t: 0, z: 0, x: 0, tx: 0, tz: 0, side: 1, site: null, alpha: 0, phase: rr(0, 6),
-      until: 0, gestureAt: 0, gesture: 0, resultAt: 0, leaveNext: false, outSince: crew.clock, onSince: 0, behindSince: 0, path: null, facing: 1 };
+      until: 0, gestureAt: 0, gesture: 0, resultAt: 0, leaveNext: false, outSince: crew.clock, onSince: 0, behindSince: 0, path: null, facing: 1, check: null };
   }
 
   // ------------------------------------------------------------- where things can happen
@@ -8674,7 +8674,26 @@ function onKey(e) {
     }
     a.t = 0;
   }
-  function goOut(a) { a.state = 'out'; a.site = null; a.outSince = crew.clock; a.leaveNext = false; a.hurry = false; }
+  function goOut(a) { a.state = 'out'; a.site = null; a.outSince = crew.clock; a.leaveNext = false; a.hurry = false; a.check = null; }
+  /** Something drew a crew member's attention (another experiment asks, through crew:attend): they leave their work for
+   *  a moment, walk to the doorway it came from with their light on it, look, and go back to work. A null spot sends
+   *  them back at once. Only someone at work and in view goes, never while an entity is in the corridor. */
+  function attend(id, spot, V) {
+    const a = crew.actors[id];
+    if (!a) return false;
+    if (!spot) { if (a.state === 'checking') back(a, V); return false; }
+    if (a.state !== 'working' || rt.encounter || !visibleNow(a, V) || spot.z - V.camZ < 1.5) return false;
+    a.check = { k: spot.k, side: spot.side, z: spot.z, x: spot.side * (HW() - 0.55), arrived: false, until: 0 };
+    a.state = 'checking';
+    a.t = 0;
+    return true;
+  }
+  /** Back to their work site (or a new one if it has fallen behind). */
+  function back(a, V) {
+    a.check = null;
+    a.t = 0;
+    if (a.site && a.site.z - V.camZ >= 1.2) { a.state = 'moving'; setTarget(a, a.site.x, a.site.z); } else toSite(a, V);
+  }
 
   /** One frame of the director: who is on stage, and what each of them does. dt is frame time, capped. */
   function direct(V, dt) {
@@ -8715,7 +8734,7 @@ function onKey(e) {
     const rel = a.z - V.camZ;
     // Passed by the camera: the scene is abandoned and they walk after you.
     if (rel < View.near + 0.05 && a.state !== 'catchup' && a.state !== 'leaving') {
-      a.state = 'catchup'; a.site = null; a.behindSince = crew.clock; a.t = 0; a.alpha = 1;
+      a.state = 'catchup'; a.site = null; a.check = null; a.behindSince = crew.clock; a.t = 0; a.alpha = 1;
     }
     // Something in the corridor: everyone keeps still against a wall until it has gone.
     if (encounter) {
@@ -8726,6 +8745,10 @@ function onKey(e) {
       return;
     }
     if (a.alpha < 1) a.alpha = Math.min(1, a.alpha + dt / 0.6);
+    // Stepped aside for an entity that has gone: back to the work site first.
+    if ((a.state === 'working' || a.state === 'packing') && a.site && (Math.abs(a.x - a.site.x) > 0.05 || Math.abs(a.z - a.site.z) > 0.05)) {
+      a.state = 'moving'; setTarget(a, a.site.x, a.site.z);
+    }
     switch (a.state) {
       case 'emerge':
         if (walk(a, dt, WALK)) toSite(a, V);
@@ -8740,8 +8763,18 @@ function onKey(e) {
       }
       case 'moving':
         if (a.site && a.site.z - V.camZ < 1.2) { toSite(a, V); break; }   // the site fell behind: another one
+        if (a.site) setTarget(a, a.site.x, a.site.z);
         if (walk(a, dt, WALK)) startWork(a);
         break;
+      case 'checking': {
+        const c = a.check;
+        if (!c || c.z - V.camZ < 1.2) { back(a, V); break; }
+        if (!c.arrived) {
+          setTarget(a, c.x, c.z);
+          if (walk(a, dt, WALK)) { c.arrived = true; c.until = crew.clock + rr(1.8, 2.8); a.side = c.side; }
+        } else if (crew.clock >= c.until) back(a, V);
+        break;
+      }
       case 'working':
         if (dark) { a.until += dt; a.resultAt += dt; break; }   // lights out: the work stops with production
         if (crew.clock >= a.gestureAt) { a.gesture = 1; a.gestureAt = crew.clock + rr(2, 4); }
@@ -8800,7 +8833,7 @@ function onKey(e) {
     const l = lit * (inDoor ? 0.55 : 1) * (rt.encounter ? 0.7 : 1);
     const col = (c, m) => V.shade(c, rel, l * (m || 1));
     const base = V.P(a.x, fy, rel);
-    const walking = !reduced && (a.state === 'moving' || a.state === 'catchup' || a.state === 'emerge' || a.state === 'leaving');
+    const walking = !reduced && (a.state === 'moving' || a.state === 'catchup' || a.state === 'emerge' || a.state === 'leaving' || (a.state === 'checking' && a.check && !a.check.arrived));
     const working = a.state === 'working' || a.state === 'packing';
     const kneel = working && (a.site && (a.site.kind === 'floor' || (a.id === 'archive' && a.site.kind === 'panel')));
     // Beyond the wall line only what shows through the doorway is drawn.
@@ -8900,10 +8933,18 @@ function onKey(e) {
     }
     if (a.id === 'watch') {
       // The flashlight beam: into the doorway they are checking, or down the corridor.
-      const into = g.working && site && site.kind === 'door';
-      const hx = g.bx + (into ? site.side : 0) * g.w * 0.6, hy = g.by - g.shoulder + g.w * 0.6;
+      const look = a.state === 'checking' && a.check && a.check.arrived ? a.check : null;
+      const into = !!look || (g.working && site && site.kind === 'door');
+      const side = look ? look.side : site ? site.side : 0;
+      if (look) {
+        // Looking into the doorway the sound came from: their light on it.
+        const f = features(look.k), sp = span(f, side), top = (side < 0 ? f.leftTop : f.rightTop) || f.top;
+        const za = Math.max(V.near, look.k + sp[0] - V.camZ), zb = look.k + sp[1] - V.camZ;
+        if (zb > V.near) V.wallRect(side * (V.hw - 0.003), za, zb, V.fy + 0.15, Math.min(top, 0.35), `rgba(255,236,180,${lightsOut() ? 0.2 : 0.1})`);
+      }
+      const hx = g.bx + (into ? side : 0) * g.w * 0.6, hy = g.by - g.shoulder + g.w * 0.6;
       const len = (into ? 0.9 : 1.6) * s;
-      const dirX = into ? site.side : 0.15 * Math.sin(crew.clock * 0.4);
+      const dirX = into ? side : 0.15 * Math.sin(crew.clock * 0.4);
       const grad = ctx.createLinearGradient(hx, hy, hx + dirX * len, hy - (into ? 0 : 0.15 * len));
       const alpha = (lightsOut() ? 0.32 : 0.16) * (g.reduced ? 1 : 0.8 + 0.2 * Math.sin(crew.clock * 2.1));
       grad.addColorStop(0, `rgba(255,240,190,${alpha.toFixed(3)})`);
@@ -8931,7 +8972,7 @@ function onKey(e) {
     ctx.font = `${size}px monospace`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    const text = a.role.name.toUpperCase();
+    const text = a.role.name.toUpperCase() + (a.state === 'checking' ? ' · CHECKING' : '');
     const tw = ctx.measureText(text).width;
     ctx.fillRect(g.bx - tw / 2 - 2, g.by - g.shoulder - g.headR * 2.2 - size - 2, tw + 4, size + 2);
     ctx.fillStyle = 'rgba(240,232,200,0.9)';
@@ -8962,13 +9003,14 @@ function onKey(e) {
   Exp.hook('page:visible', ID, () => { crew.composed = false; });
   Exp.hook('flagsChanged', ID, (id, on) => { if (id === ID) reset(); });
   Exp.hook('crew:where', ID, (id) => where[id]);
+  Exp.hook('crew:attend', ID, (id, spot) => attend(id, spot, View));
   Exp.hook('manual', ID, (add) => add('Your crew in the corridor', [
     'The specialists you have recruited can be seen at work in the corridor: the Scavenger at the wall panels, the Cartographer mapping ahead, the Dowser at the water, the Watcher checking doorways, the Archivist recording. Two at a time; the others are working out of sight.',
     'Survey and you walk past them. They finish later, or follow you. Nothing they do changes what they produce: that is the same whether you see them or not.',
   ]));
   // For the tools and tests: HUM.Exp.ask('crew:api').
   const API = {
-    actors: () => Object.values(crew.actors).map((a) => ({ id: a.id, state: a.state, z: a.z, x: a.x, rel: a.z - View.camZ, visible: visibleNow(a, View), site: a.site && { ...a.site }, alpha: a.alpha })),
+    actors: () => Object.values(crew.actors).map((a) => ({ id: a.id, state: a.state, z: a.z, x: a.x, rel: a.z - View.camZ, visible: visibleNow(a, View), site: a.site && { ...a.site }, alpha: a.alpha, check: a.check && { ...a.check } })),
     direct: (dt) => direct(View, dt), compose: () => compose(View), reset, where: () => ({ ...where }), clock: () => crew.clock, resets: () => crew.resets,
   };
   Exp.hook('crew:api', ID, () => API);
