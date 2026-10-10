@@ -79,7 +79,7 @@ The specialists you have recruited can be seen at work in the camera feed.
 - drawing: `drawActor()`, `roleProps()`, `label()`;
 - drawn to a sound: `attend()`, `back()`;
 - hooks: `view:frame`, `view:segment`, `view:reset`, `page:visible`, `flagsChanged` and `manual`;
-- it offers `crew:where`, `crew:attend`, `crew:api` and the `crew:kit` and `crew:result` hook points to other experiments.
+- it offers `crew:where`, `crew:attend`, `crew:api` and the `crew:kit`, `crew:kitHide` and `crew:result` hook points to other experiments. `crew:kitHide` lets kit that replaces a base prop (the sack, notebook, mop bucket, flashlight beam or recorder) say so, so nothing is drawn twice. With no answer every prop is drawn as before.
 
 Tests: `tools/tests/crew-visible.test.js`, which drives the simulation and every frame itself.
 
@@ -87,7 +87,7 @@ Tests: `tools/tests/crew-visible.test.js`, which drives the simulation and every
 
 `EXP-CORE` only.
 - **Optional cooperation**, each working without the others:
-  - `EXP-CREW-EQUIPMENT` draws kit on the figures through `crew:kit`;
+  - `EXP-CREW-EQUIPMENT` draws kit on the figures through `crew:kit`, replacing base props through `crew:kitHide`;
   - `EXP-ROOM-VARIETY` leaves traces where work results land, through `crew:result`, and adds doorways and rooms the crew can use, through `view:features`;
   - `EXP-PRODUCTION-FEEDBACK` places captions over a visible crew member, through `crew:where`;
   - `EXP-AMBIENT-EVENTS` has the Watcher check a sound, through `crew:attend`, only if the Watcher is on stage.
@@ -100,11 +100,12 @@ Dev tab → Experiments, `?exp=-EXP-CREW-VISIBLE` for one page load, or `HUM.Exp
 ## 5. How to reverse the code
 
 `git revert` this experiment's commits, newest first:
-1. the `crew:attend` commit;
-2. the commit for a specialist taken by an incident;
-3. the experiment's own commit.
+1. the `crew:kitHide` commit;
+2. the `crew:attend` commit;
+3. the commit for a specialist taken by an incident;
+4. the experiment's own commit.
 
-Revert `EXP-AMBIENT-EVENTS` before the `crew:attend` commit, since it calls that hook. Without the hook it simply never sends the Watcher.
+Revert `EXP-AMBIENT-EVENTS` before the `crew:attend` commit, since it calls that hook. Without the hook it simply never sends the Watcher. Revert `EXP-CREW-EQUIPMENT` before the `crew:kitHide` commit. Without that hook, kit would be drawn over the base props it replaces.
 
 The experiment fills only its own slot and adds its test, this entry and a manual-frames option in the test harness.
 

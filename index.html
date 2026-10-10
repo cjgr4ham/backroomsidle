@@ -8904,7 +8904,8 @@ function onKey(e) {
       ctx.fillRect(hx - headR * 1.15, hy - headR * 0.35, headR * 0.4, headR * 0.7);
       ctx.fillRect(hx + headR * 0.75, hy - headR * 0.35, headR * 0.4, headR * 0.7);
     }
-    const g = { bx, by, s, w, hip, shoulder, headR, H, side: a.site ? a.site.side : a.side, facing: a.facing, working, walking, kneel, rel, lit: l, reduced, gesture: gx };
+    const g = { bx, by, s, w, hip, shoulder, headR, H, side: a.site ? a.site.side : a.side, facing: a.facing, working, walking, kneel, rel, lit: l, reduced, gesture: gx, hide: {} };
+    Exp.run('crew:kitHide', a, g.hide);   // kit that replaces one of the props below says so, so nothing is drawn twice
     roleProps(V, a, g, col, t);
     Exp.run('crew:kit', V, a, g, col);
     ctx.globalAlpha = 1;
@@ -8922,16 +8923,20 @@ function onKey(e) {
         V.wallRect(x, z0, z1, -0.35, 0.15, V.shade([18, 16, 12], g.rel, 1));
         V.wallRect(x - site.side * 0.01, z0, z1, -0.62, -0.38, V.shade([150, 140, 110], g.rel, g.lit));
       }
-      ctx.fillStyle = col([120, 82, 40]);   // a sack at their feet
-      ctx.fillRect(g.bx - g.side * g.w * 0.9 - g.w * 0.25, g.by - 0.32 * s, g.w * 0.5, 0.32 * s);
+      if (!g.hide.sack) {
+        ctx.fillStyle = col([120, 82, 40]);   // a sack at their feet
+        ctx.fillRect(g.bx - g.side * g.w * 0.9 - g.w * 0.25, g.by - 0.32 * s, g.w * 0.5, 0.32 * s);
+      }
     }
-    if (a.id === 'chart') {
+    if (a.id === 'chart' && !g.hide.notebook) {
       ctx.fillStyle = col([236, 230, 210]);   // the notebook, held up while they map
       ctx.fillRect(g.bx - g.w * 0.3, g.by - g.shoulder + g.w * 0.45, g.w * 0.6, g.w * 0.42);
     }
     if (a.id === 'dowse') {
-      ctx.fillStyle = col([170, 176, 160]);   // the mop bucket
-      ctx.fillRect(g.bx + g.side * g.w * 0.7 - g.w * 0.22, g.by - 0.24 * s, g.w * 0.44, 0.24 * s);
+      if (!g.hide.bucket) {
+        ctx.fillStyle = col([170, 176, 160]);   // the mop bucket
+        ctx.fillRect(g.bx + g.side * g.w * 0.7 - g.w * 0.22, g.by - 0.24 * s, g.w * 0.44, 0.24 * s);
+      }
       if (g.working && site && (site.kind === 'floor' || site.kind === 'pipe')) {
         ctx.fillStyle = col([200, 220, 214], 1.1);   // a bottle being filled
         const by = site.kind === 'pipe' ? g.by - 0.9 * s : g.by - 0.18 * s;
@@ -8952,19 +8957,22 @@ function onKey(e) {
       const hx = g.bx + (into ? side : 0) * g.w * 0.6, hy = g.by - g.shoulder + g.w * 0.6;
       const len = (into ? 0.9 : 1.6) * s;
       const dirX = into ? side : 0.15 * Math.sin(crew.clock * 0.4);
-      const grad = ctx.createLinearGradient(hx, hy, hx + dirX * len, hy - (into ? 0 : 0.15 * len));
-      const alpha = (lightsOut() ? 0.32 : 0.16) * (g.reduced ? 1 : 0.8 + 0.2 * Math.sin(crew.clock * 2.1));
-      grad.addColorStop(0, `rgba(255,240,190,${alpha.toFixed(3)})`);
-      grad.addColorStop(1, 'rgba(255,240,190,0)');
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.moveTo(hx, hy);
-      ctx.lineTo(hx + dirX * len + (into ? 0 : -0.25 * len), hy - 0.28 * len);
-      ctx.lineTo(hx + dirX * len + (into ? 0 : 0.25 * len), hy + 0.28 * len);
-      ctx.closePath();
-      ctx.fill();
+      g.light = { side: into ? side : 0, into };   // where their light points, for kit that replaces the beam
+      if (!g.hide.beam) {
+        const grad = ctx.createLinearGradient(hx, hy, hx + dirX * len, hy - (into ? 0 : 0.15 * len));
+        const alpha = (lightsOut() ? 0.32 : 0.16) * (g.reduced ? 1 : 0.8 + 0.2 * Math.sin(crew.clock * 2.1));
+        grad.addColorStop(0, `rgba(255,240,190,${alpha.toFixed(3)})`);
+        grad.addColorStop(1, 'rgba(255,240,190,0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(hx, hy);
+        ctx.lineTo(hx + dirX * len + (into ? 0 : -0.25 * len), hy - 0.28 * len);
+        ctx.lineTo(hx + dirX * len + (into ? 0 : 0.25 * len), hy + 0.28 * len);
+        ctx.closePath();
+        ctx.fill();
+      }
     }
-    if (a.id === 'archive') {
+    if (a.id === 'archive' && !g.hide.recorder) {
       ctx.fillStyle = col([40, 38, 34]);   // the recorder at their feet, its light on while it records
       ctx.fillRect(g.bx + g.side * g.w * 0.6 - g.w * 0.2, g.by - 0.12 * s, g.w * 0.4, 0.12 * s);
       if (g.working && (g.reduced || Math.floor(crew.clock * 2) % 2 === 0)) {
