@@ -736,6 +736,7 @@ details.procure-all summary { padding: 8px 10px; cursor: pointer; font: 600 12px
 /* <<< EXP-PRODUCTION-FEEDBACK */
 /* -- */
 /* >>> EXP-CREW-EQUIPMENT */
+.spec-kit { color: var(--dim); }
 /* <<< EXP-CREW-EQUIPMENT */
 /* -- */
 </style>
@@ -9696,6 +9697,259 @@ function onKey(e) {
 // ---------------------------------------------------------------------------
 //
 // >>> EXP-CREW-EQUIPMENT
+// Crew equipment. Each specialist's kit grows at level milestones (5, 15, 30 and 45): one recognisable piece each time,
+// such as the Scavenger's crowbar, headlamp, salvage trolley and cutting torch. Kit has slots, and a better piece
+// replaces the one in its slot (the cutting torch replaces the crowbar; the trolley replaces the sack), so nothing is
+// carried twice. It is drawn on the visible crew (crew:kit, crew:kitHide), and a "Kit" line in each Crew row says what
+// they carry and what comes next, so it means something with the visible crew off too. It only shows the level they
+// already have: it never changes what anyone produces.
+// Registry entry and rollback: docs/experiments/EXP-CREW-EQUIPMENT.md
+(function crewEquipmentExperiment() {
+  const ID = 'EXP-CREW-EQUIPMENT';
+  Exp.define({
+    id: ID,
+    name: 'Crew equipment',
+    summary: 'Each specialist’s kit grows at levels 5, 15, 30 and 45, drawn on the visible crew and listed in the Crew tab. A better piece replaces the one in its slot. Shows only; never changes production.',
+  });
+
+  // The kit, per role: at which level each piece comes, its slot, and the base prop it replaces, if any.
+  const MILESTONES = [5, 15, 30, 45];
+  const KIT = {
+    scavenge: [
+      { at: 5, slot: 'hand', id: 'crowbar', name: 'crowbar' },
+      { at: 15, slot: 'head', id: 'headlamp', name: 'headlamp' },
+      { at: 30, slot: 'carry', id: 'trolley', name: 'salvage trolley', hides: 'sack' },
+      { at: 45, slot: 'hand', id: 'torch', name: 'cutting torch' },
+    ],
+    chart: [
+      { at: 5, slot: 'hand', id: 'rod', name: 'survey rod' },
+      { at: 15, slot: 'book', id: 'tablet', name: 'mapping tablet', hides: 'notebook' },
+      { at: 30, slot: 'side', id: 'tripod', name: 'tripod level' },
+      { at: 45, slot: 'side', id: 'laser', name: 'laser theodolite' },
+    ],
+    dowse: [
+      { at: 5, slot: 'hand', id: 'divining', name: 'divining rod' },
+      { at: 15, slot: 'back', id: 'tank', name: 'water tank' },
+      { at: 30, slot: 'carry', id: 'barrel', name: 'wheeled barrel', hides: 'bucket' },
+      { at: 45, slot: 'hand', id: 'pendulum', name: 'brass pendulum' },
+    ],
+    watch: [
+      { at: 5, slot: 'radio', id: 'radio', name: 'radio' },
+      { at: 15, slot: 'light', id: 'lantern', name: 'storm lantern', hides: 'beam' },
+      { at: 30, slot: 'seat', id: 'stool', name: 'folding stool' },
+      { at: 45, slot: 'head', id: 'goggles', name: 'night-vision goggles' },
+    ],
+    archive: [
+      { at: 5, slot: 'bag', id: 'satchel', name: 'satchel of tapes' },
+      { at: 15, slot: 'hand', id: 'boom', name: 'boom microphone' },
+      { at: 30, slot: 'recorder', id: 'reels', name: 'reel-to-reel recorder', hides: 'recorder' },
+      { at: 45, slot: 'back', id: 'antenna', name: 'antenna pack' },
+    ],
+  };
+  /** What a role carries at a level: the best piece of each slot reached, in the order the slots were first filled. */
+  function kitFor(id, lvl) {
+    const best = {};
+    for (const it of KIT[id] || []) if (lvl >= it.at) best[it.slot] = it;
+    return (KIT[id] || []).filter((it) => best[it.slot] === it);
+  }
+  const nextFor = (id, lvl) => (KIT[id] || []).find((it) => it.at > lvl) || null;
+  /** The Crew row line: what they carry, and what the next milestone brings. */
+  function line(id) {
+    const lvl = specLevel(id);
+    if (!lvl) return '';
+    const kit = kitFor(id, lvl).map((it) => it.name);
+    const nx = nextFor(id, lvl);
+    return `Kit: ${kit.length ? kit.join(', ') : 'standard issue'}${nx ? ` · level ${nx.at}: ${nx.name}` : ' · complete'}`;
+  }
+
+  // ------------------------------------------------------------- drawing on the visible crew
+  let clock = 0;   // its own frame clock, for the little animations (a flame, turning reels, a swinging pendulum)
+  Exp.hook('view:frame', ID, (V, dt) => { clock += Math.min(0.1, Math.max(0, dt)); });
+  Exp.hook('crew:kitHide', ID, (a, hide) => { for (const it of kitFor(a.id, specLevel(a.id))) if (it.hides) hide[it.hides] = true; });
+
+  const glow = (r, g, b, a) => `rgba(${r},${g},${b},${a.toFixed(3)})`;
+  function stroke(ctx, color, width, pts) {
+    ctx.strokeStyle = color; ctx.lineWidth = Math.max(1, width);
+    ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    ctx.stroke(); ctx.lineWidth = 1;
+  }
+  const rect = (ctx, color, x, y, w, h) => { ctx.fillStyle = color; ctx.fillRect(x, y, Math.max(1, w), Math.max(1, h)); };
+  function disc(ctx, color, x, y, r) { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, Math.max(0.6, r), 0, Math.PI * 2); ctx.fill(); }
+  function halo(ctx, x, y, r, rgb, a) {
+    const gr = ctx.createRadialGradient(x, y, 0, x, y, Math.max(1, r));
+    gr.addColorStop(0, glow(rgb[0], rgb[1], rgb[2], a)); gr.addColorStop(1, glow(rgb[0], rgb[1], rgb[2], 0));
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, Math.max(1, r), 0, Math.PI * 2); ctx.fill();
+  }
+
+  /** Each piece, drawn around the figure: g is where the crew module drew it (feet bx, by; scale s px per unit). */
+  const DRAW = {
+    crowbar(V, ctx, g, col) {
+      const c = col([150, 154, 162]), d = g.s;
+      if (g.working) stroke(ctx, c, 0.045 * d, [[g.bx + g.side * g.w * 0.6, g.by - g.shoulder + 0.42 * d], [g.bx + g.side * g.w * 1.45, g.by - g.shoulder + 0.22 * d], [g.bx + g.side * g.w * 1.55, g.by - g.shoulder + 0.3 * d]]);
+      else stroke(ctx, c, 0.045 * d, [[g.bx + g.w * 0.5, g.by - g.shoulder + 0.2 * d], [g.bx - g.w * 0.35, g.by - g.shoulder - 0.5 * d], [g.bx - g.w * 0.5, g.by - g.shoulder - 0.44 * d]]);
+    },
+    torch(V, ctx, g, col) {
+      const d = g.s;
+      if (!g.working) { rect(ctx, col([60, 58, 54]), g.bx + g.w * 0.48, g.by - g.hip - 0.12 * d, 0.07 * d, 0.22 * d); return; }   // at the hip
+      const hx = g.bx + g.side * g.w * 0.7, hy = g.by - g.shoulder + 0.42 * d, tx = g.bx + g.side * g.w * 1.35, ty = hy - 0.08 * d;
+      stroke(ctx, col([70, 68, 64]), 0.06 * d, [[hx, hy], [tx, ty]]);
+      const f = g.reduced ? 1 : 0.8 + 0.3 * Math.sin(clock * 31) * Math.sin(clock * 7);
+      halo(ctx, tx + g.side * 0.04 * d, ty, 0.22 * d * f, [150, 200, 255], 0.55);
+      disc(ctx, 'rgba(235,245,255,0.95)', tx + g.side * 0.03 * d, ty, 0.03 * d);
+      for (let i = 0; i < 3; i++) {   // sparks off the wall
+        const ph = g.reduced ? i * 0.33 : (clock * 2.3 + i * 0.37) % 1;
+        disc(ctx, `rgba(255,${170 + i * 20},80,${(1 - ph).toFixed(3)})`, tx + g.side * (0.05 + 0.1 * ph) * d - g.side * i * 0.03 * d, ty + ph * 0.3 * d, 0.018 * d);
+      }
+    },
+    headlamp(V, ctx, g) {
+      const hy = g.by - g.shoulder - g.headR * 1.05, d = g.s;
+      const lx = g.bx + (g.working ? g.side * g.headR * 0.5 : 0), ly = hy - g.headR * 0.85;
+      rect(ctx, 'rgba(255,244,200,0.95)', lx - g.headR * 0.28, ly - g.headR * 0.18, g.headR * 0.56, g.headR * 0.36);
+      halo(ctx, lx, ly, 0.16 * d, [255, 240, 190], lightsOut() ? 0.5 : 0.3);
+      if (g.working) halo(ctx, lx + g.side * 0.45 * d, ly + 0.25 * d, 0.3 * d, [255, 240, 190], lightsOut() ? 0.22 : 0.1);   // on the work
+    },
+    trolley(V, ctx, g, col) {
+      const d = g.s, x = g.bx - g.side * g.w * 1.25, base = g.by;
+      const rail = col([90, 92, 98]);
+      stroke(ctx, rail, 0.035 * d, [[x - 0.09 * d, base - 0.05 * d], [x - 0.09 * d, base - 0.95 * d]]);
+      stroke(ctx, rail, 0.035 * d, [[x + 0.09 * d, base - 0.05 * d], [x + 0.09 * d, base - 0.95 * d]]);
+      rect(ctx, rail, x - 0.15 * d, base - 0.06 * d, 0.3 * d, 0.04 * d);
+      rect(ctx, col([176, 140, 90]), x - 0.13 * d, base - 0.36 * d, 0.26 * d, 0.28 * d);   // salvage boxed on it
+      rect(ctx, col([160, 124, 80]), x - 0.11 * d, base - 0.6 * d, 0.22 * d, 0.22 * d);
+      disc(ctx, col([30, 30, 32]), x - 0.12 * d, base - 0.05 * d, 0.06 * d);
+      disc(ctx, col([30, 30, 32]), x + 0.12 * d, base - 0.05 * d, 0.06 * d);
+    },
+    rod(V, ctx, g, col) {
+      const d = g.s, x = g.bx + g.side * g.w * 0.85, top = g.by - 2.25 * d;
+      for (let i = 0; i < 9; i++) rect(ctx, col(i % 2 ? [236, 232, 220] : [196, 52, 40]), x - 0.025 * d, top + i * 0.25 * d, 0.05 * d, 0.25 * d);
+    },
+    tablet(V, ctx, g, col) {
+      const x = g.bx - g.w * 0.32, y = g.by - g.shoulder + g.w * 0.42, w = g.w * 0.64, h = g.w * 0.46;
+      rect(ctx, col([34, 36, 40]), x, y, w, h);
+      rect(ctx, 'rgba(120,226,236,0.9)', x + w * 0.12, y + h * 0.15, w * 0.76, h * 0.7);
+      halo(ctx, x + w / 2, y + h / 2, g.w * 0.8, [120, 226, 236], 0.18);
+    },
+    tripod(V, ctx, g, col, laser) {
+      if (!g.working) return;   // set up only while they work
+      const d = g.s, x = g.bx - g.side * g.w * 1.4, apex = g.by - 1.2 * d;
+      const leg = col([60, 58, 52]);
+      for (const dx of [-0.24, 0.24, 0.05]) stroke(ctx, leg, 0.025 * d, [[x, apex], [x + dx * d, g.by - (dx === 0.05 ? 0.04 : 0) * d]]);
+      rect(ctx, col(laser ? [214, 96, 40] : [214, 182, 60]), x - 0.09 * d, apex - 0.12 * d, 0.18 * d, 0.12 * d);
+      if (laser) {
+        const tgt = V.P(g.side * V.hw, -0.15, g.rel + 2.5);
+        ctx.strokeStyle = 'rgba(255,40,30,0.55)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(x, apex - 0.06 * d); ctx.lineTo(tgt[0], tgt[1]); ctx.stroke();
+        disc(ctx, 'rgba(255,60,40,0.95)', tgt[0], tgt[1], 1.2);
+      }
+    },
+    laser(V, ctx, g, col) { DRAW.tripod(V, ctx, g, col, true); },
+    divining(V, ctx, g, col) {
+      const d = g.s, y = g.by - g.shoulder + 0.62 * d, dip = g.gesture * 0.12 * d;
+      stroke(ctx, col([150, 108, 58]), 0.03 * d, [[g.bx - g.w * 0.3, y], [g.bx, y - 0.32 * d + dip], [g.bx + g.w * 0.3, y]]);
+    },
+    pendulum(V, ctx, g, col) {
+      const d = g.s, hx = g.bx + g.side * g.w * 0.62, hy = g.by - g.shoulder + 0.62 * d;
+      const ang = g.reduced ? 0 : Math.sin(clock * 2.4) * 0.35, L = 0.32 * d;
+      const ex = hx + Math.sin(ang) * L, ey = hy + Math.cos(ang) * L;
+      stroke(ctx, col([200, 196, 180]), 0.012 * d, [[hx, hy], [ex, ey]]);
+      disc(ctx, col([214, 170, 72], 1.2), ex, ey, 0.05 * d);
+    },
+    tank(V, ctx, g, col) {
+      const d = g.s, x = g.bx - g.w * 0.36, y = g.by - g.shoulder - 0.1 * d;
+      const c = col([84, 120, 150]);
+      if (g.facing >= 0) { rect(ctx, c, x, y, g.w * 0.72, 0.62 * d); rect(ctx, col([60, 90, 116]), x, y + 0.18 * d, g.w * 0.72, 0.05 * d); }
+      else rect(ctx, c, x + g.w * 0.06, y, g.w * 0.6, 0.12 * d);   // facing you: only its top shows
+      stroke(ctx, col([40, 40, 44]), 0.025 * d, [[g.bx - g.w * 0.3, g.by - g.shoulder + 0.5 * d], [g.bx + g.side * g.w * 0.55, g.by - g.shoulder + 0.7 * d]]);   // the hose
+    },
+    barrel(V, ctx, g, col) {
+      const d = g.s, x = g.bx + g.side * g.w * 1.05, base = g.by - 0.06 * d;
+      rect(ctx, col([62, 102, 150]), x - 0.14 * d, base - 0.5 * d, 0.28 * d, 0.48 * d);
+      rect(ctx, col([44, 74, 112]), x - 0.14 * d, base - 0.38 * d, 0.28 * d, 0.04 * d);
+      rect(ctx, col([44, 74, 112]), x - 0.14 * d, base - 0.16 * d, 0.28 * d, 0.04 * d);
+      disc(ctx, col([30, 30, 32]), x - 0.1 * d, base + 0.01 * d, 0.05 * d);
+      disc(ctx, col([30, 30, 32]), x + 0.1 * d, base + 0.01 * d, 0.05 * d);
+    },
+    radio(V, ctx, g, col) {
+      const d = g.s, x = g.bx - g.side * g.w * 0.42, y = g.by - g.shoulder + 0.04 * d;
+      rect(ctx, col([36, 38, 40]), x - 0.04 * d, y, 0.08 * d, 0.16 * d);
+      stroke(ctx, col([30, 30, 32]), 0.015 * d, [[x + 0.02 * d, y], [x + 0.02 * d, y - 0.26 * d]]);
+      if (g.reduced || Math.floor(clock * 1.5) % 2 === 0) disc(ctx, 'rgba(120,255,140,0.9)', x, y + 0.04 * d, 0.012 * d + 0.4);
+    },
+    lantern(V, ctx, g, col) {
+      const d = g.s, L = g.light || { side: 0, into: false };
+      const side = L.into ? L.side : g.side || 1;
+      const x = g.bx + side * g.w * (L.into ? 0.95 : 0.7), y = g.by - g.shoulder + (L.into ? 0.45 : 0.72) * d;
+      halo(ctx, x, y, (L.into ? 0.85 : 0.6) * d, [255, 214, 140], lightsOut() ? 0.38 : 0.2);
+      rect(ctx, col([40, 36, 30]), x - 0.05 * d, y - 0.1 * d, 0.1 * d, 0.03 * d);
+      rect(ctx, 'rgba(255,220,150,0.95)', x - 0.04 * d, y - 0.07 * d, 0.08 * d, 0.12 * d);
+      rect(ctx, col([40, 36, 30]), x - 0.05 * d, y + 0.05 * d, 0.1 * d, 0.03 * d);
+    },
+    stool(V, ctx, g, col) {
+      if (!g.working) return;   // unfolded only where they keep watch
+      const d = g.s, x = g.bx - g.side * g.w * 1.05, seat = g.by - 0.45 * d;
+      const c = col([120, 90, 56]);
+      rect(ctx, c, x - 0.15 * d, seat - 0.03 * d, 0.3 * d, 0.05 * d);
+      stroke(ctx, c, 0.025 * d, [[x - 0.13 * d, seat], [x + 0.13 * d, g.by]]);
+      stroke(ctx, c, 0.025 * d, [[x + 0.13 * d, seat], [x - 0.13 * d, g.by]]);
+    },
+    goggles(V, ctx, g, col) {
+      const hy = g.by - g.shoulder - g.headR * 1.05, r = g.headR;
+      rect(ctx, col([30, 32, 30]), g.bx - r * 0.95, hy - r * 0.3, r * 1.9, r * 0.5);
+      for (const sx of [-0.42, 0.42]) disc(ctx, 'rgba(130,255,150,0.95)', g.bx + sx * r, hy - r * 0.05, r * 0.2 + 0.3);
+    },
+    satchel(V, ctx, g, col) {
+      const d = g.s, x = g.bx - g.side * g.w * 0.62;
+      stroke(ctx, col([90, 58, 34]), 0.025 * d, [[g.bx + g.side * g.w * 0.4, g.by - g.shoulder + 0.02 * d], [x, g.by - g.hip - 0.02 * d]]);
+      rect(ctx, col([116, 74, 42]), x - 0.12 * d, g.by - g.hip - 0.06 * d, 0.24 * d, 0.2 * d);
+    },
+    boom(V, ctx, g, col) {
+      const d = g.s, side = g.side || 1;
+      const hx = g.bx + side * g.w * 0.62, hy = g.by - g.shoulder + 0.32 * d;
+      const ex = hx + side * (g.working ? 0.7 : 0.25) * d, ey = g.by - g.shoulder - (g.working ? 0.55 : 0.85) * d;
+      stroke(ctx, col([60, 60, 62]), 0.025 * d, [[hx, hy], [ex, ey]]);
+      ctx.fillStyle = col([128, 124, 116]);
+      ctx.beginPath(); ctx.ellipse(ex, ey, 0.13 * d, 0.075 * d, side * -0.5, 0, Math.PI * 2); ctx.fill();
+    },
+    reels(V, ctx, g, col) {
+      const d = g.s, x = g.bx + g.side * g.w * 0.75, base = g.by;
+      rect(ctx, col([46, 42, 38]), x - 0.22 * d, base - 0.22 * d, 0.44 * d, 0.22 * d);
+      const turn = g.working && !g.reduced ? clock * 4 : 0;
+      for (const rx of [-0.1, 0.1]) {
+        const cx = x + rx * d, cy = base - 0.13 * d, r = 0.07 * d;
+        disc(ctx, col([150, 146, 136]), cx, cy, r);
+        for (let i = 0; i < 3; i++) { const a = turn + (i * Math.PI * 2) / 3; stroke(ctx, col([46, 42, 38]), 0.012 * d, [[cx, cy], [cx + Math.cos(a) * r, cy + Math.sin(a) * r]]); }
+      }
+      if (g.working && (g.reduced || Math.floor(clock * 2) % 2 === 0)) disc(ctx, '#ff4630', x + 0.17 * d, base - 0.05 * d, 0.015 * d + 0.4);
+    },
+    antenna(V, ctx, g, col) {
+      const d = g.s, top = g.by - g.shoulder;
+      if (g.facing >= 0) rect(ctx, col([62, 72, 52]), g.bx - g.w * 0.33, top + 0.06 * d, g.w * 0.66, 0.45 * d);
+      stroke(ctx, col([36, 36, 36]), 0.012 * d, [[g.bx - g.w * 0.22, top + 0.08 * d], [g.bx - g.w * 0.28, top - 0.95 * d]]);
+      if (g.reduced || Math.floor(clock * 1.2) % 2 === 0) disc(ctx, 'rgba(255,70,50,0.95)', g.bx - g.w * 0.28, top - 0.95 * d, 0.014 * d + 0.4);
+    },
+  };
+  Exp.hook('crew:kit', ID, (V, a, g, col) => {
+    for (const it of kitFor(a.id, specLevel(a.id))) { const f = DRAW[it.id]; if (f) f(V, V.ctx, g, col); }
+  });
+
+  // ------------------------------------------------------------- the Crew tab: one line per specialist
+  Exp.hook('crew:sig', ID, () => 'kit');
+  Exp.hook('crew:row', ID, (s, V) => {
+    V.kit = el('p', { class: 'row-stats spec-kit' });
+    V.next.after(V.kit);
+  });
+  Exp.hook('crew:rowUpdate', ID, (s, V) => {
+    if (!V.kit) return;
+    const text = line(s.id);
+    setText(V.kit, text);
+    setHidden(V.kit, !text);
+  });
+  Exp.hook('manual', ID, (add) => add('Crew equipment', [
+    'Each specialist’s kit grows at levels 5, 15, 30 and 45: one new piece each time, such as the Scavenger’s crowbar, headlamp, salvage trolley and cutting torch. A better piece replaces the old one in its slot. The Crew tab lists what each of them carries and what comes next. Kit only shows how far they have come: what they produce depends on their level alone.',
+  ]));
+  Exp.hook('kit:api', ID, () => ({ MILESTONES, KIT, kitFor: (id, lvl) => kitFor(id, lvl).map((it) => ({ ...it })), next: nextFor, line }));
+})();
 // <<< EXP-CREW-EQUIPMENT
 //
 // ---------------------------------------------------------------------------
