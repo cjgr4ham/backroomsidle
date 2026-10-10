@@ -128,9 +128,14 @@ const { open, Checker } = require('./harness');
     const sample = () => { window.__log.heights.push([...panel.querySelectorAll('.row')].map((x) => Math.round(x.getBoundingClientRect().height)).join(',')); window.__raf = requestAnimationFrame(sample); };
     sample();
   });
-  // Scroll the page part-way and focus a buy button, as a player about to buy would.
-  await ev(() => { document.querySelector('#panel-facilities .row[data-fac="vat"] [data-action="buy-fac"]').focus(); window.scrollTo(0, 200); });
-  const before = await ev(() => ({ scroll: window.scrollY, active: document.activeElement && document.activeElement.dataset.id }));
+  // Scroll the panel part-way and focus a buy button, as a player about to buy would. On this screen the tab panels
+  // scroll in their own column; the page itself has nothing to scroll.
+  await ev(() => {
+    const tp = document.getElementById('tabpanels'), b = document.querySelector('#panel-facilities .row[data-fac="vat"] [data-action="buy-fac"]');
+    tp.scrollTop += b.getBoundingClientRect().top - tp.getBoundingClientRect().top - 80;
+    b.focus();
+  });
+  const before = await ev(() => ({ scroll: document.getElementById('tabpanels').scrollTop, active: document.activeElement && document.activeElement.dataset.id }));
   for (let i = 0; i < 60; i++) { await page.click('#btnSurvey'); await page.waitForTimeout(70); }
   await ev(() => document.querySelector('#panel-facilities .row[data-fac="vat"] [data-action="buy-fac"]').focus());
   for (let i = 0; i < 40; i++) { await page.keyboard.press('s'); await page.waitForTimeout(70); }
@@ -150,7 +155,7 @@ const { open, Checker } = require('./harness');
     return { rebuilds: L.rebuilds, lines, heightChanges: hs.length - 1, heights: hs.slice(0, 3),
       flavorsSame: JSON.stringify([...panel.querySelectorAll('.row .flavor')].map((n) => n.textContent)) === JSON.stringify(L.flavors),
       titlesSame: JSON.stringify([...panel.querySelectorAll('.row h3')].map((n) => n.textContent)) === JSON.stringify(L.titles),
-      surveys: HUM.S.run.stats.surveys, scroll: window.scrollY, active: document.activeElement && document.activeElement.dataset.id };
+      surveys: HUM.S.run.stats.surveys, scroll: document.getElementById('tabpanels').scrollTop, active: document.activeElement && document.activeElement.dataset.id };
   });
   const flips = Object.entries(res.lines).filter(([, v]) => v.flips > 0);
   const many = Object.entries(res.lines).filter(([, v]) => v.wordings > 1);
