@@ -707,6 +707,23 @@ body.reduce-motion .vp-banner { animation: none; opacity: 1; }
 /* <<< EXP-MISSION-AUTOREPEAT */
 /* -- */
 /* >>> EXP-AUTO-UPGRADE */
+.auto-toggle { min-height: 26px; padding: 3px 8px; font: 600 11px var(--font-mono); letter-spacing: 0.02em; }
+.auto-toggle[aria-pressed="true"] { border-color: var(--ok); color: var(--ok); }
+.auto-toggle:disabled { border-style: solid; color: var(--dim); }
+.auto-status { margin: 0; font: 11px/1.4 var(--font-mono); color: var(--dim); }
+.procure-box { display: grid; gap: 6px; margin: 4px 0 10px; }
+.procure-bar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); background: var(--panel); font-size: 13px; }
+.procure-bar .num { color: var(--dim); font: 12px var(--font-mono); }
+.procure-bar .auto-toggle { margin-left: auto; }
+details.procure-all { border: 1px solid var(--line); }
+details.procure-all summary { padding: 8px 10px; cursor: pointer; font: 600 12px var(--font-mono); color: var(--dim); }
+.procure-list { display: grid; gap: 2px; padding: 0 10px 10px; }
+.procure-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.procure-name { color: var(--paper); }
+.procure-why { grid-column: 1; font: 11px var(--font-mono); color: var(--faint); }
+.procure-why:empty { display: none; }
+.procure-row .auto-toggle { grid-column: 2; grid-row: 1 / span 2; }
+.slip .auto-toggle { width: 100%; margin-top: 0; }
 /* <<< EXP-AUTO-UPGRADE */
 /* -- */
 /* >>> EXP-PRODUCTION-FEEDBACK */
@@ -8116,6 +8133,344 @@ function onKey(e) {
 // ---------------------------------------------------------------------------
 //
 // >>> EXP-AUTO-UPGRADE
+// Procurement Controller. A salvage requisition that unlocks individual auto-upgrade switches: one under the yellow
+// button of each crew row (Auto-upgrade: the specialist's next level), two on each facility row (Auto-buy: its next
+// unit; Auto-tier: its next tier) and one on each salvage requisition (Auto-buy). Every switch starts off and stands
+// alone. Everything switched on is bought by one shared purchaser, cheapest first:
+//   1. collect the enabled targets that can be bought at all;  2. price ONE purchase of each, with the price the game
+//   would charge now;  3. take the cheapest (ties: the one bought least recently, then a fixed order);  4. stop if it
+//   cannot be paid for;  5. buy exactly one through the normal purchase function;  6. price everything again;
+//   7. repeat, up to a budget per run.
+// No category order, no fixed shares, no return on investment, no reserve, no ×10/×25/MAX, no "twice the price" rule.
+// It runs every second of game time in the simulation, whatever tab is open, and at every step of time away (so
+// income changes after each purchase, never before). Salvage only: never rebirth, doctrines, Déjà Vu or research.
+// Procurement Notes (a Memory) keeps unlocking per-facility Auto-buy on its own; with this experiment on, those
+// choices are bought by the same purchaser (the legacy loop stands down, so there is only ever one purchaser).
+// Choices are kept in S.ext.procure, through noclips, and do nothing until what unlocks them is owned again.
+// Content id: upgrade:procurement.
+// Registry entry and rollback: docs/experiments/EXP-AUTO-UPGRADE.md
+(function procurementControllerExperiment() {
+  const ID = 'EXP-AUTO-UPGRADE';
+  Exp.define({
+    id: ID,
+    name: 'Procurement Controller',
+    summary: 'A requisition that unlocks auto-upgrade switches on every crew row, facility row and salvage requisition, bought one at a time, cheapest first, by one shared purchaser. Takes over Procurement Notes’ auto-buy.',
+  });
+  const UP = Content.upgrade(ID, {
+    id: 'procurement', cat: 'Automation', name: 'Procurement Controller', cost: { salvage: 2.5e7 }, req: { level: 2 },
+    effect: 'Auto-upgrade switches for every specialist, facility, facility tier and salvage requisition. Everything switched on is bought one at a time, cheapest first.',
+    flavor: 'A clipboard that fills in its own order forms. It always orders the cheapest thing first, and it is always right.',
+  });
+  const BUDGET = 50, BUDGET_AWAY = 200;   // purchases per run: the purchaser runs once a second, and once per step of time away
+
+  // ------------------------------------------------------------- choices (S.ext.procure)
+  //   on:     { 'spec:<id>' | 'fac:<id>' | 'tier:<id>' | 'upg:<id>': true }   switched on (anything absent is off)
+  //   paused: true                                                            every switch held
+  //   merged: true                                                            Procurement Notes' choices were taken over
+  const KEY_RE = /^(spec|fac|tier|upg):[A-Za-z0-9_-]{1,48}$/;
+  Exp.ext.state.procure = (v) => {
+    if (!isObj(v)) return undefined;
+    const out = { on: {} };
+    if (isObj(v.on)) for (const k of Object.keys(v.on).slice(0, 400)) if (KEY_RE.test(k) && v.on[k] === true) out.on[k] = true;
+    if (v.paused === true) out.paused = true;
+    if (v.merged === true) out.merged = true;
+    return out;
+  };
+  const NONE = { on: {} };
+  const P = () => (isObj(S.ext.procure) ? S.ext.procure : NONE);
+  const prefs = () => (isObj(S.ext.procure) ? S.ext.procure : (S.ext.procure = { on: {} }));
+  const isOn = (key) => P().on[key] === true;
+  const installed = () => has(UP.id) && contentOn(UP);
+  const notes = () => memRank('procure') > 0;
+  /** Facility Auto-buy needs Procurement Notes or the Controller; every other switch needs the Controller. */
+  const unlocked = (key) => (key.startsWith('fac:') ? installed() || notes() : installed());
+
+  // Procurement Notes' choices live in run.autobuy. They are taken over once per save, and a choice changed here is
+  // written there too, so switching this experiment off leaves the old auto-buy with the same choices.
+  function mergeLegacy() {
+    const p = prefs();
+    if (p.merged) return;
+    for (const id in S.run.autobuy) if (S.run.autobuy[id] === true && FAC[id]) p.on['fac:' + id] = true;
+    p.merged = true;
+  }
+  function setOn(key, on) {
+    const p = prefs();
+    if (on) p.on[key] = true; else delete p.on[key];
+    if (key.startsWith('fac:')) { const id = key.slice(4); if (on) S.run.autobuy[id] = true; else delete S.run.autobuy[id]; }
+    rt.structureDirty = true;
+    UI.update();
+  }
+  function setPaused(on) {
+    const p = prefs();
+    if (on) p.paused = true; else delete p.paused;
+    log(on ? 'Procurement paused: nothing is bought by itself until you resume.' : 'Procurement resumed.', 'info', 'PROCURE');
+    rt.structureDirty = true;
+    UI.update();
+  }
+  // While switched off, the old auto-buy kept its own choices: they are the facility choices when it comes back.
+  Exp.hook('flagsChanged', ID, (id, on) => {
+    if (id !== ID || !on || !isObj(S.ext.procure)) return;
+    for (const f of FACILITIES) { const k = 'fac:' + f.id; if (S.run.autobuy[f.id] === true) S.ext.procure.on[k] = true; else delete S.ext.procure.on[k]; }
+  });
+  // A new iteration: the choices stay, and the facility ones are written to run.autobuy again for the old auto-buy.
+  Exp.hook('noclip:newRun', ID, () => {
+    for (const k in P().on) if (k.startsWith('fac:') && FAC[k.slice(4)]) S.run.autobuy[k.slice(4)] = true;
+  });
+
+  // ------------------------------------------------------------- the purchaser
+  /** Every target switched on that can be bought at all right now, with the price of exactly one purchase. */
+  function targets() {
+    const out = [];
+    if (P().paused) return out;
+    const ctl = installed(), fac = ctl || notes();
+    if (!fac) return out;
+    let order = 0;
+    if (ctl) {
+      for (const s of SPECIALISTS) {
+        order++;
+        const key = 'spec:' + s.id, lvl = specLevel(s.id);
+        if (!isOn(key) || lvl < 1 || lvl >= CONFIG.specialists.max) continue;
+        out.push({ key, order, name: s.name, price: specCost(s, lvl), buy: () => hireSpecialist(s.id, true) });
+      }
+    }
+    for (const f of facs()) {
+      order++;
+      if (!facVisible(f)) continue;
+      if (isOn('fac:' + f.id)) out.push({ key: 'fac:' + f.id, order, name: f.name, price: unitQuote(f, 1).cost, buy: () => buyFacility(f.id, { n: 1, quiet: true }) });
+      if (ctl && isOn('tier:' + f.id)) {
+        const n = nextTier(f);
+        if (n && n.ready) out.push({ key: 'tier:' + f.id, order: order + 0.5, name: n.u.name, price: upgradePrice(n.u), buy: () => buyUpgrade(n.u.id, true) });
+      }
+    }
+    if (ctl) {
+      for (const u of upgs()) {
+        order++;
+        if (u.fac || u.id === UP.id || upgradeCurrency(u) !== 'salvage' || !isOn('upg:' + u.id) || !upgradeAvailable(u)) continue;
+        out.push({ key: 'upg:' + u.id, order, name: u.name, price: upgradePrice(u), buy: () => buyUpgrade(u.id, true) });
+      }
+    }
+    return out;
+  }
+  const last = {};   // target -> sequence number of its last automatic purchase (ties go to the least recent)
+  let seq = 0;
+  const history = [];   // the last purchases made, in order (runtime only, for the tools and tests)
+  /**
+   * The cheapest-first loop. Returns what it bought, in order. Every price is the game's own for one purchase, worked
+   * out again after each one; every purchase goes through the normal function and its checks.
+   */
+  function procure(budget) {
+    const bought = [];
+    const refused = new Set();
+    for (let i = 0; i < budget; i++) {
+      let best = null;
+      for (const t of targets()) {
+        if (refused.has(t.key) || !(Number.isFinite(t.price) && t.price > 0)) continue;
+        if (!best || t.price < best.price || (t.price === best.price && ((last[t.key] || 0) < (last[best.key] || 0) || ((last[t.key] || 0) === (last[best.key] || 0) && t.order < best.order)))) best = t;
+      }
+      if (!best || !Wallet.can('salvage', best.price)) break;   // the cheapest cannot be paid for: nothing else can either
+      if (!best.buy()) { refused.add(best.key); continue; }    // refused by the normal checks: left for the next run
+      last[best.key] = ++seq;
+      bought.push({ key: best.key, name: best.name, price: best.price });
+      history.push(best.key);
+      if (history.length > 5000) history.splice(0, history.length - 5000);
+    }
+    return bought;
+  }
+
+  // Purchases are reported together: one sound per run while you are here, one log line every 20 seconds, and one
+  // line in the report of time away.
+  const pending = new Map();
+  let flushAcc = 0, awayNote = -1;
+  function record(list) {
+    for (const b of list) {
+      const k = b.key.startsWith('fac:') ? b.key : b.key.startsWith('spec:') ? b.key : b.name;
+      const e = pending.get(k) || { n: 0, name: b.key.startsWith('spec:') ? `${b.name} level` : b.name };
+      e.n++;
+      pending.set(k, e);
+    }
+  }
+  function summary(max) {
+    const parts = [...pending.values()].map((e) => (e.n > 1 ? `${e.n} × ${e.name}` : e.name));
+    return parts.length > max ? `${parts.slice(0, max).join(', ')} and ${parts.length - max} more` : parts.join(', ');
+  }
+  function flush() {
+    if (!pending.size) return;
+    log(`Procurement bought ${summary(6)}.`, 'gain', 'PROCURE');
+    pending.clear();
+  }
+  // The legacy loop asks first; with this experiment on, it stands down and this runs instead, at the same moment.
+  Exp.hook('autobuy:run', ID, () => {
+    if (installed() || notes()) mergeLegacy();
+    const got = procure(rt.offline ? BUDGET_AWAY : BUDGET);
+    if (got.length) {
+      record(got);
+      if (rt.offline) {
+        const text = `Procurement bought ${summary(8)}.`;
+        if (rt.offlineNotes) {
+          if (awayNote < 0 || rt.offlineNotes[awayNote] === undefined) { awayNote = rt.offlineNotes.length; noteOffline(text); }
+          else rt.offlineNotes[awayNote] = text;
+        }
+      } else Sound.play('buy');
+    }
+    return true;
+  });
+  Exp.hook('step', ID, (dt, offline) => {
+    if (offline) { flushAcc = 20; return; }
+    awayNote = -1;
+    flushAcc += dt;
+    if (flushAcc >= 20) { flushAcc = 0; flush(); }
+  });
+  Exp.hook('afterLoad', ID, () => { pending.clear(); for (const k in last) delete last[k]; });
+
+  // ------------------------------------------------------------- the switches
+  function toggleBtn(key, label) {
+    const b = el('button', { type: 'button', class: 'btn small auto-toggle', 'aria-pressed': 'false' });
+    b.addEventListener('click', () => { if (b.dataset.locked !== '1') setOn(key, !isOn(key)); });
+    return { b, key, label };
+  }
+  /** Writes a switch: its state, or what it shows instead (Max level, Complete). Fixed words; only the state changes. */
+  function paintToggle(T, state, aria) {
+    const on = isOn(T.key);
+    const txt = state || `${T.label}: ${on ? 'ON' : 'OFF'}`;
+    setText(T.b, txt);
+    setAttr(T.b, 'aria-pressed', !state && on);
+    T.b.dataset.locked = state ? '1' : '';
+    setDis(T.b, !!state);
+    setAttr(T.b, 'aria-label', aria || `${T.label} for ${T.name}: ${state || (on ? 'on' : 'off')}`);
+  }
+  const status = () => el('p', { class: 'auto-status', hidden: true });
+  function paintStatus(node, text) { setText(node, text || ''); setHidden(node, !text); }
+
+  // Crew rows: directly under the yellow recruit/upgrade button.
+  Exp.hook('crew:sig', ID, () => `${installed()}`);
+  Exp.hook('crew:row', ID, (s, V) => {
+    if (!installed()) return;
+    const T = toggleBtn('spec:' + s.id, 'Auto-upgrade');
+    T.name = `the ${s.name}`;
+    const st = status();
+    V.btn.after(T.b, st);
+    V.procure = { T, st };
+  });
+  Exp.hook('crew:rowUpdate', ID, (s, V) => {
+    if (!V.procure) return;
+    const lvl = specLevel(s.id);
+    const maxed = lvl >= CONFIG.specialists.max;
+    paintToggle(V.procure.T, maxed ? 'Max level' : '');
+    let st = '';
+    if (!maxed && isOn(V.procure.T.key)) {
+      if (P().paused) st = 'Paused.';
+      else if (!lvl) st = 'Starts once recruited.';
+    }
+    paintStatus(V.procure.st, st);
+  });
+
+  // Facility rows: Auto-buy (Procurement Notes or the Controller) and Auto-tier (the Controller), under the buy button.
+  Exp.hook('facilities:autoControl', ID, () => installed() || notes());
+  Exp.hook('facilities:autoNote', ID, () => installed() || notes());
+  Exp.hook('facilities:sig', ID, () => `${installed()}|${notes()}`);
+  Exp.hook('facilities:row', ID, (f, R) => {
+    if (!(installed() || notes())) return;
+    const buy = toggleBtn('fac:' + f.id, 'Auto-buy');
+    buy.name = `${f.name} units`;
+    const tier = installed() && f.tiers.length ? toggleBtn('tier:' + f.id, 'Auto-tier') : null;
+    if (tier) tier.name = `${f.name} tiers`;
+    const st = status();
+    R.buy.after(...[buy.b, tier && tier.b, st].filter(Boolean));
+    R.procure = { buy, tier, st };
+  });
+  Exp.hook('facilities:rowUpdate', ID, (f, R) => {
+    const A = R.procure;
+    if (!A) return;
+    paintToggle(A.buy, '');
+    let st = '';
+    if (A.tier) {
+      const n = nextTier(f);
+      paintToggle(A.tier, n ? '' : 'Tiers complete');
+      if (n && !n.ready && isOn(A.tier.key)) st = `Auto-tier waits for ${fmt(n.u.req.n)} owned.`;
+    }
+    if (P().paused && (isOn(A.buy.key) || (A.tier && isOn(A.tier.key)))) st = 'Paused.';
+    paintStatus(A.st, st);
+  });
+
+  // Requisition slips (Upgrades and Crew tabs, and the Missions tab's offer): Auto-buy under the Requisition button.
+  Exp.hook('upgrades:slip', ID, (ref) => {
+    const u = ref.u;
+    if (!installed() || u.id === UP.id || u.fac || upgradeCurrency(u) !== 'salvage') return;
+    const T = toggleBtn('upg:' + u.id, 'Auto-buy');
+    T.name = u.name;
+    ref.btn.after(T.b);
+    ref.procure = T;
+  });
+  Exp.hook('upgrades:slipUpdate', ID, (ref) => {
+    if (!ref.procure) return;
+    const u = ref.u;
+    paintToggle(ref.procure, !u.repeatable && has(u.id) ? 'Complete' : u.repeatable && S.run.drills >= CONFIG.survey.drillMax ? 'Max rank' : '');
+  });
+
+  // The Upgrades tab: the purchaser's state, Pause all, and every salvage requisition's choice, including those not
+  // on sale yet and those already complete.
+  let head = null;
+  Exp.hook('upgrades:head', ID, (p) => {
+    head = null;
+    if (!(installed() || notes())) return;
+    const line = el('span', { class: 'num' });
+    const pause = el('button', { type: 'button', class: 'btn small auto-toggle' });
+    pause.addEventListener('click', () => setPaused(!P().paused));
+    const box = el('section', { class: 'procure-box', 'aria-label': 'Procurement' },
+      el('div', { class: 'procure-bar' }, el('b', { text: installed() ? 'Procurement Controller' : 'Procurement Notes' }), line, pause));
+    head = { line, pause, rows: [] };
+    if (installed()) {
+      const list = el('div', { class: 'procure-list' });
+      for (const u of upgs()) {
+        if (u.fac || u.id === UP.id || upgradeCurrency(u) !== 'salvage') continue;
+        const T = toggleBtn('upg:' + u.id, 'Auto-buy');
+        T.name = u.name;
+        const why = el('span', { class: 'procure-why' });
+        list.append(el('div', { class: 'procure-row' }, el('span', { class: 'procure-name', text: u.name }), why, T.b));
+        head.rows.push({ u, T, why });
+      }
+      box.append(el('details', { class: 'procure-all' }, el('summary', { text: 'Auto-buy for every salvage requisition, including those not on sale yet' }), list));
+    } else {
+      box.append(el('p', { class: 'panel-sub', text: 'Procurement Notes buy facilities you switch to Auto-buy on their rows, cheapest first. The Procurement Controller adds specialists, tiers and requisitions.' }));
+    }
+    p.append(box);
+  });
+  function nextUp() {
+    const list = targets().filter((t) => Number.isFinite(t.price) && t.price > 0).sort((a, b) => a.price - b.price || a.order - b.order);
+    return list[0] || null;
+  }
+  Exp.hook('upgrades:update', ID, () => {
+    if (!head) return;
+    const n = Object.keys(P().on).filter((k) => unlocked(k)).length;
+    const nx = P().paused ? null : nextUp();
+    setText(head.line, P().paused ? `paused · ${plural(n, 'switch', 'switches')} on` : n ? `${plural(n, 'switch', 'switches')} on${nx ? ` · next: ${nx.name}, ${fmt(nx.price)} salvage` : ''}` : 'switch Auto-buy or Auto-upgrade on where you want it');
+    setText(head.pause, P().paused ? 'Resume all' : 'Pause all');
+    setAttr(head.pause, 'aria-pressed', !!P().paused);
+    setAttr(head.pause, 'aria-label', P().paused ? 'Resume automatic purchasing' : 'Pause all automatic purchasing');
+    for (const R of head.rows) {
+      const u = R.u;
+      const done = !u.repeatable && has(u.id);
+      const maxed = u.repeatable && S.run.drills >= CONFIG.survey.drillMax;
+      paintToggle(R.T, done ? 'Complete' : maxed ? 'Max rank' : '');
+      setText(R.why, done || maxed ? '' : upgradeAvailable(u) ? '' : (lowerFirst(reqText(u.req)) || '').replace(/\.$/, ''));
+    }
+  });
+  Exp.hook('automation:summary', ID, (parts) => {
+    if (!(installed() || notes())) return;
+    const n = Object.keys(P().on).filter((k) => unlocked(k)).length;
+    parts.push(P().paused ? 'Procurement paused' : `${plural(n, 'auto-buy switch', 'auto-buy switches')} on`);
+  });
+  Exp.hook('manual', ID, (add) => add('Procurement Controller', [
+    'A requisition from Level 2. It adds switches, all off until you turn them on: Auto-upgrade under each specialist’s button in the Crew tab, Auto-buy and Auto-tier on each facility’s row, and Auto-buy on each salvage requisition (the Upgrades tab also lists every requisition, including those not on sale yet).',
+    'Everything switched on is bought by one purchaser, cheapest first: it prices one purchase of each, buys the cheapest if you can pay for it, prices everything again and repeats. It never saves up, never buys several at once and never touches almond water, Echoes, Déjà Vu, doctrines or noclip. Pause all, in the Upgrades tab, holds everything.',
+    'Procurement Notes still unlock Auto-buy on facility rows by themselves; the same purchaser buys them, and it no longer keeps back twice the price.',
+    'Your choices are kept, also through a noclip, and do nothing until what unlocks them is owned again.',
+  ]));
+  // For the tools and tests: HUM.Exp.ask('procure:api').
+  const API = { targets: () => targets().map((t) => ({ key: t.key, price: t.price })), procure, setOn, setPaused, isOn, installed, nextUp: () => nextUp(),
+    history: () => history.slice(), clearHistory: () => { history.length = 0; } };
+  Exp.hook('procure:api', ID, () => API);
+})();
 // <<< EXP-AUTO-UPGRADE
 //
 // ---------------------------------------------------------------------------
