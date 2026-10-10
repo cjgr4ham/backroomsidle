@@ -2984,6 +2984,11 @@ function sanitizeExt(v, scope) {
 
 // How long each version-1 expedition counted its salvage for, to carry expeditions under way into missions.
 const V1_EXPEDITION_SECS = { stairwell: 150, flooded: 600, boilerheart: 1800, deepend: 1200, records: 3600, longwalk: 7200 };
+// The most levels a converted specialist starts with on each Backrooms level (Level FUN last): about what a run of
+// this version reaches there, so a large old crew does not become an absurdly strong specialist. Wanderers beyond it
+// are refunded as the almond water they cost to hire (version 1: 4 × 1.25^n each).
+const V1_SPEC_CAP = [3, 7, 12, 18, 22, 26, 30];
+const V1_HIRE = { base: 4, growth: 1.25 };
 /**
  * Version 1 → 2 (the redesigned economy). Works on a copy and returns it as version 2, so it runs once per save:
  * loading the result never migrates again. Facilities, upgrades, research, Memories and everything permanent are kept.
@@ -3007,11 +3012,22 @@ function migrateV1(raw, notes) {
   const total = Math.max(n(crew.total), assigned + missing + onTrips);
   const loose = total - assigned;
   if (loose > 0) specs.scavenge = (specs.scavenge || 0) + loose;
-  for (const id in specs) specs[id] = Math.min(CONFIG.specialists.max, specs[id]);
+  const completed = run.exitFound === true && int(run.level, 0, 0, FINAL_LEVEL) === FINAL_LEVEL;
+  const cap = V1_SPEC_CAP[completed ? FUN_LEVEL : int(run.level, 0, 0, FINAL_LEVEL)];
+  let excess = 0;
+  for (const id in specs) if (specs[id] > cap) { excess += specs[id] - cap; specs[id] = cap; }
   run.specialists = specs;
   run.away = {};
   if (total > 0) {
     notes.push(`Your ${plural(total, 'wanderer')} became specialists: ${SPECIALISTS.filter((s) => specs[s.id]).map((s) => `${s.name} level ${specs[s.id]}`).join(', ')}.${loose > 0 ? ` The ${plural(loose, 'wanderer')} without a job (idle, missing or away) joined the Scavenger.` : ''}`);
+  }
+  if (excess > 0) {
+    // The last ones hired cost the most: refund those.
+    let refund = 0;
+    for (let i = total - excess; i < total; i++) refund += Math.ceil(V1_HIRE.base * Math.pow(V1_HIRE.growth, i));
+    refund = Math.min(refund, 1e15);
+    run.aw = num(run.aw, 0) + refund;
+    notes.push(`A specialist starts at level ${cap} at most on this level, so ${plural(excess, 'wanderer')} went home. Their hiring water came back: +${fmt(refund)} almond water.`);
   }
   delete run.crew;
   // Expeditions under way become missions with the same timing, carrying the salvage they would have brought back.
@@ -3122,6 +3138,8 @@ function sanitizeState(raw) {
   const route = (d.memories.route || 0) > 0, exitMod = (COND[d.condition] || CONDITIONS[0]).mods.exit || 1;
   d.run = sanitizeRun(raw.run, d.time, (lv) => Math.ceil(LEVELS[lv].exit * (route ? 0.7 : 1) * exitMod));
   if (d.run.doctrine && !d.research[d.run.doctrine]) d.run.doctrine = null;
+  // The deepest level ever reached includes the one you are on (a migrated survey can arrive in Level FUN).
+  d.life.maxLevel = clamp(Math.max(Math.floor(d.life.maxLevel), d.run.level), 0, FUN_LEVEL);
   for (const t of notes.slice().reverse()) d.log.unshift({ t: d.run.stats.time, text: t, type: 'terminal', tag: 'UPDATE' });
   if (d.log.length > 80) d.log.length = 80;
   return d;
