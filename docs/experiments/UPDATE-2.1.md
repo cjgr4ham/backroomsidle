@@ -67,7 +67,7 @@ Commits are listed oldest first. Revert newest first.
 | `EXP-AMBIENT-EVENTS` | on | — | slot | `ad1f0f2` | `d08d73b`; uses `crew:attend` if present | — |
 | `EXP-CREW-EQUIPMENT` | on | — | slot + CSS slot | `6d92629` | core; uses `crew:kit` and `crew:kitHide` if present | — |
 | `EXP-MISSION-AUTOREPEAT` | on | `upgrade:dispatch` | slot + CSS slot | `ce92fad` | `53483ec` | — |
-| `EXP-AUTO-UPGRADE` | on | `upgrade:procurement` | slot + CSS slot | `60c2705` | `4cd988d`, `48b06ec`, `53483ec` | — |
+| `EXP-AUTO-UPGRADE` | on | `upgrade:procurement` | slot + CSS slot | `60c2705`, `762a8d2` (its suite no longer needs `EXP-LATE-UPGRADES`) | `4cd988d`, `48b06ec`, `53483ec` | — |
 | `EXP-LATE-FACILITIES` | on | `facility:copier`, `facility:tubes`, `facility:lathe`, `facility:relay` (tiers share them) | slot | `5f994c7`, `a529c70` (tuning) | `ef3064f` | — |
 | `EXP-LATE-UPGRADES` | on | `upgrade:stapler`, `upgrade:lamp`, `upgrade:coffee`, `upgrade:holdmusic`, `upgrade:speeddial`, `upgrade:wedges`, `upgrade:masterkey`, `upgrade:runner` | slot | `51919ec`, `a1b140a` (prices), `6964ea7` (effects) | `ef3064f` | — |
 | `EXP-LATE-RESEARCH` | on | `research:late_filing`, `research:late_acoustics`, `research:late_logistics`, `research:late_crewcraft`, `research:late_cartography`, `research:late_signal` | slot | `2017741`, `4bd5b02` (tuning) | `ef3064f` | — |
@@ -83,6 +83,7 @@ Other commits in the update:
   - `d9faf1d` the Level FUN and rebirth suites follow the balance experiments;
   - `602f4d0` the equivalence check switches `EXP-DV-PRICES` off with the other update flags.
   - `24dae1e` the facilities suite's scroll check measures the tab panels' own scroll (section 6).
+  - `ffa0221` the ledger suite's noise check reads its row again after an update that can rebuild the panel (section 6).
 
 **Persistent data, by experiment.**
 
