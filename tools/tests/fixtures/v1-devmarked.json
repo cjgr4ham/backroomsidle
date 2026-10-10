@@ -1,0 +1,114 @@
+{
+ "v": 1,
+ "created": 1791546798814,
+ "lastSaved": 1791546798861,
+ "time": 0,
+ "iteration": 1,
+ "condition": "standard",
+ "nextCondition": "standard",
+ "echoes": 0,
+ "dv": 0,
+ "dvTotal": 0,
+ "research": {},
+ "deepTheory": 0,
+ "memories": {},
+ "relics": {},
+ "achievements": {},
+ "docs": {},
+ "docsRead": {},
+ "seen": {
+  "visited_facilities": true,
+  "tab_upgrades": true,
+  "tab_expeditions": true
+ },
+ "life": {
+  "rooms": 0,
+  "salvage": 0,
+  "surveys": 0,
+  "anomalies": 0,
+  "incidents": 0,
+  "averted": 0,
+  "noclips": 0,
+  "playTime": 0,
+  "offlineTime": 0,
+  "expeditions": 0,
+  "maxLevel": 0,
+  "exits": 0,
+  "blackouts": 0,
+  "figuresIgnored": 0
+ },
+ "settings": {
+  "volume": 0.6,
+  "muted": false,
+  "ambience": true,
+  "sfx": true,
+  "crt": true,
+  "flicker": true,
+  "shake": true,
+  "distortion": true,
+  "motion": "auto",
+  "numbers": "suffix"
+ },
+ "log": [],
+ "ext": {
+  "dev": {
+   "actions": 3,
+   "first": 1791546738830,
+   "last": 1791546798830,
+   "kinds": [
+    "currency"
+   ]
+  }
+ },
+ "dormant": {},
+ "run": {
+  "salvage": 1000000000,
+  "aw": 0,
+  "sanity": 100,
+  "attention": 0,
+  "peakAttention": 0,
+  "minSanity": 100,
+  "level": 3,
+  "levelRooms": 100,
+  "rooms": 40000,
+  "exitFound": false,
+  "facilities": {},
+  "upgrades": {},
+  "autobuy": {},
+  "crew": {
+   "total": 5,
+   "jobs": {
+    "scavenge": 5,
+    "chart": 0,
+    "dowse": 0,
+    "watch": 0,
+    "archive": 0
+   },
+   "missing": [],
+   "defaultJob": "scavenge"
+  },
+  "expeditions": {},
+  "doctrine": null,
+  "disabled": {},
+  "lightsUntil": 0,
+  "lightsReadyAt": 0,
+  "blackoutUntil": 0,
+  "pendingIncident": null,
+  "incidentGraceUntil": 0,
+  "nextAnomalyAt": 0,
+  "flags": {},
+  "stats": {
+   "salvage": 0,
+   "surveys": 0,
+   "anomalies": 0,
+   "incidents": 0,
+   "averted": 0,
+   "expeditions": 0,
+   "drinks": 0,
+   "waterFinds": 0,
+   "time": 0
+  },
+  "ext": {},
+  "dormant": {}
+ }
+}

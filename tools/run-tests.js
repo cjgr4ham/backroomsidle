@@ -1,6 +1,7 @@
 // Runs every test suite and summarises. Usage: node tools/run-tests.js
-//   tools/functional-test.js   the original 55 checks, with every experiment switched off (?exp=none)
-//   tools/tests/*.test.js      one file per experiment, each with experiments on and off
+//   tools/functional-test.js   the core game with every experiment switched off (?exp=none)
+//   tools/tests/*.test.js      the v2 systems (economy, facilities, specialists, research, entities, Level FUN,
+//                              save migration), one suite per experiment, the server and the interface at four sizes
 const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');

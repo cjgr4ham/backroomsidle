@@ -9,7 +9,30 @@ const { startServer, client, skipUnless } = require('./server-harness');
 let playwright;
 try { playwright = require('playwright'); } catch (e) { playwright = require('/opt/node22/lib/node_modules/playwright'); }
 const NAME = 'EXP-CLOUD-SAVE: account saves, revisions, conflicts and migration';
-const save = (over) => ({ v: 1, iteration: 1, time: 10, dv: 0, dvTotal: 0, run: { level: 0, rooms: 5, salvage: 50 }, life: { noclips: 0 }, ...(over || {}) });
+// A save in the current format (2), with only the fields the server looks at.
+const save = (over) => ({ v: 2, iteration: 1, time: 10, dv: 0, dvTotal: 0, run: { level: 0, rooms: 5, salvage: 50 }, life: { noclips: 0 }, ...(over || {}) });
+// A whole save as a page loaded before the redesign (format 1) uploaded it, for the account `owner` at `revision`:
+// iteration 3, 40 Déjà Vu to spend of 300 earned, 2 noclips, and a crew of 12 (10 in jobs, 1 on an expedition under
+// way, 1 idle), which format 2 replaced with specialists and missions.
+const v1Save = (owner, revision, now) => ({
+  v: 1, created: now - 86400e3, lastSaved: now, time: 5000, iteration: 3, condition: 'standard', nextCondition: 'standard',
+  echoes: 14, dv: 40, dvTotal: 300, research: { pattern: true }, deepTheory: 0, memories: { muscle: 1 }, relics: {},
+  achievements: {}, docs: {}, docsRead: {}, seen: { tab_upgrades: true, tab_crew: true, tab_expeditions: true },
+  life: { rooms: 90000, salvage: 4e7, surveys: 9000, anomalies: 12, incidents: 3, averted: 1, noclips: 2, playTime: 4800, offlineTime: 200,
+    expeditions: 4, maxLevel: 3, exits: 2, blackouts: 0, figuresIgnored: 0 },
+  settings: { volume: 0.6, muted: false, ambience: true, sfx: true, crt: true, flicker: true, shake: true, distortion: true, motion: 'auto', numbers: 'suffix' },
+  log: [], ext: { cloud: { owner, revision, syncedTime: 5000 } }, dormant: {},
+  run: {
+    salvage: 2.5e6, aw: 140, sanity: 90, attention: 10, peakAttention: 30, minSanity: 70, level: 2, levelRooms: 900, rooms: 5700, exitFound: false,
+    facilities: { cart: 30, bench: 12, condenser: 4 }, upgrades: { gloves: true, flashlight: true }, autobuy: {},
+    crew: { total: 12, jobs: { scavenge: 5, chart: 3, dowse: 2, watch: 0, archive: 0 }, missing: [], defaultJob: 'scavenge' },
+    expeditions: { stairwell: { start: 4990, end: 5110, crew: 1, sps: 40, hazard: 0.05 } },
+    doctrine: null, disabled: {}, lightsUntil: 0, lightsReadyAt: 0, blackoutUntil: 0, pendingIncident: null, incidentGraceUntil: 0, nextAnomalyAt: 0,
+    flags: { water: true, expedition: true },
+    stats: { salvage: 9e6, surveys: 4000, anomalies: 3, incidents: 1, averted: 0, expeditions: 2, drinks: 4, waterFinds: 9, time: 1800 },
+    ext: {}, dormant: {},
+  },
+});
 
 (async () => {
   if (skipUnless(['auth.js', 'cloud-save.js'], NAME)) return;
@@ -25,7 +48,7 @@ const save = (over) => ({ v: 1, iteration: 1, time: 10, dv: 0, dvTotal: 0, run: 
   const empty = await A.get('/api/save');
   const p1 = await A.put('/api/save', { baseRevision: null, reason: 'link', data: save() });
   const got = await A.get('/api/save');
-  c.check('a new account has no save; the first upload becomes revision 1 and reads back exactly', empty.data.save === null && p1.status === 200 && p1.data.revision === 1 && JSON.stringify(got.data.save.data) === JSON.stringify(save()) && got.data.save.summary.iteration === 1, [empty.data, p1.data]);
+  c.check('a new account has no save; the first upload (current format, 2) becomes revision 1 and reads back exactly', empty.data.save === null && p1.status === 200 && p1.data.revision === 1 && JSON.stringify(got.data.save.data) === JSON.stringify(save()) && got.data.save.data.v === 2 && got.data.save.summary.iteration === 1, [empty.data, p1.data]);
   const stale = await A.put('/api/save', { baseRevision: 0, data: save({ iteration: 9 }) });
   c.check('a write based on an older revision is refused with the current one (409); nothing is overwritten', stale.status === 409 && stale.data.error === 'conflict' && stale.data.current.revision === 1 && (await A.get('/api/save')).data.save.data.iteration === 1, stale.data);
   const p2 = await A.put('/api/save', { baseRevision: 1, reason: 'autosave', data: save({ iteration: 2 }) });
@@ -36,11 +59,14 @@ const save = (over) => ({ v: 1, iteration: 1, time: 10, dv: 0, dvTotal: 0, run: 
   c.check('earlier versions are kept on deliberate replacements and at most hourly otherwise', p2.data.revision === 2 && p3.data.revision === 3 && p4.data.revision === 4 && JSON.stringify(hist.data.history.map((h) => [h.revision, h.replacedBy])) === JSON.stringify([[3, 'resolve'], [1, 'autosave']]), hist.data);
   c.check('an earlier version can be read back', old.status === 200 && old.data.save.data.iteration === 1 && (await A.get('/api/save/history/2')).status === 404, old.data);
   const bad = await Promise.all([
-    A.put('/api/save', { baseRevision: 4, data: save({ v: 2 }) }), A.put('/api/save', { baseRevision: 4, data: { v: 1, iteration: 1 } }),
+    A.put('/api/save', { baseRevision: 4, data: save({ v: 3 }) }), A.put('/api/save', { baseRevision: 4, data: { v: 2, iteration: 1 } }),
     A.put('/api/save', { baseRevision: 4, data: save({ dv: -5 }) }), A.put('/api/save', { baseRevision: 'x', data: save() }),
     A.put('/api/save', { baseRevision: 4, data: save({ ext: { dev: { actions: 3 } } }) }), A.put('/api/save', { baseRevision: 4, data: save({ pad: 'x'.repeat(600 * 1024) }) }),
   ]);
   c.check('the server checks the save: format, shape, numbers, revision, developer-tool marks (422) and size (413)', JSON.stringify(bad.map((r) => r.status)) === JSON.stringify([400, 400, 400, 400, 422, 413]), bad.map((r) => [r.status, r.data.error]));
+  // Only formats 1 and 2 exist: anything else (a newer format, none, a string) is refused as a format the server does not take.
+  const formats = await Promise.all([3, 0, '2', undefined].map((v) => A.put('/api/save', { baseRevision: 4, data: save({ v }) })));
+  c.check('a save in any format other than 1 or 2 (3, 0, "2", none) is refused as such (400 save_version), and nothing is written', formats.every((r) => r.status === 400 && r.data.error === 'save_version') && (await A.get('/api/save')).data.save.revision === 4, formats.map((r) => [r.status, r.data.error]));
   const B = client(s.url);
   await B.post('/api/auth/register', { username: 'Basil', password: 'fluorescent tubes flicker' });
   const bGet = await B.get('/api/save');
@@ -50,6 +76,11 @@ const save = (over) => ({ v: 1, iteration: 1, time: 10, dv: 0, dvTotal: 0, run: 
   c.check('each account sees and writes only its own save; there is no way to name another account’s', bGet.data.save === null && bOld.status === 404 && bPut.data.revision === 1 && aAfter.data.save.data.iteration === 4 && aAfter.data.save.revision === 4, [bGet.data, bOld.status, aAfter.data.save.revision]);
   const cross = await A.put('/api/save', { baseRevision: 4, data: save() }, { Origin: 'https://evil.example' });
   c.check('a save sent from another site is refused', cross.status === 403, cross.status);
+  // A page loaded before the update still sends format 1. It is kept as sent; the game migrates it when it loads it.
+  const legacySave = v1Save('atlas', 5, Date.now());
+  const legacy = await A.put('/api/save', { baseRevision: 4, reason: 'autosave', data: legacySave });
+  const legacyBack = (await A.get('/api/save')).data.save;
+  c.check('a format-1 save from a page loaded before the update is still accepted, and reads back exactly as sent', legacy.status === 200 && legacy.data.revision === 5 && JSON.stringify(legacyBack.data) === JSON.stringify(legacySave) && legacyBack.summary.iteration === 3 && legacyBack.summary.noclips === 2, [legacy.status, legacy.data]);
 
   // ------------------------------------------------------------- browsers
   const browser = await playwright.chromium.launch();
@@ -119,6 +150,28 @@ const save = (over) => ({ v: 1, iteration: 1, time: 10, dv: 0, dvTotal: 0, run: 
   const tabs = { server: JSON.parse(serverSave('mira').data).iteration, status: (await cloud(tabB)).status };
   c.check('a second tab left behind cannot overwrite the first tab’s newer progress', tabs.server === 4 && tabs.status === 'conflict', tabs);
   await tabB.close();
+
+  // A save from before the update: a page loaded earlier uploaded it in format 1. Signing in with the current game on
+  // a fresh browser loads it migrated into a format-2 game, and nothing it had is lost.
+  const oldPut = await B.put('/api/save', { baseRevision: 1, reason: 'autosave', data: v1Save('basil', 2, Date.now()) });
+  const d5 = await device();
+  await d5.page.evaluate(() => HUM.Exp.ask('account:service').login('Basil', 'fluorescent tubes flicker'));
+  await settled(d5.page).catch(() => {});   // the check below says what went wrong
+  const mig = await d5.page.evaluate(() => {
+    const S = HUM.S, r = S.run;
+    return { status: HUM.Exp.ask('cloud:state').status, v: S.v, iteration: S.iteration, dv: S.dv, dvTotal: S.dvTotal, noclips: S.life.noclips, exits: S.life.exits,
+      memories: S.memories, research: Object.keys(S.research), level: r.level, cart: r.facilities.cart, crew: 'crew' in r, expeditions: 'expeditions' in r,
+      specialists: r.specialists, cloud: S.ext.cloud, told: S.log.filter((e) => e.tag === 'UPDATE').length };
+  });
+  c.check('a format-1 save downloaded from the account is migrated into a format-2 game: the same iteration, Déjà Vu and noclips, its crew now specialists',
+    oldPut.status === 200 && mig.status === 'synced' && mig.v === 2 && mig.iteration === 3 && mig.dv === 40 && mig.dvTotal === 300 && mig.noclips === 2 && mig.exits === 2
+    && mig.memories.muscle === 1 && mig.research.includes('pattern') && mig.level === 2 && mig.cart === 30 && !mig.crew && !mig.expeditions
+    && mig.specialists.scavenge === 7 && mig.specialists.chart === 3 && mig.specialists.dowse === 2 && !!mig.cloud && mig.cloud.owner === 'basil' && mig.cloud.revision === 2 && mig.told > 0, { oldPut: oldPut.status, mig });
+  await d5.page.evaluate(() => HUM.save(true));
+  await until(d5.page, () => HUM.S.ext.cloud && HUM.S.ext.cloud.revision === 3).catch(() => {});
+  const migUp = JSON.parse(serverSave('basil').data);
+  c.check('its next upload stores the game in format 2, with the same iteration, Déjà Vu and noclips', serverSave('basil').revision === 3 && migUp.v === 2 && migUp.iteration === 3 && migUp.dv === 40 && migUp.dvTotal === 300 && migUp.life.noclips === 2 && !('crew' in migUp.run) && !!migUp.run.specialists && migUp.run.specialists.scavenge === 7,
+    { revision: serverSave('basil').revision, v: migUp.v, iteration: migUp.iteration, dvTotal: migUp.dvTotal, noclips: migUp.life.noclips, specialists: migUp.run.specialists });
 
   // Existing local progress joins a new account, once, with an explanation.
   const d3 = await device();

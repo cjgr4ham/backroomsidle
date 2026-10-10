@@ -1,0 +1,159 @@
+{
+ "v": 1,
+ "created": 1791546795768,
+ "lastSaved": 1791546795802,
+ "time": 0,
+ "iteration": 2,
+ "condition": "standard",
+ "nextCondition": "standard",
+ "echoes": 9,
+ "dv": 15,
+ "dvTotal": 40,
+ "research": {
+  "pattern": true,
+  "hum": true,
+  "condense": true,
+  "recursion": true,
+  "listening": true
+ },
+ "deepTheory": 2,
+ "memories": {
+  "muscle": 1,
+  "friends": 1
+ },
+ "relics": {
+  "keys": 1,
+  "vhs": 2
+ },
+ "achievements": {},
+ "docs": {},
+ "docsRead": {},
+ "seen": {
+  "visited_facilities": true,
+  "tab_upgrades": true,
+  "tab_crew": true,
+  "tab_expeditions": true,
+  "tab_noclip": true
+ },
+ "life": {
+  "rooms": 0,
+  "salvage": 0,
+  "surveys": 0,
+  "anomalies": 0,
+  "incidents": 0,
+  "averted": 0,
+  "noclips": 1,
+  "playTime": 0,
+  "offlineTime": 0,
+  "expeditions": 0,
+  "maxLevel": 3,
+  "exits": 0,
+  "blackouts": 0,
+  "figuresIgnored": 0
+ },
+ "settings": {
+  "volume": 0.6,
+  "muted": false,
+  "ambience": true,
+  "sfx": true,
+  "crt": true,
+  "flicker": true,
+  "shake": true,
+  "distortion": true,
+  "motion": "auto",
+  "numbers": "suffix"
+ },
+ "log": [],
+ "ext": {},
+ "dormant": {},
+ "run": {
+  "salvage": 5000000,
+  "aw": 800,
+  "sanity": 80,
+  "attention": 30,
+  "peakAttention": 0,
+  "minSanity": 100,
+  "level": 2,
+  "levelRooms": 12000,
+  "rooms": 20000,
+  "exitFound": false,
+  "facilities": {
+   "cart": 40,
+   "bench": 30,
+   "condenser": 8,
+   "beacon": 12,
+   "vat": 20,
+   "foundry": 6
+  },
+  "upgrades": {
+   "flashlight": true,
+   "wheel": true,
+   "notebook": true,
+   "boots": true,
+   "bunks": true,
+   "whistle": true,
+   "tier_cart_0": true,
+   "tier_cart_1": true,
+   "gloves": true,
+   "prybar": true,
+   "cutters": true
+  },
+  "autobuy": {},
+  "crew": {
+   "total": 24,
+   "jobs": {
+    "scavenge": 8,
+    "chart": 4,
+    "dowse": 3,
+    "watch": 2,
+    "archive": 0
+   },
+   "missing": [
+    {
+     "returnAt": 900
+    },
+    {
+     "returnAt": 1200
+    }
+   ],
+   "defaultJob": "scavenge"
+  },
+  "expeditions": {
+   "flooded": {
+    "start": 0,
+    "end": 380,
+    "crew": 3,
+    "sps": 4000,
+    "hazard": 0.1
+   }
+  },
+  "doctrine": null,
+  "disabled": {},
+  "lightsUntil": 0,
+  "lightsReadyAt": 0,
+  "blackoutUntil": 0,
+  "pendingIncident": null,
+  "incidentGraceUntil": 0,
+  "nextAnomalyAt": 0,
+  "flags": {
+   "water": true
+  },
+  "stats": {
+   "salvage": 0,
+   "surveys": 0,
+   "anomalies": 0,
+   "incidents": 0,
+   "averted": 0,
+   "expeditions": 0,
+   "drinks": 0,
+   "waterFinds": 0,
+   "time": 0
+  },
+  "ext": {
+   "click": {
+    "drills": 4
+   }
+  },
+  "dormant": {}
+ }
+}

@@ -9,7 +9,9 @@ let playwright;
 try { playwright = require('playwright'); } catch (e) { playwright = require('/opt/node22/lib/node_modules/playwright'); }
 const NAME = 'EXP-NOCLIP-LEADERBOARD: server-recorded noclips and the ranking';
 const hex = (n) => n.toString(16).padStart(32, '0');
-const report = (lineage, iteration, run) => ({ lineage, iteration, run: { level: 3, exitFound: false, time: 600, salvage: 2e8, gain: 12, ...(run || {}) } });
+// A report as the current game sends it: noclip opens only once the survey is complete, so the run is in Level FUN (6)
+// with the exit found.
+const report = (lineage, iteration, run) => ({ lineage, iteration, run: { level: 6, exitFound: true, time: 600, salvage: 2e8, gain: 12, ...(run || {}) } });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 (async () => {
@@ -33,12 +35,22 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await sleep(1100);
   const forged = await A.post('/api/noclips', { ...report(hex(1), 2), noclips: 9999, total: 9999, count: 9999, rank: 1 });
   c.check('counts, totals and ranks in a report are ignored: the server adds exactly one', forged.status === 201 && forged.data.noclips === 2, forged.data);
+  // Where a noclip can come from: Level FUN, which only completing the survey reaches (so always with the exit), or,
+  // from pages loaded before the update, Level 5 with the exit or Levels 3 to 5 without it. Nothing else.
+  const levels = [];
+  for (const run of [{ level: 6, exitFound: false }, { level: 4, exitFound: true }, { level: 3, exitFound: true }, { level: 0, exitFound: true },
+    { level: 2, exitFound: false }, { level: 0, exitFound: false }, { level: 7, exitFound: true }, { level: 7, exitFound: false }, { level: -1, exitFound: false }]) {
+    const r = await A.post('/api/noclips', report(hex(1), 3, run));
+    levels.push([run.level, run.exitFound, r.status, r.data.error]);
+  }
+  c.check('refused (400): Level FUN without the exit, the exit below Level 5, below Level 3 without the exit, and any level past Level FUN',
+    levels.every(([, , st, err]) => st === 400 && err === 'report_invalid'), levels);
   const invalid = [];
-  for (const [lin, it, run, extra] of [[hex(1), 3, { level: 2 }], [hex(1), 3, { level: 4, exitFound: true }], [hex(1), 3, { gain: 0 }], [hex(1), 3, { time: 5 }], ['not-a-lineage', 3], [hex(1), 0], [hex(1), 3, { level: 5, exitFound: 'yes' }], [hex(1), 3, {}, { devMarked: true }]]) {
+  for (const [lin, it, run, extra] of [[hex(1), 3, { gain: 0 }], [hex(1), 3, { time: 5 }], ['not-a-lineage', 3], [hex(1), 0], [hex(1), 3, { level: 5, exitFound: 'yes' }], [hex(1), 3, { level: 5.5, exitFound: false }], [hex(1), 3, {}, { devMarked: true }]]) {
     invalid.push(await A.post('/api/noclips', { ...report(lin, it, run), ...(extra || {}) }));
   }
-  c.check('reports that cannot be a noclip are refused: below Level 3, an exit off Level 5, no Déjà Vu, too short, no save, no iteration, bad fields; developer-tool saves (422)',
-    JSON.stringify(invalid.map((r) => r.status)) === JSON.stringify([400, 400, 400, 400, 400, 400, 400, 422]), invalid.map((r) => [r.status, r.data.error]));
+  c.check('other reports that cannot be a noclip are refused: no Déjà Vu, too short, no save, no iteration, bad fields; developer-tool saves (422)',
+    JSON.stringify(invalid.map((r) => r.status)) === JSON.stringify([400, 400, 400, 400, 400, 400, 422]), invalid.map((r) => [r.status, r.data.error]));
   const ev = dbq("SELECT COUNT(*) AS n FROM noclip_events e JOIN accounts a ON a.id = e.account_id WHERE a.username_key = 'wanderer_01'")[0].n;
   const tot = dbq("SELECT t.noclips FROM noclip_totals t JOIN accounts a ON a.id = t.account_id WHERE a.username_key = 'wanderer_01'")[0].noclips;
   c.check('the total always equals the recorded noclips', ev === 2 && tot === 2, { ev, tot });
@@ -53,8 +65,16 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const B = await account('LostSignal');
   const C = await account('YellowRoom');
   await account('NeverNoclipped');
-  for (let i = 1; i <= 2; i++) { await B.post('/api/noclips', report(hex(2), i)); await sleep(1050); }
-  for (let i = 1; i <= 3; i++) { await C.post('/api/noclips', report(hex(3), i)); await sleep(1050); }
+  // Their noclips come from every place a noclip is accepted from: pages loaded before the update (Levels 3 to 5
+  // without the exit, Level 5 with it) and the current game (Level FUN with the exit).
+  const kept = [];
+  for (const [who, lin, runs] of [[B, hex(2), [{ level: 3, exitFound: false }, { level: 4, exitFound: false }]],
+    [C, hex(3), [{ level: 5, exitFound: false }, { level: 5, exitFound: true }, { level: 6, exitFound: true }]]]) {
+    for (let i = 0; i < runs.length; i++) { const r = await who.post('/api/noclips', report(lin, i + 1, runs[i])); kept.push([runs[i].level, runs[i].exitFound, r.status]); await sleep(1050); }
+  }
+  const stored = dbq("SELECT e.level, e.exit_found AS exit FROM noclip_events e JOIN accounts a ON a.id = e.account_id WHERE a.username_key IN ('lostsignal', 'yellowroom') ORDER BY e.id").map((e) => [e.level, e.exit === 1]);
+  c.check('recorded: Level FUN with the exit, and from pages loaded before the update, Level 5 with the exit and Levels 3 to 5 without it; each as reported',
+    kept.every(([, , st]) => st === 201) && JSON.stringify(stored) === JSON.stringify(kept.map(([lv, ex]) => [lv, ex])), { kept, stored });
   const p1 = await client(s.url).get('/api/leaderboard?page=1');
   const p2 = await B.get('/api/leaderboard?page=2');
   c.check('accounts are ranked by recorded noclips, most first', p1.data.entries.map((e) => `${e.rank}:${e.username}:${e.noclips}`).join() === '1:YellowRoom:3,2:Wanderer_01:2', p1.data.entries);
@@ -86,27 +106,59 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     page.on('pageerror', (e) => errors.push(e.message));
     page.on('console', (m) => { if (m.type() === 'error' && !/Failed to load resource: (the server responded with a status of 4\d\d|net::ERR_FAILED)/.test(m.text())) errors.push(m.text()); });
   };
+  const soloq = (sql) => { const d = new DatabaseSync(path.join(solo.dataDir, 'the-hum.db')); try { return d.prepare(sql).all(); } finally { d.close(); } };
+  const lanternEvents = () => soloq("SELECT e.level, e.exit_found AS exit FROM noclip_events e JOIN accounts a ON a.id = e.account_id WHERE a.username_key = 'lantern' ORDER BY e.id");
+  const lanternTotal = () => (soloq("SELECT t.noclips FROM noclip_totals t JOIN accounts a ON a.id = t.account_id WHERE a.username_key = 'lantern'")[0] || { noclips: 0 }).noclips;
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 860 } });
   const page = await ctx.newPage();
   watch(page);
+  const posts = [];   // every noclip report this browser sends, as sent
+  page.on('request', (q) => { if (q.method() === 'POST' && /\/api\/noclips$/.test(q.url())) posts.push(q.postDataJSON()); });
   await page.goto(solo.url + '/?exp=-EXP-ACCOUNT-UI#debug');
   await page.waitForFunction(() => window.HUM && HUM.Exp.ask('account:service').state().status === 'signed-out');
   await page.evaluate(() => HUM.Exp.ask('account:service').register('Lantern', 'the corridor never ends'));
   await page.waitForFunction(() => HUM.Exp.ask('cloud:state') ? HUM.Exp.ask('cloud:state').status === 'synced' : true);
-  const doNoclip = () => page.evaluate(() => { const H = HUM, r = H.S.run; H.rt.saveBlocked = false; Object.assign(r, { level: 3, rooms: 30000 }); r.stats.salvage = 1e9; r.stats.time = 900; return H.noclip(); });
+  // A noclip as the game allows it now: the run maps the last room of Level 5, which completes the survey and leads into
+  // Level FUN, and it noclips from there.
+  const doNoclip = () => page.evaluate(() => {
+    const H = HUM, r = H.S.run;
+    H.rt.saveBlocked = false;
+    if (!r.exitFound) { r.level = H.FINAL_LEVEL; H.completeFiniteSurvey(); }
+    r.stats.salvage = 1e12; r.stats.time = 900;
+    return H.noclip();
+  });
   await page.evaluate(() => { HUM.UI.selectTab('archive'); document.querySelector('#panel-archive [data-id="lb"]').click(); });
   await page.waitForFunction(() => document.querySelector('.lb-list li'));
   const before = await page.evaluate(() => [...document.querySelectorAll('.lb-list li')].map((li) => li.textContent));
+  // Noclip stays locked until the survey is complete. Mapping the last room of Level 5 completes it, opens noclip and
+  // leads into Level FUN, but it is not a noclip: only noclip() counts one and reports it.
+  const survey = await page.evaluate(async () => {
+    const H = HUM, r = H.S.run;
+    H.rt.saveBlocked = false;
+    Object.assign(r, { level: H.FINAL_LEVEL, levelRooms: 0 });
+    r.stats.salvage = 1e12; r.stats.time = 900;
+    const locked = { can: H.canNoclip(), noclip: H.noclip(), gain: H.dvPreview() };
+    H.addRooms(H.exitRooms(H.FINAL_LEVEL));
+    await new Promise((res) => setTimeout(res, 600));
+    return { locked, level: r.level, exitFound: r.exitFound, can: H.canNoclip(), noclips: H.S.life.noclips, iteration: H.S.iteration, dvTotal: H.S.dvTotal,
+      queue: JSON.parse(localStorage.getItem('the-hum.noclip-reports') || '[]').length };
+  });
+  c.check('noclip stays locked on Level 5 until the survey is complete; mapping its last room opens noclip in Level FUN, but counts, queues and reports no noclip',
+    !survey.locked.can && survey.locked.noclip === false && survey.locked.gain >= 1 && survey.level === 6 && survey.exitFound && survey.can
+    && survey.noclips === 0 && survey.iteration === 1 && survey.dvTotal === 0 && survey.queue === 0 && posts.length === 0 && lanternTotal() === 0, { survey, posts });
   await doNoclip();
   await page.waitForFunction(() => [...document.querySelectorAll('.lb-list li')].some((li) => /Lantern/.test(li.textContent)), null, { timeout: 8000 });
-  const after = await page.evaluate(() => ({ rows: [...document.querySelectorAll('.lb-list li')].map((li) => li.textContent), mine: document.querySelector('.lb-mine').textContent, you: !!document.querySelector('.lb-list li.you'), source: document.querySelector('.lb-source').textContent, lineage: HUM.S.ext.lb && HUM.S.ext.lb.lineage }));
+  const after = await page.evaluate(() => ({ rows: [...document.querySelectorAll('.lb-list li')].map((li) => li.textContent), mine: document.querySelector('.lb-mine').textContent, you: !!document.querySelector('.lb-list li.you'), source: document.querySelector('.lb-source').textContent, lineage: HUM.S.ext.lb && HUM.S.ext.lb.lineage, dvTotal: HUM.S.dvTotal }));
   c.check('a completed noclip while signed in is recorded, and the open leaderboard refreshes to show it', before.join() === '#1OnlyOne1 noclip' && after.rows.some((t) => /^#\d+Lantern1 noclip$/.test(t)) && after.you && /rank \d+, 1 noclip recorded/.test(after.mine), after);
+  c.check('the noclip is reported from Level FUN with the exit found, for the iteration that ended and the Déjà Vu it awarded, and recorded so',
+    posts.length === 1 && posts[0].iteration === 1 && posts[0].run.level === 6 && posts[0].run.exitFound === true && posts[0].run.gain === after.dvTotal && after.dvTotal >= 1
+    && JSON.stringify(lanternEvents()) === '[{"level":6,"exit":1}]', { posts, events: lanternEvents(), dvTotal: after.dvTotal });
   c.check('the leaderboard names its source: this server’s records', /this server’s records/.test(after.source) && /32/.test(String(after.lineage && after.lineage.length)), after.source);
   await page.reload();
   await page.waitForFunction(() => HUM.Exp.ask('account:service').state().status === 'signed-in');
   await page.waitForTimeout(400);
-  const counted = dbq.call ? new DatabaseSync(path.join(solo.dataDir, 'the-hum.db')).prepare("SELECT COUNT(*) AS n FROM noclip_events e JOIN accounts a ON a.id = e.account_id WHERE a.username_key = 'lantern'").get().n : -1;
-  c.check('reloading right after the noclip does not count it twice', counted === 1, counted);
+  const counted = lanternEvents().length;
+  c.check('reloading right after the noclip does not count it twice', counted === 1 && lanternTotal() === 1, counted);
   // The line this experiment offers the Records panel (EXP-NOCLIP-STATISTICS shows it there when present).
   const records = await page.evaluate(() => HUM.Exp.ask('noclip:records') || '');
   c.check('the line offered to the Noclip tab’s Records panel says what the server has recorded', /Leaderboard: 1 noclip recorded by the server, rank \d+/.test(records), records);
@@ -121,27 +173,36 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await page.reload();
   await page.waitForFunction(() => HUM.Exp.ask('account:service').state().status === 'signed-in');
   await page.waitForFunction(() => JSON.parse(localStorage.getItem('the-hum.noclip-reports') || '[]').length === 0, null, { timeout: 8000 });
-  const two = new DatabaseSync(path.join(solo.dataDir, 'the-hum.db')).prepare("SELECT t.noclips FROM noclip_totals t JOIN accounts a ON a.id = t.account_id WHERE a.username_key = 'lantern'").get().noclips;
-  c.check('a noclip made while the server cannot be reached waits in this browser and is recorded later, once', queued === 1 && two === 2, { queued, two });
+  const two = lanternTotal();
+  c.check('a noclip made while the server cannot be reached waits in this browser and is recorded later, once', queued === 1 && two === 2 && lanternEvents().length === 2, { queued, two });
 
-  // Developer tools: never reported.
+  // Developer tools: never reported. Here the survey is completed with the developer menu's own action, which opens
+  // noclip and marks the save.
   await sleep(1100);
-  await page.evaluate(() => { HUM.S.ext.dev = { actions: 1, first: 1, last: 1, kinds: ['add salvage'] }; });
-  await doNoclip();
+  const sentBeforeDev = posts.length;
+  await page.evaluate(() => HUM.UI.selectTab('settings'));
+  await page.click('#set-dev');
+  await page.evaluate(() => HUM.UI.selectTab('dev'));
+  await page.click('#panel-dev button:text-is("Complete the survey")');
+  await page.click('.modal button:has-text("Change this save")');
+  const devMark = await page.evaluate(() => ({ level: HUM.S.run.level, exitFound: HUM.S.run.exitFound, kinds: (HUM.S.ext.dev || { kinds: [] }).kinds }));
+  const devDone = await doNoclip();
   await page.waitForTimeout(400);
-  const devCount = new DatabaseSync(path.join(solo.dataDir, 'the-hum.db')).prepare("SELECT t.noclips FROM noclip_totals t JOIN accounts a ON a.id = t.account_id WHERE a.username_key = 'lantern'").get().noclips;
+  const devCount = lanternTotal();
   const devQueue = await page.evaluate(() => JSON.parse(localStorage.getItem('the-hum.noclip-reports') || '[]').length);
-  c.check('a noclip in a save changed with developer tools is not reported', devCount === 2 && devQueue === 0, { devCount, devQueue });
+  c.check('a noclip in a save changed with developer tools (here: the survey completed from the Dev tab) is not reported', devMark.level === 6 && devMark.exitFound && devMark.kinds.includes('exit') && devDone === true && devCount === 2 && devQueue === 0 && posts.length === sentBeforeDev,
+    { devMark, devDone, devCount, devQueue, sent: posts.length - sentBeforeDev });
 
   // Switched off: no tab, no reports; the save's own count and the server's records stay.
   await page.evaluate(() => { delete HUM.S.ext.dev; HUM.Exp.set('EXP-NOCLIP-LEADERBOARD', false); });
   await sleep(1100);
   const localBefore = await page.evaluate(() => HUM.S.life.noclips);
+  const sentBeforeOff = posts.length;
   await doNoclip();
   await page.waitForTimeout(400);
   const off = await page.evaluate(() => { HUM.UI.selectTab('archive'); HUM.UI.update(true); return { tab: !!document.querySelector('#panel-archive [data-id="lb"]'), local: HUM.S.life.noclips }; });
-  const offCount = new DatabaseSync(path.join(solo.dataDir, 'the-hum.db')).prepare("SELECT t.noclips FROM noclip_totals t JOIN accounts a ON a.id = t.account_id WHERE a.username_key = 'lantern'").get().noclips;
-  c.check('switched off, there is no Leaderboard tab and nothing is reported; the save’s own count still rises and the server keeps its records', !off.tab && off.local === localBefore + 1 && offCount === 2, { off, offCount });
+  const offCount = lanternTotal();
+  c.check('switched off, there is no Leaderboard tab and nothing is reported; the save’s own count still rises and the server keeps its records', !off.tab && off.local === localBefore + 1 && offCount === 2 && posts.length === sentBeforeOff, { off, offCount, sent: posts.length - sentBeforeOff });
   await page.evaluate(() => HUM.Exp.reset());
 
   // A copy without a server says so and shows no list.

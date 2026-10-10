@@ -34,7 +34,7 @@ async function open(query, viewport) {
   /** Reloads the page, keeping storage (and therefore the save). */
   const reload = async () => { await page.reload(); await page.waitForTimeout(250); };
   /** Starts a new empty game in the open page without reloading. */
-  const fresh = () => ev(() => { window.HUM.replaceState(window.HUM.sanitizeState({ v: 1 })); window.HUM.rt.saveBlocked = true; });
+  const fresh = () => ev(() => { window.HUM.replaceState(window.HUM.sanitizeState({ v: 2 })); window.HUM.rt.saveBlocked = true; });
   return { browser, page, errors, ev, reload, fresh };
 }
 
