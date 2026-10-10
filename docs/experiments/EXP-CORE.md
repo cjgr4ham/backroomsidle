@@ -194,6 +194,7 @@ These changes are additive and the save version stays 1.
   - Step splitting, several mission returns in one long step, and exact single-unit purchases.
 - **Fixtures** written by `c903362` itself: `tools/tests/fixtures/pre-update-l4.json`, `-l5.json` and `-fun.json`. They are made by `make-pre-update-saves.js`.
 - Every existing suite passed unchanged on this round: 23 suites, 629 checks.
+- **Later rounds of update 2.1** added hooks used by single experiments, each in its own commit: `View.features`, `view:light`, `level:exit`, `fun:floorRooms` and `dv:price`. Each answers nothing unless an experiment hooks it. With every update-2.1 experiment off, the equivalence check on the final head still finds 96 of 96 checkpoints identical. `core.test.js` now makes 37 checks, its registry check listing the update's twelve experiments. The full results are in [UPDATE-2.1.md](UPDATE-2.1.md).
 
 ## Limitations
 

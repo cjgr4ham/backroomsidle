@@ -29,7 +29,28 @@ Entries from the first update have twelve fields. Entries from the final specifi
 | [server/README.md](../../server/README.md) | The game server: environment variables, backups and the security model |
 | [DEPLOYMENT.md](../DEPLOYMENT.md) | Deploying the game and server at a public URL: what was verified, the steps, and what is still needed |
 
-## Version 2 (current)
+## Update 2.1 (current)
+
+Visible crew, automation, and Levels 4 and 5. Twelve experiments, each with its own flag (on by default), code slots, commits, suite and entry. [UPDATE-2.1.md](UPDATE-2.1.md) has the explanation, the feature and rollback matrix (flags, content ids, files, commits, dependencies, revert order), how to switch each one off, switching off versus restoring old code or a save, the balance report, and the tests and limitations.
+
+| Identifier | What it changes | Entry | Suite |
+| --- | --- | --- | --- |
+| `EXP-CREW-VISIBLE` | Recruited specialists at work in the corridor, in world space | [entry](EXP-CREW-VISIBLE.md) | `crew-visible.test.js` (23) |
+| `EXP-ROOM-VARIETY` | Junctions, work bays, recesses and storage; traces of the crew's work | [entry](EXP-ROOM-VARIETY.md) | `room-variety.test.js` (15) |
+| `EXP-PRODUCTION-FEEDBACK` | Sparse captions of what the crew have already brought in | [entry](EXP-PRODUCTION-FEEDBACK.md) | `production-feedback.test.js` (10) |
+| `EXP-AMBIENT-EVENTS` | Small events ahead that resolve on their own, never during danger | [entry](EXP-AMBIENT-EVENTS.md) | `ambient-events.test.js` (25) |
+| `EXP-CREW-EQUIPMENT` | Kit at levels 5, 15, 30 and 45, on the figures and in the Crew tab | [entry](EXP-CREW-EQUIPMENT.md) | `crew-equipment.test.js` (11) |
+| `EXP-MISSION-AUTOREPEAT` | The Dispatch Protocol: per-mission Auto-repeat | [entry](EXP-MISSION-AUTOREPEAT.md) | `dispatch.test.js` (35) |
+| `EXP-AUTO-UPGRADE` | The Procurement Controller: cheapest-first automatic purchases | [entry](EXP-AUTO-UPGRADE.md) | `procurement.test.js` (34) |
+| `EXP-LATE-FACILITIES` | Four facilities in the Level 4 and 5 waves | [entry](EXP-LATE-FACILITIES.md) | `late-facilities.test.js` (20) |
+| `EXP-LATE-UPGRADES` | Eight requisitions for Levels 4 and 5 | [entry](EXP-LATE-UPGRADES.md) | `late-upgrades.test.js` (20) |
+| `EXP-LATE-RESEARCH` | Six projects, two repeatable with their own ranks | [entry](EXP-LATE-RESEARCH.md) | `late-research.test.js` (22) |
+| `EXP-LATE-BALANCE` | The Night Office's exit at 220,000; Level FUN's floors at 200,000 with the late content | [entry](EXP-LATE-BALANCE.md) | `late-balance.test.js` (10) |
+| `EXP-DV-PRICES` | The Déjà Vu shop priced so one run cannot buy it out | [entry](EXP-DV-PRICES.md) | `dv-prices.test.js` (10) |
+
+The update's infrastructure is part of `EXP-CORE`, in its own commits listed in [EXP-CORE.md](EXP-CORE.md) and the matrix. Covered by `update-core.test.js` (29) and `tools/equivalence-check.js`.
+
+## Version 2
 
 The v2 redesign rebuilt the game around what one survey by hand recovers. Its full entry is [V2-REDESIGN.md](V2-REDESIGN.md).
 
@@ -62,7 +83,7 @@ Each entry has an "In v2" note on what changed for it. `EXP-CORE` remains the in
 
 ### Tests (v2)
 
-`node tools/run-tests.js` runs 23 suites with 629 checks. The last full run passed every one; see the commit history for the date.
+`node tools/run-tests.js` runs every suite: 23 suites with 629 checks at v2, and 36 suites with update 2.1 (see [UPDATE-2.1.md](UPDATE-2.1.md) for the last full run). The table below is v2's; update 2.1's suites are listed above.
 
 | Suite | What it covers | Checks |
 | --- | --- | --- |
