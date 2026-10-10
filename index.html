@@ -7942,22 +7942,47 @@ function onKey(e) {
 // ---------------------------------------------------------------------------
 //
 // >>> EXP-LATE-BALANCE
-// Late balance. Measured with the balance bot (tools/balance-report.js), the Night Office was the longest required
-// stretch of a run: about 18 minutes for an active player (2 surveys a second), against a target of about 15. Its exit
-// moves from 350,000 to 260,000 rooms, which measures about 15 minutes. Nothing else changes and nothing becomes harder:
-// with this experiment off the Night Office is exactly as before. Rooms already mapped on the level are never touched.
+// Late balance. Two changes measured with the balance bot (tools/balance-report.js), each with its own content switch:
+//   balance:office_exit  The Night Office's exit at 220,000 rooms instead of 350,000. It was the longest required
+//                        stretch of a run: about 18 minutes for an active player against a target of about 15.
+//   balance:fun_floors   Level FUN's floors at 200,000 rooms instead of 50,000, while the late content is on. Level
+//                        FUN's depth grows with every room mapped, and the late content maps several times more rooms
+//                        there; with 50,000-room floors a long stay in Level FUN ran away. A run already past its
+//                        first floor when this applies keeps the floors it had, so loading never lowers your depth.
+// Neither makes anything cost more. With this experiment off, both are exactly as before.
 // Registry entry and rollback: docs/experiments/EXP-LATE-BALANCE.md
 (function lateBalanceExperiment() {
   const ID = 'EXP-LATE-BALANCE';
   Exp.define({
     id: ID,
     name: 'Late balance',
-    summary: 'The Night Office’s exit at 260,000 rooms instead of 350,000: measured to bring the longest required stretch of a run to about 15 minutes.',
+    summary: 'The Night Office’s exit at 220,000 rooms instead of 350,000, and Level FUN’s floors at 200,000 rooms while the late content is on. Each has its own content switch.',
   });
   // Exits set by this experiment, by level id. Each is a reduction: no level gets longer.
-  const EXITS = { office: 260000 };
-  Exp.hook('level:exit', ID, (lv) => { const L = LEVELS[lv]; return L && EXITS[L.id] != null ? EXITS[L.id] : undefined; });
-  Exp.hook('balance:api', ID, () => ({ EXITS: { ...EXITS } }));
+  const EXITS = { office: 220000 };
+  Exp.hook('level:exit', ID, (lv) => {
+    if (!Exp.itemOn('balance:office_exit')) return undefined;
+    const L = LEVELS[lv];
+    return L && EXITS[L.id] != null ? EXITS[L.id] : undefined;
+  });
+
+  // Level FUN's floor size for this run, decided once when the run first steps into Level FUN, and kept in the run
+  // (run.ext.funfloor). A save loaded already past its first floor keeps the size it had (50,000).
+  const FLOOR_ROOMS = 200000, OLD_FLOOR = 50000;
+  const LATE = ['EXP-LATE-FACILITIES', 'EXP-LATE-UPGRADES', 'EXP-LATE-RESEARCH'];
+  const lateOn = () => LATE.some((id) => Exp.on(id));
+  Exp.ext.run.funfloor = (v) => (v === FLOOR_ROOMS || v === OLD_FLOOR ? v : undefined);
+  Exp.hook('step', ID, () => {
+    const r = S.run;
+    if (!isEndless(r.level) || r.ext.funfloor) return;
+    r.ext.funfloor = r.levelRooms >= OLD_FLOOR ? OLD_FLOOR : FLOOR_ROOMS;
+  });
+  Exp.hook('fun:floorRooms', ID, () => {
+    if (!Exp.itemOn('balance:fun_floors') || !lateOn()) return undefined;
+    const size = S.run.ext.funfloor || (S.run.levelRooms >= OLD_FLOOR ? OLD_FLOOR : FLOOR_ROOMS);   // as the step decides
+    return size === OLD_FLOOR ? undefined : FLOOR_ROOMS;
+  });
+  Exp.hook('balance:api', ID, () => ({ EXITS: { ...EXITS }, FLOOR_ROOMS, lateOn }));
 })();
 // <<< EXP-LATE-BALANCE
 //
