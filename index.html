@@ -6370,13 +6370,12 @@ function onKey(e) {
   /** The specialists Old Friends brings at a level, in order: the Scavenger first. */
   const friendsOf = (L) => SPECIALISTS.slice(0, CFG.friends.specs(L));
   const names = (list) => (list.length > 1 ? `${list.slice(0, -1).map((s) => `the ${s.name}`).join(', ')} and the ${list[list.length - 1].name}` : list.length ? `the ${list[0].name}` : 'nobody');
-  /** Starting bonuses, applied once to each new iteration. Old Friends' first level is applied by the game itself. */
-  function topUp() {
-    const r = S.run;
-    if (stashAmount() > r.salvage) r.salvage = stashAmount();   // to the balance only, not to salvage recovered: it earns no Déjà Vu
-    for (const s of friendsOf(friendsLevel())) if (!r.specialists[s.id]) r.specialists[s.id] = 1;   // level 1, never lowering one you raised
-  }
-  Exp.hook('noclip:newRun', ID, topUp);
+  /** Starting salvage: to the balance only, not to salvage recovered, so it earns no Déjà Vu. */
+  function topUpSalvage() { if (stashAmount() > S.run.salvage) S.run.salvage = stashAmount(); }
+  /** Starting specialists at level 1, never lowering one you raised. Old Friends' first level is applied by the game itself. */
+  function topUpFriends() { for (const s of friendsOf(friendsLevel())) if (!S.run.specialists[s.id]) S.run.specialists[s.id] = 1; }
+  // Applied once to each new iteration. Buying a level applies only that item's own bonus (it never hands out the other).
+  Exp.hook('noclip:newRun', ID, () => { topUpSalvage(); topUpFriends(); });
 
   // ------------------------------------------------------------- the upgrades
   const mult = (x) => `×${Math.abs(x - Math.round(x)) < 1e-9 ? fmt(Math.round(x)) : x < 10 ? x.toFixed(2) : fmtRate(x)}`;
@@ -6394,12 +6393,12 @@ function onKey(e) {
       max: CFG.stash.max, level: () => lv('stash'), cost: (L) => CFG.stash.cost(L),
       now: (L) => (L ? `Every iteration starts with ${fmt(CFG.stash.amount(L))} salvage.` : 'Iterations start with no salvage.'),
       next: (L) => `Every iteration starts with ${fmt(CFG.stash.amount(L + 1))} salvage. You also get it now if you have less.`,
-      buy: (L) => { setLv('stash', L + 1); topUp(); } },
+      buy: (L) => { setLv('stash', L + 1); topUpSalvage(); } },
     friends: { id: 'friends', name: MEM.friends.name, flavor: MEM.friends.flavor, max: CFG.friends.max, level: friendsLevel,
       cost: (L) => (L ? CFG.friends.cost(L) : MEM.friends.cost),
       now: (L) => (L ? `Every iteration starts with ${names(friendsOf(L))} recruited, at level 1.` : 'Not remembered yet.'),
       next: (L) => `Every iteration starts with ${names(friendsOf(L + 1))} recruited, at level 1. They join you now too.`,
-      buy: (L) => { if (!L) return buyMemory('friends'); setLv('friends', L + 1); topUp(); return true; } },
+      buy: (L) => { if (!L) return buyMemory('friends'); setLv('friends', L + 1); topUpFriends(); return true; } },
     bargain: { id: 'bargain', name: 'Remembered Prices', flavor: 'You have bought every one of these before. You know what they are really worth.',
       max: CFG.bargain.max, level: () => lv('bargain'), cost: (L) => CFG.bargain.cost(L),
       now: (L) => (L ? `Facilities cost ${pct(CFG.bargain.off(L))} less.` : 'Facilities cost the full price.'),
