@@ -7827,6 +7827,39 @@ function onKey(e) {
 // ---------------------------------------------------------------------------
 //
 // >>> EXP-LATE-RESEARCH
+// Late research. Six projects that open once you have reached Level 4 or 5, with prerequisites: research speed,
+// noise, missions and specialist work, and two repeatable projects (rooms per survey, specialist work) that keep
+// scaling in Level FUN. Each repeatable keeps its own rank (S.ext.ranks), apart from Deep Survey Theory. Research
+// stays timed and one project at a time.
+// Content ids: research:late_filing, research:late_acoustics, research:late_logistics, research:late_crewcraft,
+// research:late_cartography, research:late_signal.
+// Registry entry and rollback: docs/experiments/EXP-LATE-RESEARCH.md
+(function lateResearchExperiment() {
+  const ID = 'EXP-LATE-RESEARCH';
+  Exp.define({
+    id: ID,
+    name: 'Late research',
+    summary: 'Adds six research projects for Levels 4 and 5, two of them repeatable with their own ranks: research speed, noise, missions, specialist work and rooms per survey.',
+  });
+  const add = (def) => Content.research(ID, { tier: 5, ...def });
+  add({ id: 'late_filing', name: 'Filing Theory', cost: 1500, time: 480, req: ['autodoc'], reqLevel: 4, fx: { researchTime: 0.75 },
+    effect: 'Research takes 25% less time.', flavor: 'File the finished research by date. The dates are in the future, so it finishes sooner.' });
+  add({ id: 'late_acoustics', name: 'Corridor Acoustics', cost: 2500, time: 600, req: ['deeplisten'], reqLevel: 4, fx: { noise: 0.7, absorb: 2 },
+    effect: 'Noise ×0.7, and +2 noise absorption.', flavor: 'Measure how the Long Hallway carries sound. Then teach it to carry less of ours.' });
+  add({ id: 'late_logistics', name: 'Night Logistics', cost: 4000, time: 720, req: ['expcart'], reqLevel: 4, fx: { missionTime: 0.75, missionHaul: 1.5 },
+    effect: 'Missions take 25% less time and bring back ×1.5 salvage.', flavor: 'Missions leave on the hour and come back on the half hour. Nobody can explain the half hour.' });
+  add({ id: 'late_crewcraft', name: 'Crew Craft', cost: 12000, time: 900, req: ['phantom'], reqLevel: 5, fx: { spec: 1.5 },
+    effect: 'Specialists work ×1.5.', flavor: 'Teach the crew the trades of the Night Office. They learn faster than we can teach.' });
+  add({ id: 'late_cartography', name: 'Hallway Cartography', repeatable: true, baseCost: 8000, growth: 1.7, time: 600, timeGrowth: 1.15,
+    req: ['recursion', 'late_logistics'], reqLevel: 5, fxRank: { rooms: 0.1 },
+    effect: '+10% rooms per survey per rank (repeatable).', flavor: 'Every rank maps the hallway further. The hallway grows to keep the ratio.' });
+  add({ id: 'late_signal', name: 'Signal Theory', repeatable: true, baseCost: 15000, growth: 1.75, time: 900, timeGrowth: 1.15,
+    req: ['late_crewcraft'], reqLevel: 5, fxRank: { spec: 0.12 },
+    effect: '+12% specialist work per rank (repeatable).', flavor: 'Tune the crew to the hum. They work in time with it, and it keeps time with them.' });
+  Exp.hook('manual', ID, (add2) => add2('Late research', [
+    'Reaching Level 4 opens Filing Theory (research 25% faster), Corridor Acoustics (less noise) and Night Logistics (faster, richer missions). Reaching Level 5 opens Crew Craft (specialists ×1.5) and two repeatable projects with their own ranks: Hallway Cartography (+10% rooms per survey per rank) and Signal Theory (+12% specialist work per rank).',
+  ]));
+})();
 // <<< EXP-LATE-RESEARCH
 //
 // ---------------------------------------------------------------------------
