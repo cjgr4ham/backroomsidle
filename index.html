@@ -1645,7 +1645,7 @@ function fmtEcho(n) {
   return (Math.floor(n * 10) / 10).toFixed(1);
 }
 function fmtTime(sec) {
-  sec = Math.max(0, Math.ceil(sec));
+  sec = Math.max(0, Math.ceil(sec - 1e-6));   // a countdown rounds up, but not on rounding noise (30.0000000001 is 30s)
   if (sec < 60) return `${sec}s`;
   const m = Math.floor(sec / 60), s = sec % 60;
   if (sec < 3600) return `${m}m ${String(s).padStart(2, '0')}s`;
@@ -6105,7 +6105,7 @@ function onKey(e) {
         row(field('Rooms', 'rooms', { min: 0, step: 1 }),
           button('Map rooms', () => change('rooms', () => addRooms(Math.max(0, Math.floor(Number(form.rooms) || 0))))))));
 
-      // Research, requisitions, machines
+      // Research, requisitions, facilities
       const resOpts = RESEARCH.filter((R) => R.repeatable || !researched(R.id)).map((R) => [R.id, R.repeatable ? `${R.name} (rank ${S.deepTheory + 1})` : R.name]);
       const active = S.researching ? RES[S.researching.id] : null;
       const upgOpts = UPGRADES.filter((u) => upgradeAvailable(u) && upgradeHome(u) !== 'none').map((u) => [u.id, `${u.name} (${u.cat})`]);
@@ -6119,7 +6119,7 @@ function onKey(e) {
           button('Complete all', () => change('research', () => { for (const R of RESEARCH) if (!R.repeatable) S.research[R.id] = true; if (S.researching && !RES[S.researching.id].repeatable) S.researching = null; }))) : el('p', { class: 'panel-sub', text: 'All research is complete.' }),
         upgOpts.length ? row(select('Requisition', 'upgrade', upgOpts),
           button('Install for free', () => change('free requisition', () => installFree(form.upgrade)))) : el('p', { class: 'panel-sub', text: 'No requisition can be installed right now.' }),
-        facOpts.length ? row(select('Machine', 'fac', facOpts), field('Count', 'facN', { min: 1, step: 1 }),
+        facOpts.length ? row(select('Facility', 'fac', facOpts), field('Count', 'facN', { min: 1, step: 1 }),
           button('Add facilities', () => change('facilities', () => { const f = FAC[form.fac]; if (f && facVisible(f)) S.run.facilities[f.id] = count(f.id) + Math.max(0, Math.floor(Number(form.facN) || 0)); }))) : null));
 
       // Specialists
