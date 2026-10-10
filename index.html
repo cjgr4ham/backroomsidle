@@ -865,7 +865,7 @@ body.reduce-motion .vp-banner { animation: none; opacity: 1; }
 //   Survey power never depends on passive income, and passive income never depends on survey power.
 // =============================================================================
 
-const GAME_VERSION = '2.0.0';
+const GAME_VERSION = '2.1.0';
 const SAVE_VERSION = 2;
 
 // ---------------------------------------------------------------------------
@@ -881,6 +881,7 @@ const CONFIG = {
   storageKey: 'the-hum.save',
   backupKey: 'the-hum.save.backup',
   v1CopyKey: 'the-hum.save.v1', // the last version-1 save found in this browser, kept untouched when it is migrated
+  preUpdateKey: 'the-hum.save.pre-2.1', // the save as a build before 2.1.0 left it, kept untouched when this build first loads it
   offline: {
     baseCapHours: 8,            // time away is credited for at most this long (upgradable)
     maxSteps: 600,              // offline catch-up is split into at most this many steps
@@ -1481,15 +1482,35 @@ const Exp = {
   hooks: {},         // hook name -> [{ id, fn, priority }]
   ext: { state: {}, run: {} },  // save namespaces owned by experiments: key -> sanitizer
   storageKey: 'the-hum.experiments',
+  // Individual content (one facility, requisition or research project) can be switched off on its own, by its stable
+  // content id (`facility:<id>`, `upgrade:<id>`, `research:<id>`). Developer settings, like the flags: never saved.
+  items: {},         // content id -> false, chosen in the developer menu (persisted separately from saves)
+  itemSession: {},   // content id -> boolean, chosen with ?content= in the URL (this page load only)
+  itemKey: 'the-hum.content',
+  ver: 0,            // changes whenever a flag or a content switch may have changed, for caches
   define(def) {
     if (!this.defs[def.id]) this.ids.push(def.id);
     this.defs[def.id] = { defaultOn: true, ...def };
+    this.ver++;
   },
   on(id) {
     if (!this.defs[id]) return false;
     if (id in this.session) return this.session[id];
     if (id in this.overrides) return this.overrides[id];
     return this.defs[id].defaultOn;
+  },
+  /** One piece of content, by its content id. Content is on unless switched off here. */
+  itemOn(cid) {
+    if (cid in this.itemSession) return this.itemSession[cid];
+    if (cid in this.items) return this.items[cid];
+    return true;
+  },
+  setItem(cid, value) {
+    delete this.itemSession[cid];
+    if (value) delete this.items[cid]; else this.items[cid] = false;
+    Store.set(this.itemKey, JSON.stringify(this.items));
+    this.ver++;
+    this.runAll('flagsChanged', cid, !!value);
   },
   /** Registers a handler tied to an experiment. Handlers of disabled experiments are skipped by run() and ask(). */
   hook(name, id, fn, priority = 0) {
@@ -1512,13 +1533,21 @@ const Exp = {
     if (list) for (const h of list) if (this.on(h.id)) { const v = h.fn(...args); if (v !== undefined) return v; }
     return undefined;
   },
-  /** A short string that changes whenever any flag changes, for interface rebuild checks. */
-  sig() { return this.ids.map((id) => (this.on(id) ? '1' : '0')).join(''); },
+  /** A short string that changes whenever any flag or content switch changes, for interface rebuild checks. */
+  sig() {
+    const s = this.ids.map((id) => (this.on(id) ? '1' : '0')).join('');
+    const off = Object.keys(this.items).concat(Object.keys(this.itemSession)).filter((c) => !this.itemOn(c));
+    return off.length ? s + '|' + off.sort().join() : s;
+  },
   load() {
     try {
       const raw = JSON.parse(Store.get(this.storageKey) || '{}');
       if (isObj(raw)) for (const k in raw) if (typeof raw[k] === 'boolean') this.overrides[k] = raw[k];
     } catch (e) { /* unreadable flags are ignored; defaults apply */ }
+    try {
+      const raw = JSON.parse(Store.get(this.itemKey) || '{}');
+      if (isObj(raw)) for (const k in raw) if (raw[k] === false && /^[a-z]+:[A-Za-z0-9_-]{1,48}$/.test(k)) this.items[k] = false;
+    } catch (e) { /* unreadable content switches are ignored: everything is on */ }
     // ?exp=none, ?exp=all, ?exp=EXP-A,-EXP-B (on, off) for tests. Not saved.
     const m = /[?&]exp=([^&#]*)/.exec(window.location.search || '');
     if (m) {
@@ -1528,39 +1557,55 @@ const Exp = {
         else if (tok) this.session[tok.replace(/^\+/, '')] = true;
       }
     }
+    // ?content=-facility:copier,+research:late_signal switches single pieces of content for this page load.
+    const c = /[?&]content=([^&#]*)/.exec(window.location.search || '');
+    if (c) {
+      for (const tok of decodeURIComponent(c[1]).split(',')) {
+        if (tok.startsWith('-')) this.itemSession[tok.slice(1)] = false;
+        else if (tok) this.itemSession[tok.replace(/^\+/, '')] = true;
+      }
+    }
+    this.ver++;
   },
   set(id, value) {
     if (!this.defs[id]) return;
     delete this.session[id];
     this.overrides[id] = !!value;
     Store.set(this.storageKey, JSON.stringify(this.overrides));
+    this.ver++;
     this.runAll('flagsChanged', id, !!value);
   },
-  /** Returns every flag to its default and forgets developer choices. */
+  /** Returns every flag and content switch to its default and forgets developer choices. */
   reset() {
     this.overrides = {};
     this.session = {};
+    this.items = {};
+    this.itemSession = {};
     Store.remove(this.storageKey);
+    Store.remove(this.itemKey);
+    this.ver++;
     this.runAll('flagsChanged', null, null);
   },
 };
-/** Content (such as an upgrade) tagged with an experiment exists only while that experiment is on. */
-const contentOn = (x) => !x || !x.exp || Exp.on(x.exp);
+/**
+ * Content (such as an upgrade) tagged with an experiment exists only while that experiment is on, and content with a
+ * content id (`cid`) only while that piece of content is not switched off. Untagged content is always on.
+ */
+const contentOn = (x) => !x || ((!x.exp || Exp.on(x.exp)) && (!x.cid || Exp.itemOn(x.cid)));
 
 // Generated facility tier upgrades, installed from each facility's row at 10 / 25 / 50 owned: ×2 to a salvage
 // facility's bonus, ×1.5 to support equipment.
 const tierStep = (f) => (f.kind === 'salvage' ? 2 : 1.5);
+/** A facility's tier upgrades. Tiers of switchable content share its experiment and content id. */
+const tierUpgradesFor = (f) => f.tiers.map((t, i) => ({
+  id: `tier_${f.id}_${i}`, cat: 'Facility', fac: f.id, tier: i, name: t.name, flavor: t.flavor,
+  cost: { salvage: Math.ceil(f.cost * Math.pow(f.growth, CONFIG.tierCounts[i]) * CONFIG.tierCostMult[i]) },
+  req: { fac: f.id, n: CONFIG.tierCounts[i] },
+  effect: `${f.name}: bonus ×${tierStep(f)}.`,
+  ...(f.exp ? { exp: f.exp } : null), ...(f.cid ? { cid: f.cid } : null),
+}));
 const TIER_UPGRADES = [];
-for (const f of FACILITIES) {
-  f.tiers.forEach((t, i) => {
-    TIER_UPGRADES.push({
-      id: `tier_${f.id}_${i}`, cat: 'Facility', fac: f.id, tier: i, name: t.name, flavor: t.flavor,
-      cost: { salvage: Math.ceil(f.cost * Math.pow(f.growth, CONFIG.tierCounts[i]) * CONFIG.tierCostMult[i]) },
-      req: { fac: f.id, n: CONFIG.tierCounts[i] },
-      effect: `${f.name}: bonus ×${tierStep(f)}.`,
-    });
-  });
-}
+for (const f of FACILITIES) TIER_UPGRADES.push(...tierUpgradesFor(f));
 const UPGRADES = BASE_UPGRADES.concat(TIER_UPGRADES);
 
 const byId = (list) => Object.fromEntries(list.map((x) => [x.id, x]));
@@ -1574,6 +1619,50 @@ const ANOM = byId(ANOMALIES);
 const INC = byId(INCIDENTS);
 const DOC = byId(DOCS);
 const SPEC = byId(SPECIALISTS);
+
+/**
+ * Content added by an experiment from its own slot: a facility (with its tiers), a requisition or a research project.
+ * Each gets the experiment's tag and a stable content id, so it can be switched off with the experiment or on its own
+ * (see contentOn). Registered once, before the game loads; the definitions stay in the lists while switched off, so
+ * saves keep their data (counts, ownership, ranks, projects under way) and nothing is granted twice when it returns.
+ */
+const Content = {
+  facility(exp, def) {
+    const f = { tiers: [], ...def, exp, cid: `facility:${def.id}` };
+    FACILITIES.push(f); FAC[f.id] = f;
+    for (const u of tierUpgradesFor(f)) { TIER_UPGRADES.push(u); UPGRADES.push(u); UPG[u.id] = u; }
+    Exp.ver++;
+    return f;
+  },
+  upgrade(exp, def) {
+    const u = { ...def, exp, cid: `upgrade:${def.id}` };
+    BASE_UPGRADES.push(u); UPGRADES.push(u); UPG[u.id] = u;
+    Exp.ver++;
+    return u;
+  },
+  research(exp, def) {
+    const R = { req: [], ...def, exp, cid: `research:${def.id}` };
+    RESEARCH.push(R); RES[R.id] = R;
+    Exp.ver++;
+    return R;
+  },
+  /** Every piece of switchable content, for the developer menu. */
+  all() { return [...FACILITIES, ...BASE_UPGRADES, ...RESEARCH].filter((x) => x.cid); },
+};
+// The content that exists right now: everything untagged, plus switchable content that is on. Cached per switch change.
+const liveCache = { ver: -1, fac: null, upg: null, res: null };
+function live() {
+  if (liveCache.ver !== Exp.ver) {
+    liveCache.fac = FACILITIES.filter(contentOn);
+    liveCache.upg = UPGRADES.filter(contentOn);
+    liveCache.res = RESEARCH.filter(contentOn);
+    liveCache.ver = Exp.ver;
+  }
+  return liveCache;
+}
+const facs = () => live().fac;
+const upgs = () => live().upg;
+const ress = () => live().res;
 
 
 // ---------------------------------------------------------------------------
@@ -1740,12 +1829,21 @@ const memRank = (id) => S.memories[id] || 0;
 const relic = (id) => (S.relics[id] || 0) > 0;
 const relicsFound = () => RELICS.reduce((n, r) => n + (relic(r.id) ? 1 : 0), 0);
 const count = (id) => S.run.facilities[id] || 0;
-const totalFacilities = () => FACILITIES.reduce((n, f) => n + count(f.id), 0);
+const totalFacilities = () => facs().reduce((n, f) => n + count(f.id), 0);
 const condMods = () => (COND[S.condition] || CONDITIONS[0]).mods;
 const lightsOut = () => S.run.lightsUntil > S.time;
 const blackedOut = () => S.run.blackoutUntil > S.time;
 const achievementCount = () => Object.keys(S.achievements).length;
 const lightsUnlocked = () => S.run.level >= 1 || S.life.maxLevel >= 1;
+/** A requisition that is installed and whose content is on: switched-off content gives nothing, and is kept. */
+const owned = (u) => has(u.id) && contentOn(u);
+/** Ranks of a repeatable research project: Deep Survey Theory keeps its own counter, every other project its own rank. */
+const rankOf = (R) => (R.id === 'deeptheory' ? S.deepTheory : ((S.ext.ranks && S.ext.ranks[R.id]) || 0));
+function setRank(R, n) {
+  if (R.id === 'deeptheory') { S.deepTheory = n; return; }
+  if (!isObj(S.ext.ranks)) S.ext.ranks = {};
+  S.ext.ranks[R.id] = n;
+}
 const tierCount = (f) => f.tiers.reduce((n, _, i) => n + (has(`tier_${f.id}_${i}`) ? 1 : 0), 0);
 const tierMult = (f) => Math.pow(tierStep(f), tierCount(f));
 const specLevel = (id) => S.run.specialists[id] || 0;
@@ -1787,8 +1885,13 @@ function reqText(req) {
 const facVisible = (f) => S.run.level >= f.level;
 /** Purchasable now, wherever it is listed. */
 const upgradeAvailable = (u) => contentOn(u) && !has(u.id) && reqMet(u.req) && (!u.repeatable || S.run.drills < CONFIG.survey.drillMax);
-/** The tab that lists an upgrade: tiers on their facility's row, crew requisitions in the Crew tab, the rest in Upgrades. */
-const upgradeHome = (u) => (u.fac && u.tier != null ? 'facilities' : u.cat === 'Crew' ? 'crew' : 'upgrades');
+/**
+ * The tab that lists an upgrade: tiers on their facility's row, crew requisitions in the Crew tab, the rest in Upgrades,
+ * unless the upgrade names its own `home` tab.
+ */
+const upgradeHome = (u) => u.home || (u.fac && u.tier != null ? 'facilities' : u.cat === 'Crew' ? 'crew' : 'upgrades');
+/** Tabs other than Upgrades that list requisitions, as the Upgrades tab points to them. */
+const HOME_TABS = { expeditions: 'Missions' };
 const upgradeVisible = (u) => upgradeAvailable(u) && upgradeHome(u) === 'upgrades';
 
 function sanityBand(s) {
@@ -1810,8 +1913,8 @@ function attentionBand(a) {
 // ---------------------------------------------------------------------------
 function derive() {
   const r = S.run;
-  const X = { r, L: LEVELS[r.level], c: condMods(), on: lightsOut() ? 0 : 1 };
-  const D = { fac: {}, spec: {} };
+  const X = { r, L: LEVELS[r.level], c: condMods(), on: lightsOut() ? 0 : 1, fx: gatherFx() };
+  const D = { fac: {}, spec: {}, fx: X.fx };
   D.lightsOut = X.on === 0;
   deriveMultipliers(D, X);
   deriveFacilities(D, X);
@@ -1823,6 +1926,43 @@ function derive() {
   deriveSanity(D, X);
   return D;
 }
+
+/**
+ * Effects that content declares as data instead of by id: `fx` on a requisition or a research project, `fxRank` per
+ * rank of a repeatable project, and the share of a `kind: 'share'` facility toward its `target`. Switched-off content
+ * counts for nothing. Every value is a multiplier (1 when nothing applies) except `hand` and `absorb`, which add.
+ * With no such content every value is neutral, so the numbers are exactly those of the game without it.
+ */
+const FX_NEUTRAL = { survey: 1, facBoost: 1, spec: 1, chart: 1, rooms: 1, water: 1, echo: 1, noise: 1,
+  missionTime: 1, missionHaul: 1, missionWater: 1, researchTime: 1, researchSpeed: 1, hand: 0, absorb: 0 };
+function addFx(fx, add, n) {
+  for (const k in add) {
+    if (!(k in fx)) continue;
+    if (k === 'hand' || k === 'absorb') fx[k] += add[k] * n;
+    else fx[k] *= n === 1 ? add[k] : Math.pow(add[k], n);
+  }
+}
+function gatherFx() {
+  const fx = { ...FX_NEUTRAL };
+  const L = live();
+  for (const u of L.upg) if (u.fx && has(u.id)) addFx(fx, u.fx, 1);
+  for (const R of L.res) {
+    if (R.repeatable) {
+      const n = R.fxRank ? rankOf(R) : 0;
+      if (n > 0) for (const k in R.fxRank) if (k in fx) fx[k] *= 1 + R.fxRank[k] * n;
+    } else if (R.fx && researched(R.id)) addFx(fx, R.fx, 1);
+  }
+  let shares = null;
+  for (const f of L.fac) {
+    if (f.kind !== 'share' || !(f.target in fx)) continue;
+    const n = count(f.id);
+    if (n > 0 && !((S.run.disabled[f.id] || 0) > S.time)) (shares || (shares = {}))[f.target] = ((shares && shares[f.target]) || 0) + n * f.bonus * tierMult(f);
+  }
+  if (shares) for (const k in shares) fx[k] *= 1 + shares[k];
+  return fx;
+}
+/** The data-driven effects now (see gatherFx), for calculations outside derive(). */
+const fxNow = () => gatherFx();
 
 /** Bonuses shared by several outputs, and the multipliers each output starts from. */
 function deriveMultipliers(D, X) {
@@ -1838,17 +1978,19 @@ function deriveMultipliers(D, X) {
   D.depth = L.surveyMult * (1 + CONFIG.fun.floorBonus * D.floor);
   // Hand tools: added to the base of every survey you make by hand.
   let hand = 0;
-  for (const u of BASE_UPGRADES) if (u.hand && has(u.id)) hand += u.hand;
+  for (const u of BASE_UPGRADES) if (u.hand && owned(u)) hand += u.hand;
   if (has('satchel')) hand += 0.01 * totalFacilities();
+  hand += X.fx.hand;
   D.hand = hand;
   D.base = CONFIG.survey.baseSalvage + hand;
   // Survey upgrades: multiply the salvage of every survey you make by hand.
   let su = 1;
-  for (const u of BASE_UPGRADES) if (u.mult && has(u.id)) su *= u.mult;
+  for (const u of BASE_UPGRADES) if (u.mult && owned(u)) su *= u.mult;
   if (researched('pattern')) su *= 1.5;
   if (memRank('muscle')) su *= 2;
   if (r.doctrine === 'doc_wet') su *= 0.5;
   if (relic('vhs')) su *= 1.1;
+  su *= X.fx.survey;
   D.surveyUpg = su;
   D.drill = 1 + CONFIG.survey.drillStep * r.drills;
   // Facility boosts: multiply every salvage facility's bonus.
@@ -1860,6 +2002,7 @@ function deriveMultipliers(D, X) {
   if (relic('keys')) fb *= 1.05;
   fb *= (c.facility || 1);
   fb *= 1 + 0.15 * S.deepTheory;
+  fb *= X.fx.facBoost;
   D.facBoost = fb;
   // How hard the specialists work.
   let eff = 1;
@@ -1870,6 +2013,7 @@ function deriveMultipliers(D, X) {
   if (researched('phantom')) eff *= 1.5;
   if (r.doctrine === 'doc_wet') eff *= 1.5;
   if (relic('shoe')) eff *= 1.05;
+  eff *= X.fx.spec;
   D.specEff = eff;
   // Almond water from every source, before condensers.
   let wm = D.dvMult * recur;
@@ -1878,19 +2022,22 @@ function deriveMultipliers(D, X) {
   if (r.doctrine === 'doc_wet') wm *= 3;
   if (relic('bottle')) wm *= 1.1;
   wm *= (c.aw || 1);
+  wm *= X.fx.water;
   D.waterMult = wm;
   // Echoes from every source, before arrays.
   D.attnEcho = 1 + r.attention / (researched('exposure') ? 25 : 50);
   let em = recur * (c.echo || 1);
   if (relic('photo')) em *= 1.1;
+  em *= X.fx.echo;
   D.echoMult = em;
   // Rooms every survey maps (yours and the Cartographer's), before beacons.
   let rps = 1;
-  for (const u of BASE_UPGRADES) if (u.rooms && has(u.id)) rps *= u.rooms;
+  for (const u of BASE_UPGRADES) if (u.rooms && owned(u)) rps *= u.rooms;
   if (researched('recursion')) rps *= 2;
   if (memRank('muscle')) rps *= 1.5;
   if (relic('needle')) rps *= 1.1;
   rps *= (c.rooms || 1);
+  rps *= X.fx.rooms;
   D.roomsBase = rps;
 }
 
@@ -1900,7 +2047,7 @@ function deriveFacilities(D, X) {
   const dampMult = has('foamglue') ? 1.5 : 1;
   const listen = researched('deeplisten') ? 2 : 1;
   let points = 0, water = 0, rooms = 0, echo = 0, absorbFac = 0, rawNoise = 0;
-  for (const f of FACILITIES) {
+  for (const f of facs()) {
     const n = count(f.id);
     const off = (r.disabled[f.id] || 0) > S.time;
     const tm = tierMult(f);
@@ -1915,6 +2062,7 @@ function deriveFacilities(D, X) {
     else if (f.kind === 'water') water += total;
     else if (f.kind === 'survey') rooms += total;
     else if (f.kind === 'echo') echo += total;
+    else if (f.kind === 'share') { /* counted in gatherFx(), toward its target */ }
     else absorbFac += total;
     if (!off) rawNoise += n * f.noise;
   }
@@ -1954,7 +2102,7 @@ function deriveSpecialists(D, X) {
   D.idleSalvage = w('scavenge') * D.depth * D.global;    // passive salvage per second, lights on
   D.spsNominal = D.idleSalvage;
   D.sps = D.idleSalvage * on;
-  D.autoSurveys = w('chart') * on;
+  D.autoSurveys = w('chart') * X.fx.chart * on;
   D.roomsPerSec = D.autoSurveys * D.roomsPerSurvey;
   D.aws = w('dowse') * D.waterMult * on;
   D.watchAbsorb = w('watch') * (has('nightwatch') ? 2 : 1);
@@ -1972,9 +2120,10 @@ function deriveNoise(D, X) {
   if (memRank('remembers')) nm *= 0.8;
   if (relic('badge')) nm *= 0.95;
   nm *= (c.noise || 1);
+  nm *= X.fx.noise;
   D.noiseMult = nm;
   D.noise = X.rawNoise * nm * X.on;
-  let absorb = CONFIG.attention.baseAbsorb + (researched('hum') ? 1 : 0) + X.absorbFac + D.watchAbsorb + (relic('tile') ? 0.5 : 0);
+  let absorb = CONFIG.attention.baseAbsorb + (researched('hum') ? 1 : 0) + X.absorbFac + D.watchAbsorb + (relic('tile') ? 0.5 : 0) + X.fx.absorb;
   absorb *= (X.L.absorbMult || 1);
   D.absorb = absorb;
 }
@@ -2063,7 +2212,7 @@ function enterLevel(i, carry) {
   const L = LEVELS[i];
   log(`${levelLabel(i)}. ${L.blurb}`, 'terminal', isEndless(i) ? 'FUN' : 'EXIT FOUND');
   if (i === 1) log('Kill the Lights is now available. Use it to shed attention, stop an incident, or make an entity lose interest.', 'terminal', 'TERMINAL');
-  const wave = FACILITIES.filter((f) => f.level === i);
+  const wave = facs().filter((f) => f.level === i);
   if (wave.length) log(`New facilities: ${wave.map((f) => f.name).join(', ')}. See Facilities.`, 'terminal', 'FACILITIES');
   noteOffline(`Reached ${levelLabel(i)}.`);
   rt.structureDirty = true;
@@ -2087,17 +2236,25 @@ function completeFiniteSurvey(carry) {
 
 /**
  * Advances the game by dt seconds. `offline` skips everything that needs you present. A research project that
- * finishes inside the step splits it, so its effect starts exactly when it completes, also during catch-up.
+ * finishes inside the step splits it, so its effect starts exactly when it completes, also during catch-up. An
+ * experiment can split it at its own events too (`step:split` answers the earliest event time inside the step), so
+ * a coarse step of time away handles each event at its moment instead of collapsing several into one.
  */
 function step(dt, offline) {
-  const A = S.researching;
-  if (A && A.end > S.time && A.end < S.time + dt - 1e-9) {
-    const first = A.end - S.time;
+  let left = dt;
+  for (let guard = 0; guard < 64; guard++) {
+    const t1 = S.time + left;
+    let cut = null;
+    const A = S.researching;
+    if (A && A.end > S.time && A.end < t1 - 1e-9) cut = A.end;
+    const ev = Exp.ask('step:split', S.time, cut == null ? t1 : cut);
+    if (ev !== undefined && ev > S.time + 1e-9 && ev < (cut == null ? t1 : cut) - 1e-9) cut = ev;
+    if (cut == null) break;
+    const first = cut - S.time;
     advance(first, offline);
-    advance(dt - first, offline);
-    return;
+    left -= first;
   }
-  advance(dt, offline);
+  advance(left, offline);
 }
 function advance(dt, offline) {
   const r = S.run;
@@ -2144,6 +2301,7 @@ function advance(dt, offline) {
 
 function updateTimers() {
   const r = S.run;
+  syncResearch();
   if (S.researching && S.time >= S.researching.end - 1e-6) completeResearch();
   for (const id in r.disabled) {
     if (r.disabled[id] <= S.time) {
@@ -2166,7 +2324,13 @@ function updateTimers() {
     }
   }
   for (const id in r.missions) {
-    if (r.missions[id].end <= S.time) completeMission(id);
+    // A mission an experiment sends again at once can be due again within a long step of time away: each return is
+    // handled at its own time, once.
+    for (let g = 0; g < 64 && r.missions[id] && r.missions[id].end <= S.time; g++) {
+      const end = r.missions[id].end;
+      completeMission(id);
+      Exp.run('mission:done', id, end);
+    }
   }
   if (r.blackoutUntil && r.blackoutUntil <= S.time) {
     r.blackoutUntil = 0;
@@ -2188,7 +2352,7 @@ function updateIncidents(dt) {
 const workingSpecialists = () => SPECIALISTS.filter((s) => recruited(s.id) && !specAway(s.id));
 function incidentPossible(inc) {
   const r = S.run;
-  if (inc.id === 'breach') return FACILITIES.some((f) => f.kind === 'salvage' && count(f.id) > 0 && !r.disabled[f.id]);
+  if (inc.id === 'breach') return facs().some((f) => f.kind === 'salvage' && count(f.id) > 0 && !r.disabled[f.id]);
   if (inc.id === 'taken') return workingSpecialists().length > 0;
   if (inc.id === 'raid') return r.salvage > 1;
   return true;
@@ -2200,7 +2364,7 @@ function scheduleIncident() {
   const inc = pickWeighted(options);
   let target = null;
   if (inc.id === 'breach') {
-    const owned = FACILITIES.filter((f) => f.kind === 'salvage' && count(f.id) > 0 && !r.disabled[f.id]);
+    const owned = facs().filter((f) => f.kind === 'salvage' && count(f.id) > 0 && !r.disabled[f.id]);
     target = pickWeighted(owned.map((f) => ({ id: f.id, weight: count(f.id) }))).id;
   }
   const warn = incidentWarning();
@@ -2459,8 +2623,9 @@ function blackout() {
 }
 
 function autobuy() {
+  if (Exp.ask('autobuy:run')) return;   // an experiment runs automatic purchasing instead (one purchaser, never two)
   if (!memRank('procure')) return;
-  for (const f of FACILITIES) {
+  for (const f of facs()) {
     if (!S.run.autobuy[f.id] || !facVisible(f)) continue;
     for (let i = 0; i < 20; i++) {
       const cost = Math.ceil(facilityCost(f, count(f.id), 1));
@@ -2544,6 +2709,11 @@ function maxAffordable(f, owned, budget) {
   while (n < 10000 && Math.ceil(facilityCost(f, owned, n + 1)) <= budget) n++;
   return n;
 }
+/** Exactly `n` more units at their exact price, whatever the buy mode: the quote automatic purchasing uses. */
+function unitQuote(f, n = 1) {
+  const cost = Math.ceil(facilityCost(f, count(f.id), n));
+  return { n, cost, ok: Number.isFinite(cost) && cost > 0 && Wallet.can('salvage', cost) };
+}
 /** Quantity and exact price for the current buy mode. */
 function buyQuote(f) {
   const owned = count(f.id);
@@ -2594,15 +2764,22 @@ function survey() {
   return true;
 }
 
-function buyFacility(id) {
+/**
+ * Buys facilities: the quantity of the buy mode, or exactly `opts.n` units (automatic purchasing). `opts.quiet` skips
+ * the sound and the first-purchase line, for purchases an experiment reports together. The checks and the payment are
+ * the same either way.
+ */
+function buyFacility(id, opts) {
   const f = FAC[id];
-  if (!f || !facVisible(f)) return false;
-  const q = buyQuote(f);
+  if (!f || !contentOn(f) || !facVisible(f)) return false;
+  const q = opts && opts.n ? unitQuote(f, opts.n) : buyQuote(f);
   if (!q.ok) return false;
   Wallet.pay('salvage', q.cost);
   S.run.facilities[id] = count(id) + q.n;
-  Sound.play('buy');
-  if (count(id) === q.n) log(`${f.name} commissioned.`, 'gain', 'BUILT');
+  if (!(opts && opts.quiet)) {
+    Sound.play('buy');
+    if (count(id) === q.n) log(`${f.name} commissioned.`, 'gain', 'BUILT');
+  }
   return true;
 }
 
@@ -2610,19 +2787,22 @@ function drillCost() { return Math.ceil(1000 * Math.pow(5, S.run.drills)); }
 function upgradeCurrency(u) { return u.cost.aw != null ? 'aw' : 'salvage'; }
 function upgradePrice(u) { return u.cost.aw != null ? u.cost.aw : u.cost.salvage; }
 function canAffordUpgrade(u) { return Wallet.can(upgradeCurrency(u), upgradePrice(u)); }
-function buyUpgrade(id) {
+/** Buys a requisition (or a rank of Survey Drills). `quiet`: no sound or log line, for purchases reported together. */
+function buyUpgrade(id, quiet) {
   const u = UPG[id];
   if (!u || !upgradeAvailable(u) || !canAffordUpgrade(u)) return false;
-  Wallet.pay(upgradeCurrency(u), upgradePrice(u));
+  const price = upgradePrice(u);
+  if (!(Number.isFinite(price) && price > 0)) return false;
+  Wallet.pay(upgradeCurrency(u), price);
   if (u.repeatable) {
     S.run.drills = Math.min(CONFIG.survey.drillMax, S.run.drills + 1);
-    log(`Survey Drills, rank ${S.run.drills}. Surveys you make by hand recover +${Math.round(S.run.drills * CONFIG.survey.drillStep * 100)}% salvage.`, 'gain', 'TRAINING');
+    if (!quiet) log(`Survey Drills, rank ${S.run.drills}. Surveys you make by hand recover +${Math.round(S.run.drills * CONFIG.survey.drillStep * 100)}% salvage.`, 'gain', 'TRAINING');
   } else {
     S.run.upgrades[id] = true;
-    log(`${u.name} installed. ${u.effect}`, 'gain', 'REQUISITION');
+    if (!quiet) log(`${u.name} installed. ${u.effect}`, 'gain', 'REQUISITION');
   }
   rt.structureDirty = true;
-  Sound.play('buy');
+  if (!quiet) Sound.play('buy');
   return true;
 }
 
@@ -2673,14 +2853,21 @@ function canHire(s) {
   const lvl = specLevel(s.id);
   return lvl < CONFIG.specialists.max && (lvl > 0 || specOpen(s)) && Wallet.can('salvage', specCost(s, lvl));
 }
-/** Recruits a specialist (level 0 → 1) or raises their level by one. They start, or keep, working at once. */
-function hireSpecialist(id) {
+/**
+ * Recruits a specialist (level 0 → 1) or raises their level by one. They start, or keep, working at once. `quiet`:
+ * no sound, and only the arrival is logged, for purchases reported together.
+ */
+function hireSpecialist(id, quiet) {
   const s = SPEC[id];
   if (!s || !canHire(s)) return false;
   const lvl = specLevel(id);
   Wallet.pay('salvage', specCost(s, lvl));
   S.run.specialists[id] = lvl + 1;
   rt.structureDirty = true;
+  if (quiet) {
+    if (lvl === 0) log(s.arrive, 'note', 'ARRIVAL');
+    return true;
+  }
   Sound.play('buy');
   const D = derive();
   if (lvl === 0) {
@@ -2707,6 +2894,7 @@ function missionDuration(m) {
   if (has('maps')) d *= 0.8;
   if (memRank('shift')) d *= 0.7;
   if (relic('tape')) d *= 0.95;
+  d *= fxNow().missionTime;
   return d;
 }
 function missionHazard(m) {
@@ -2714,13 +2902,14 @@ function missionHazard(m) {
   if (has('rope')) h *= 0.6;
   return clamp(h, 0, 0.95);
 }
-function missionWater(m) { return Math.ceil(m.water * (has('canteens') ? 0.85 : 1)); }
+function missionWater(m) { return Math.ceil(m.water * (has('canteens') ? 0.85 : 1) * fxNow().missionWater); }
 /** A mission's salvage: a share of what the Scavenger makes over the mission's length, never less than its floor at
  *  this level's depth. It is passive income, so it follows the Scavenger, never your survey power. */
 function missionSalvage(m, D) {
   let s = Math.max(m.salvageMin * D.depth * D.global, D.idleSalvage * m.duration * CONFIG.missions.haulShare);
   if (has('packs')) s *= 2;
   if (researched('expcart')) s *= 1.5;
+  s *= D.fx ? D.fx.missionHaul : 1;
   return s;
 }
 const missionReady = (m) => specLevel(m.needs.id) >= m.needs.level;
@@ -2728,16 +2917,22 @@ function canLaunch(m) {
   const r = S.run;
   return r.level >= m.level && !r.missions[m.id] && missionReady(m) && Wallet.can('aw', missionWater(m));
 }
-function launchMission(id) {
+/**
+ * Sends a mission. Supplies, length, hazard and haul are worked out the same way however it is sent. `opts.at` starts
+ * it at an earlier moment of the game clock (a mission sent again the moment the last one returned, during time away);
+ * `opts.quiet` skips the sound.
+ */
+function launchMission(id, opts) {
   const m = MIS[id];
   if (!m || !canLaunch(m)) return false;
   const r = S.run, D = derive();
   Wallet.pay('aw', missionWater(m));
   const dur = missionDuration(m);
-  r.missions[id] = { start: S.time, end: S.time + dur, salvage: missionSalvage(m, D), hazard: missionHazard(m) };
+  const at = opts && opts.at != null ? Math.min(S.time, opts.at) : S.time;
+  r.missions[id] = { start: at, end: at + dur, salvage: missionSalvage(m, D), hazard: missionHazard(m) };
   if (!r.flags.expedition) { r.flags.expedition = true; rt.structureDirty = true; }
   log(`A team sets out for ${m.name}. Back in about ${fmtTime(dur)}.`, 'info', 'MISSION');
-  Sound.play('buy');
+  if (!(opts && opts.quiet)) Sound.play('buy');
   return true;
 }
 function completeMission(id) {
@@ -2789,14 +2984,19 @@ function findRelic(tierIndex) {
 // A project is paid for once, when it starts, and takes time on the game clock: the same clock as missions and
 // production, so it advances while you play and while you are away (up to the offline cap, like everything else).
 // Its effect starts only when it completes. One project runs at a time; it is kept through noclips.
-function researchCost(R) { return R.repeatable ? Math.ceil(R.baseCost * Math.pow(R.growth, S.deepTheory)) : R.cost; }
+// Repeatable projects each keep their own rank (rankOf): Deep Survey Theory in S.deepTheory, the others in S.ext.ranks.
+function researchCost(R) { return R.repeatable ? Math.ceil(R.baseCost * Math.pow(R.growth, rankOf(R))) : R.cost; }
+/** How long a project takes, with what speeds research up now (data-driven effects; ×1 without any). */
 function researchTime(R, rank) {
-  return R.repeatable ? R.time * Math.pow(R.timeGrowth, (rank == null ? S.deepTheory + 1 : rank) - 1) : R.time;
+  const base = R.repeatable ? R.time * Math.pow(R.timeGrowth, (rank == null ? rankOf(R) + 1 : rank) - 1) : R.time;
+  const fx = fxNow();
+  return fx.researchTime === 1 && fx.researchSpeed === 1 ? base : base * fx.researchTime / fx.researchSpeed;
 }
-function researchAvailable(R) { return R.req.every(researched); }
+/** Prerequisites met: the projects it needs, and the deepest level ever reached if it names one (`reqLevel`). */
+function researchAvailable(R) { return R.req.every(researched) && (R.reqLevel == null || S.life.maxLevel >= R.reqLevel); }
 const researchDone = (R) => !R.repeatable && researched(R.id);
 function canResearch(R) {
-  return !S.researching && researchAvailable(R) && !researchDone(R) && Wallet.can('echoes', researchCost(R));
+  return !S.researching && contentOn(R) && !researchPaused(R.id) && researchAvailable(R) && !researchDone(R) && Wallet.can('echoes', researchCost(R));
 }
 /** Starts a research project. */
 function doResearch(id) {
@@ -2804,7 +3004,7 @@ function doResearch(id) {
   if (!R || !canResearch(R)) return false;
   const cost = researchCost(R), time = researchTime(R);
   Wallet.pay('echoes', cost);
-  S.researching = { id: R.id, rank: R.repeatable ? S.deepTheory + 1 : 0, cost, start: S.time, end: S.time + time };
+  S.researching = { id: R.id, rank: R.repeatable ? rankOf(R) + 1 : 0, cost, start: S.time, end: S.time + time };
   rt.structureDirty = true;
   Sound.play('research');
   log(`Research started: ${R.name}${R.repeatable ? `, rank ${S.researching.rank}` : ''}. Ready in ${fmtTime(time)}.`, 'echo', 'RESEARCH');
@@ -2817,7 +3017,7 @@ function completeResearch() {
   S.researching = null;
   const R = RES[A.id];
   if (!R) return false;
-  if (R.repeatable) S.deepTheory = Math.max(S.deepTheory, A.rank);
+  if (R.repeatable) setRank(R, Math.max(rankOf(R), A.rank));
   else S.research[R.id] = true;
   rt.structureDirty = true;
   log(`Research complete: ${R.name}${R.repeatable ? `, rank ${A.rank}` : ''}. ${R.effect}`, 'echo', 'RESEARCH');
@@ -2834,6 +3034,45 @@ function adoptDoctrine(id) {
   log(`${R.name} adopted for this iteration.`, 'echo', 'DOCTRINE');
   unlockDoc('doctrine');
   return true;
+}
+
+/**
+ * A project whose content is switched off is set aside with what it cost and the time it had left (S.ext.resq), so it
+ * never holds the research slot. It resumes by itself, already paid, once its content is back and the slot is free,
+ * oldest first. Called every step; with nothing switched off it does nothing.
+ */
+const resq = () => (Array.isArray(S.ext.resq) ? S.ext.resq : []);
+const researchPaused = (id) => resq().some((q) => q.id === id);
+function syncResearch() {
+  const A = S.researching;
+  if (A) {
+    const R = RES[A.id];
+    if (!R || contentOn(R)) return;
+    S.ext.resq = resq().concat([{ id: A.id, rank: A.rank, cost: A.cost, left: Math.max(0, A.end - S.time), total: Math.max(0, A.end - A.start) }]).slice(-20);
+    S.researching = null;
+    rt.structureDirty = true;
+    log(`Research set aside: ${R.name}. It is switched off; it resumes, already paid, when it comes back.`, 'echo', 'RESEARCH');
+    return;
+  }
+  const q = resq();
+  if (!q.length) return;
+  for (let i = 0; i < q.length; i++) {
+    const x = q[i], R = RES[x.id];
+    if (!R || !contentOn(R)) continue;
+    q.splice(i, 1);
+    if (q.length) S.ext.resq = q; else delete S.ext.resq;
+    rt.structureDirty = true;
+    // Completed some other way in the meantime (or a rank that no longer follows on): the Echoes come back.
+    if (R.repeatable ? x.rank !== rankOf(R) + 1 : researched(R.id)) {
+      gainEchoes(x.cost);
+      log(`${R.name} was set aside and is no longer needed: ${fmtEcho(x.cost)} Echoes returned.`, 'echo', 'RESEARCH');
+      return;
+    }
+    const total = Math.max(x.left, x.total || 0);
+    S.researching = { id: R.id, rank: x.rank, cost: x.cost, start: S.time - (total - x.left), end: S.time + x.left };
+    log(`Research resumed: ${R.name}${R.repeatable ? `, rank ${x.rank}` : ''}. ${fmtTime(x.left)} left.`, 'echo', 'RESEARCH');
+    return;
+  }
 }
 
 // ---------------------------------------------------------------- memories and noclip
@@ -2938,6 +3177,24 @@ function countMap(v, ids, max) {
   if (isObj(v)) for (const id of ids) { const n = int(v[id], 0, 0, max); if (n > 0) out[id] = n; }
   return out;
 }
+/**
+ * A count map of known ids. Counts for well-formed ids this build does not know (content whose code has been removed)
+ * are kept in `dormant[key]` instead of being dropped, and come back when the content does.
+ */
+function countMapKeep(v, ids, max, oldDormant, dormant, key) {
+  const out = countMap(v, ids, max);
+  const known = new Set(ids);
+  const keep = {};
+  if (isObj(v)) for (const id of Object.keys(v).slice(0, 200)) if (!known.has(id) && ID_RE.test(id)) { const n = int(v[id], 0, 0, max); if (n > 0) keep[id] = n; }
+  const old = isObj(oldDormant) && isObj(oldDormant[key]) ? oldDormant[key] : {};
+  for (const id of Object.keys(old).slice(0, 200)) {
+    const n = int(old[id], 0, 0, max);
+    if (!ID_RE.test(id) || !(n > 0)) continue;
+    if (known.has(id)) { if (!out[id]) out[id] = n; } else if (!keep[id]) keep[id] = n;
+  }
+  if (Object.keys(keep).length) dormant[key] = keep;
+  return out;
+}
 function numObj(v, defaults) {
   const out = { ...defaults };
   if (isObj(v)) for (const k in defaults) out[k] = num(v[k], defaults[k]);
@@ -2981,6 +3238,28 @@ function sanitizeExt(v, scope) {
   }
   return out;
 }
+
+// Save namespaces the game itself owns (EXP-CORE). Like an experiment's, they survive a build without them untouched.
+//   ranks: rank of each repeatable research project except Deep Survey Theory (kept through noclips)
+//   resq:  research projects set aside while their content is switched off, oldest first
+//   build: the game version that last saved this save (absent: saved before 2.1.0)
+const rankMap = (v) => {
+  const out = {};
+  if (isObj(v)) for (const id of Object.keys(v).slice(0, 200)) if (ID_RE.test(id)) { const n = int(v[id], 0, 0, 10000); if (n > 0) out[id] = n; }
+  return Object.keys(out).length ? out : undefined;
+};
+Exp.ext.state.ranks = rankMap;
+Exp.ext.state.resq = (v) => {
+  if (!Array.isArray(v)) return undefined;
+  const out = [];
+  for (const x of v.slice(0, 20)) {
+    if (!isObj(x) || typeof x.id !== 'string' || !ID_RE.test(x.id) || out.some((y) => y.id === x.id)) continue;
+    const left = num(x.left, 0, 0, 1e9);
+    out.push({ id: x.id, rank: int(x.rank, 0, 0, 10001), cost: num(x.cost, 0), left, total: Math.max(left, num(x.total, left, 0, 1e9)) });
+  }
+  return out.length ? out : undefined;
+};
+Exp.ext.state.build = (v) => (isObj(v) && typeof v.v === 'string' && /^[0-9.]{1,12}$/.test(v.v) ? { v: v.v } : undefined);
 
 // How long each version-1 expedition counted its salvage for, to carry expeditions under way into missions.
 const V1_EXPEDITION_SECS = { stairwell: 150, flooded: 600, boilerheart: 1800, deepend: 1200, records: 3600, longwalk: 7200 };
@@ -3096,26 +3375,42 @@ function sanitizeState(raw) {
   d.dvTotal = Math.max(num(raw.dvTotal, 0), d.dv);
   d.research = flagSetKeep(raw.research, RESEARCH.filter((R) => !R.repeatable).map((R) => R.id), raw.dormant, d.dormant, 'research');
   d.deepTheory = int(raw.deepTheory, 0, 0, 10000);
+  d.ext = sanitizeExt(raw.ext, 'state');
+  const rankIn = (R) => (R.id === 'deeptheory' ? d.deepTheory : ((d.ext.ranks && d.ext.ranks[R.id]) || 0));
   if (isObj(raw.memories)) {
     for (const M of MEMORIES) {
       const n = int(raw.memories[M.id], 0, 0, M.repeatable ? 10000 : 1);
       if (n > 0) d.memories[M.id] = n;
     }
   }
-  // The project under way: one at a time, never one already completed, never longer than it takes.
-  const A = raw.researching;
-  if (isObj(A) && RES[A.id]) {
+  // The project under way: one at a time, never one already completed, never longer than it takes. A project this
+  // build does not know is kept in `dormant`, and one kept there that it knows again is back under way (or set
+  // aside, if another project holds the slot).
+  const project = (A) => {
     const R = RES[A.id];
     const rank = R.repeatable ? int(A.rank, 0, 0, 10001) : 0;
     const start = num(A.start, d.time, 0, 1e12);
     const end = Math.min(num(A.end, start, 0, 1e12), start + (R.repeatable ? R.time * Math.pow(R.timeGrowth, Math.max(0, rank - 1)) : R.time) + 1);
-    if (end >= start && (R.repeatable ? rank === d.deepTheory + 1 : !d.research[R.id])) d.researching = { id: R.id, rank, cost: num(A.cost, 0), start, end };
+    return end >= start && (R.repeatable ? rank === rankIn(R) + 1 : !d.research[R.id]) ? { id: R.id, rank, cost: num(A.cost, 0), start, end } : null;
+  };
+  const A = raw.researching;
+  if (isObj(A) && RES[A.id]) d.researching = project(A);
+  else if (isObj(A) && typeof A.id === 'string' && ID_RE.test(A.id)) {
+    d.dormant.researching = { id: A.id, rank: int(A.rank, 0, 0, 10001), cost: num(A.cost, 0), start: num(A.start, d.time, 0, 1e12), end: num(A.end, d.time, 0, 1e12) };
+  }
+  const DA = isObj(raw.dormant) && isObj(raw.dormant.researching) ? raw.dormant.researching : null;
+  if (DA && typeof DA.id === 'string' && ID_RE.test(DA.id) && !d.dormant.researching) {
+    if (!RES[DA.id]) d.dormant.researching = { id: DA.id, rank: int(DA.rank, 0, 0, 10001), cost: num(DA.cost, 0), start: num(DA.start, d.time, 0, 1e12), end: num(DA.end, d.time, 0, 1e12) };
+    else {
+      const back = project(DA);
+      if (back && !d.researching) d.researching = back;
+      else if (back) d.ext.resq = (d.ext.resq || []).concat([{ id: back.id, rank: back.rank, cost: back.cost, left: Math.max(0, back.end - back.start), total: Math.max(0, back.end - back.start) }]);
+    }
   }
   d.relics = countMap(raw.relics, RELICS.map((x) => x.id), 1e6);
   d.achievements = flagSetKeep(raw.achievements, ACHIEVEMENTS.map((x) => x.id), raw.dormant, d.dormant, 'achievements');
   d.docs = flagSetKeep(raw.docs, DOCS.map((x) => x.id), raw.dormant, d.dormant, 'docs');
   d.docsRead = flagSetKeep(raw.docsRead, DOCS.map((x) => x.id), raw.dormant, d.dormant, 'docsRead');
-  d.ext = sanitizeExt(raw.ext, 'state');
   if (isObj(raw.seen)) {
     for (const k of Object.keys(raw.seen).slice(0, 200)) {
       if (/^[A-Za-z0-9_]{1,40}$/.test(k) && raw.seen[k] === true) d.seen[k] = true;
@@ -3161,9 +3456,9 @@ function sanitizeRun(raw, T, exitFor) {
   // complete there; a completed survey still recorded on the final level moves on into FUN with its extra rooms.
   r.exitFound = r.level === FUN_LEVEL || (bool(raw.exitFound, false) && r.level === FINAL_LEVEL);
   if (r.exitFound && r.level === FINAL_LEVEL) { r.level = FUN_LEVEL; r.levelRooms = Math.max(0, r.levelRooms - exitFor(FINAL_LEVEL)); }
-  r.facilities = countMap(raw.facilities, FACILITIES.map((f) => f.id), 1e6);
+  r.facilities = countMapKeep(raw.facilities, FACILITIES.map((f) => f.id), 1e6, raw.dormant, r.dormant, 'facilities');
   r.upgrades = flagSetKeep(raw.upgrades, UPGRADES.filter((u) => !u.repeatable).map((u) => u.id), raw.dormant, r.dormant, 'upgrades');
-  r.autobuy = flagSet(raw.autobuy, FACILITIES.map((f) => f.id));
+  r.autobuy = flagSetKeep(raw.autobuy, FACILITIES.map((f) => f.id), raw.dormant, r.dormant, 'autobuy');
   r.drills = int(raw.drills, 0, 0, CONFIG.survey.drillMax);
   r.specialists = countMap(raw.specialists, SPECIALISTS.map((s) => s.id), CONFIG.specialists.max);
   if (isObj(raw.away)) {
@@ -3204,6 +3499,7 @@ function sanitizeRun(raw, T, exitFor) {
 function save(manual) {
   if (rt.saveBlocked) return false;
   S.lastSaved = Date.now();
+  S.ext.build = { v: GAME_VERSION };
   let data;
   try { data = JSON.stringify(S); } catch (e) { rt.saveOk = false; return false; }
   const ok = Store.set(CONFIG.storageKey, data);
@@ -3230,6 +3526,8 @@ function loadGame() {
     const fromV1 = isObj(parsed) && parsed.v === 1;
     const st = sanitizeState(parsed);
     if (fromV1) Store.set(CONFIG.v1CopyKey, raw);
+    // A save no 2.1 build has written yet: keep it exactly as it was, so the update can be undone with the save intact.
+    if (!(isObj(parsed.ext) && isObj(parsed.ext.build))) Store.set(CONFIG.preUpdateKey, raw);
     Store.set(CONFIG.backupKey, raw);
     rt.lastBackupReal = performance.now();
     return { state: st, status: 'loaded', migrated: fromV1 };
@@ -3468,7 +3766,7 @@ const View = {
     vg.addColorStop(1, 'rgba(0,0,0,0.62)');
     this.vignette = vg;
   },
-  setLevel(i) { this.level = i; this.flash(0.8); },
+  setLevel(i) { this.level = i; this.flash(0.8); Exp.runAll('view:reset', 'level'); },
   advance() {
     this.target += 1;
     if (this.target - this.camZ > 5) this.camZ = this.target - 5;
@@ -3529,7 +3827,7 @@ const View = {
     this.lastRender = nowMs;
     const ctx = this.ctx, W = this.W, H = this.H, r = S.run, s = S.settings;
     const reduced = rt.reducedMotion;
-    this.level = r.level;
+    if (this.level !== r.level) { this.level = r.level; Exp.runAll('view:reset', 'level'); }
 
     if (blackedOut()) {
       ctx.fillStyle = '#000';
@@ -3546,6 +3844,7 @@ const View = {
         this.camZ += drift; this.target += drift;
       }
     }
+    Exp.run('view:frame', this, dt, t);
     const lag = Math.min(1, this.target - this.camZ);
     const bob = reduced ? 0 : Math.sin(this.camZ * Math.PI * 2) * lag * 2.4;
     const dist = s.distortion && !reduced ? Math.max(0, (50 - r.sanity) / 50) : 0;
@@ -3734,7 +4033,12 @@ const View = {
           if (look.water) this.flatRect(fy + 0.001, -0.3, 0.3, zp0, zp1, this.shade(look.light, zp, lit * 0.55));
         }
       }
+      // Things experiments draw in this stretch of corridor, after it and before anything nearer, so nearer walls and
+      // floors hide them correctly.
+      Exp.run('view:segment', this, k, z0, z1, lit, hk, t);
     }
+    // Overlays experiments draw over the corridor: always under the entity and the anomaly, which come next.
+    Exp.run('view:overlay', this, t, dt);
 
     // A hostile entity stands in the corridor while rt.encounter exists. It is always drawn, whatever the effect
     // settings: reduced motion and flicker settings only keep it still. It steps closer when it becomes dangerous.
@@ -4030,6 +4334,7 @@ function facEffectText(f, fd, D) {
   if (f.kind === 'water') return `Each: +${pctx(fd.each)} almond water from every source · ${fmt(owned)} owned: +${pctx(fd.each * owned)}${noise}`;
   if (f.kind === 'survey') return `Each: +${pctx(fd.each)} rooms per survey, yours and the Cartographer’s · ${fmt(owned)} owned: +${pctx(fd.each * owned)}${noise}`;
   if (f.kind === 'echo') return `Each: +${pctx(fd.each)} Echoes from every source · ${fmt(owned)} owned: +${pctx(fd.each * owned)}${noise}`;
+  if (f.kind === 'share') return `Each: +${pctx(fd.each)} ${f.shareLabel} · ${fmt(owned)} owned: +${pctx(fd.each * owned)}${noise}`;
   return `Each: absorbs ${fmtRate(fd.each)} noise · ${fmt(owned)} owned: ${fmtRate(fd.each * owned)}`;
 }
 /** What buying `n` more would change, worked out by derive() itself. Fixed wording; only numbers change. */
@@ -4041,6 +4346,7 @@ function facGainText(f, n, D) {
   if (f.kind === 'water') return `${head}almond water ${fmtX(D.waterFac)} → ${fmtX(D2.waterFac)}${tail}`;
   if (f.kind === 'survey') return `${head}rooms per survey ${fmtRooms(D.roomsPerSurvey)} → ${fmtRooms(D2.roomsPerSurvey)}${tail}`;
   if (f.kind === 'echo') return `${head}Echoes ${fmtX(D.echoFac)} → ${fmtX(D2.echoFac)}${tail}`;
+  if (f.kind === 'share') return `${head}${f.shareLabel} ${fmtX(D.fx[f.target])} → ${fmtX(D2.fx[f.target])}${tail}`;
   return `${head}absorption ${fmtRate(D.absorb)} → ${fmtRate(D2.absorb)}${tail}`;
 }
 /** What a facility of a coming wave would do, at today's multipliers. */
@@ -4050,6 +4356,7 @@ function facPreviewText(f, D) {
   if (f.kind === 'water') return `+${pctx(f.bonus)} almond water from every source each · ${first}`;
   if (f.kind === 'survey') return `+${pctx(f.bonus)} rooms per survey each · ${first}`;
   if (f.kind === 'echo') return `+${pctx(f.bonus * (researched('deeplisten') ? 2 : 1))} Echoes from every source each · ${first}`;
+  if (f.kind === 'share') return `+${pctx(f.bonus)} ${f.shareLabel} each · ${first}`;
   return `absorbs ${fmtRate(f.bonus)} noise each · ${first}`;
 }
 const tiersOf = (f) => TIER_UPGRADES.filter((u) => u.fac === f.id);
@@ -4062,7 +4369,7 @@ function nextTier(f) {
 }
 
 Panels.facilities = {
-  sig: () => FACILITIES.filter(facVisible).map((f) => f.id).join() + '|' + memRank('procure') + '|' + rt.buyMode,
+  sig: () => facs().filter(facVisible).map((f) => f.id).join() + '|' + memRank('procure') + '|' + rt.buyMode + '|' + (Exp.ask('facilities:sig') || ''),
   build(p) {
     const seg = el('div', { class: 'seg', role: 'group', 'aria-label': 'Purchase quantity' });
     for (const m of [1, 10, 25, 'max']) {
@@ -4077,20 +4384,20 @@ Panels.facilities = {
     this.rows = {};
     this.waves = [];
     for (const G of FAC_GROUPS) {
-      const facs = FACILITIES.filter((f) => facGroup(f) === G.id && facVisible(f));
-      if (!facs.length) continue;
+      const list = facs().filter((f) => facGroup(f) === G.id && facVisible(f));
+      if (!list.length) continue;
       const rows = el('div', { class: 'rows' });
-      for (const f of facs) rows.append(this.row(f));
+      for (const f of list) rows.append(this.row(f));
       p.append(el('section', { class: 'fs-group', 'aria-label': G.title, 'data-group': G.id },
         el('h3', { class: 'section-title', text: G.title }), el('p', { class: 'fs-note', text: G.note }), rows));
     }
     // Waves still to come, by the level that opens them.
-    const levels = [...new Set(FACILITIES.filter((f) => !facVisible(f)).map((f) => f.level))].sort((a, b) => a - b);
+    const levels = [...new Set(facs().filter((f) => !facVisible(f)).map((f) => f.level))].sort((a, b) => a - b);
     if (levels.length) {
       const box = el('div', { class: 'fs-waves' });
       levels.forEach((lv, i) => {
         const list = el('ul', { class: 'fs-locked' });
-        for (const f of FACILITIES.filter((x) => x.level === lv)) {
+        for (const f of facs().filter((x) => x.level === lv)) {
           const what = el('span', { class: 'fs-what' });
           list.append(el('li', { 'data-id': f.id }, icon('lock'), el('div', null, el('b', null, el('span', { class: 'code', text: f.code }), ' ', f.name), what)));
           this.waves.push({ f, what });
@@ -4103,7 +4410,7 @@ Panels.facilities = {
         el('p', { class: 'fs-note', text: 'Reaching a level opens its whole wave of facilities at once; after that, only the price limits what you buy. Every iteration starts with no facilities.' }),
         box));
     }
-    if (memRank('procure')) p.append(el('p', { class: 'panel-sub', text: 'Auto-buy purchases one unit at a time whenever you hold at least twice its price, so it never spends your last salvage.' }));
+    if (memRank('procure') && !Exp.ask('facilities:autoNote')) p.append(el('p', { class: 'panel-sub', text: 'Auto-buy purchases one unit at a time whenever you hold at least twice its price, so it never spends your last salvage.' }));
   },
   row(f) {
     const count_ = el('span', { class: 'count' });
@@ -4116,7 +4423,7 @@ Panels.facilities = {
     const buy = el('button', { type: 'button', class: 'btn btn-stack primary', 'data-action': 'buy-fac', 'data-id': f.id }, qty, cost, wait);
     const act = el('div', { class: 'row-act' }, buy);
     let auto = null;
-    if (memRank('procure')) {
+    if (memRank('procure') && !Exp.ask('facilities:autoControl')) {
       auto = el('input', { type: 'checkbox', id: 'auto-' + f.id, 'data-action': 'autobuy', 'data-id': f.id });
       auto.checked = !!S.run.autobuy[f.id];
       act.append(el('label', { class: 'toggle-line', for: 'auto-' + f.id }, auto, 'Auto-buy'));
@@ -4135,13 +4442,14 @@ Panels.facilities = {
     const row = el('article', { class: 'row', 'data-fac': f.id },
       el('div', { class: 'row-icon' }, icon(f.icon), el('span', { class: 'code', text: f.code })),
       body, act);
-    this.rows[f.id] = { row, count: count_, status, effect, gain, buy, qty, cost, wait, auto, tier };
+    this.rows[f.id] = { row, count: count_, status, effect, gain, buy, qty, cost, wait, auto, tier, act };
+    Exp.run('facilities:row', f, this.rows[f.id]);
     return row;
   },
   update() {
     const D = rt.D;
     setText(this.sum, `Facility multiplier ${fmtX(D.facMult)} on every survey you make by hand · survey power +${fmtPow(D.surveyPower)} salvage`);
-    for (const f of FACILITIES) {
+    for (const f of facs()) {
       const R = this.rows[f.id];
       if (!R) continue;
       const fd = D.fac[f.id];
@@ -4158,6 +4466,7 @@ Panels.facilities = {
       setAttr(R.buy, 'aria-label', `Buy ${q.n} ${f.name} for ${fmt(q.cost)} salvage`);
       if (R.auto && R.auto.checked !== !!S.run.autobuy[f.id]) R.auto.checked = !!S.run.autobuy[f.id];
       if (R.tier) this.updateTier(f, R.tier);
+      Exp.run('facilities:rowUpdate', f, R);
     }
     for (const w of this.waves) setText(w.what, facPreviewText(w.f, D));
   },
@@ -4182,6 +4491,16 @@ Panels.facilities = {
   },
 };
 
+/** Points to requisitions on sale in another tab (HOME_TABS), with a button that opens it. */
+function homePointers(p) {
+  for (const tab in HOME_TABS) {
+    const list = UPGRADES.filter((u) => upgradeAvailable(u) && upgradeHome(u) === tab);
+    if (!list.length) continue;
+    p.append(el('p', { class: 'panel-sub home-pointer' }, `Also on sale: ${list.map((u) => u.name).join(', ')}, in the ${HOME_TABS[tab]} tab. `,
+      el('button', { type: 'button', class: 'btn small', 'data-action': 'goto-tab', 'data-id': tab }, `Open ${HOME_TABS[tab]}`)));
+  }
+}
+
 // Requisitions that change a survey you make by hand, in the order a player meets them.
 const SURVEY_LADDER = ['gloves', 'flashlight', 'prybar', 'satchel', 'notebook', 'drills', 'cutters', 'boots', 'clipboard', 'pedometer', 'spreader', 'carbon'];
 const ROOM_LADDER = new Set(['wheel', 'chalk', 'compass']);
@@ -4205,6 +4524,7 @@ Panels.upgrades = {
       for (const u of avail) grid.append(this.slip(u, this.btns));
       p.append(grid);
     }
+    homePointers(p);
     const hidden = UPGRADES.filter((u) => contentOn(u) && !has(u.id) && !reqMet(u.req) && upgradeHome(u) === 'upgrades').length;
     if (hidden) p.append(el('p', { class: 'panel-sub', text: `${hidden} more requisitions will become available as the operation grows and you go deeper.` }));
     const owned = UPGRADES.filter((u) => contentOn(u) && has(u.id) && upgradeHome(u) === 'upgrades');
@@ -4261,7 +4581,7 @@ function specNow(s, D) {
   return lvl ? specOutput(s, lvl, D) : 'not recruited';
 }
 Panels.crew = {
-  sig: () => `${S.run.level}|${SPECIALISTS.map((s) => (recruited(s.id) ? 1 : 0)).join('')}|${UPGRADES.filter((u) => upgradeAvailable(u) && upgradeHome(u) === 'crew').map((u) => u.id).join()}|${UPGRADES.filter((u) => has(u.id) && u.cat === 'Crew').length}`,
+  sig: () => `${S.run.level}|${SPECIALISTS.map((s) => (recruited(s.id) ? 1 : 0)).join('')}|${UPGRADES.filter((u) => upgradeAvailable(u) && upgradeHome(u) === 'crew').map((u) => u.id).join()}|${UPGRADES.filter((u) => owned(u) && u.cat === 'Crew').length}|${Exp.ask('crew:sig') || ''}`,
   build(p) {
     p.append(el('div', { class: 'panel-head' }, el('div', null,
       el('h2', { text: 'Crew' }),
@@ -4283,8 +4603,10 @@ Panels.crew = {
         el('p', { class: 'row-stats muted', text: s.role }),
         now, next,
         el('p', { class: 'flavor', text: s.desc }));
-      rows.append(el('article', { class: 'row spec', 'data-spec': s.id }, el('div', { class: 'row-icon' }, icon(s.icon)), body, el('div', { class: 'row-act' }, btn)));
-      this.specs[s.id] = { chip, now, next, label, cost, wait, btn };
+      const act = el('div', { class: 'row-act' }, btn);
+      rows.append(el('article', { class: 'row spec', 'data-spec': s.id }, el('div', { class: 'row-icon' }, icon(s.icon)), body, act));
+      this.specs[s.id] = { chip, now, next, label, cost, wait, btn, act, body };
+      Exp.run('crew:row', s, this.specs[s.id]);
     }
     p.append(rows);
     // Crew requisitions: how hard the specialists work and what they cost.
@@ -4297,15 +4619,15 @@ Panels.crew = {
       for (const u of list) grid.append(Panels.upgrades.slip(u, this.slips));
       box.append(grid);
     } else {
-      const later = UPGRADES.filter((u) => !has(u.id) && !reqMet(u.req) && upgradeHome(u) === 'crew').length;
+      const later = UPGRADES.filter((u) => contentOn(u) && !has(u.id) && !reqMet(u.req) && upgradeHome(u) === 'crew').length;
       box.append(el('p', { class: 'panel-sub', text: later ? `${plural(later, 'more requisition')} for the crew will become available as you recruit specialists and go deeper.` : 'Every crew requisition is installed.' }));
     }
     p.append(box);
-    const owned = UPGRADES.filter((u) => has(u.id) && upgradeHome(u) === 'crew');
-    if (owned.length) {
+    const inst = UPGRADES.filter((u) => owned(u) && upgradeHome(u) === 'crew');
+    if (inst.length) {
       const ul = el('ul');
-      for (const u of owned) ul.append(el('li', { text: `${u.name}: ${u.effect}` }));
-      p.append(el('details', { class: 'installed' }, el('summary', { text: `Crew requisitions installed (${owned.length})` }), ul));
+      for (const u of inst) ul.append(el('li', { text: `${u.name}: ${u.effect}` }));
+      p.append(el('details', { class: 'installed' }, el('summary', { text: `Crew requisitions installed (${inst.length})` }), ul));
     }
   },
   update() {
@@ -4330,17 +4652,19 @@ Panels.crew = {
       setText(V.wait, maxed || Wallet.can('salvage', cost) ? '' : affordIn(cost, S.run.salvage, D.sps));
       setDis(V.btn, !canHire(s));
       setAttr(V.btn, 'aria-label', maxed ? `${s.name}: highest level` : `${lvl ? `Upgrade the ${s.name} to level ${lvl + 1}` : `Recruit the ${s.name}`} for ${fmt(cost)} salvage`);
+      Exp.run('crew:rowUpdate', s, V);
     }
     Panels.upgrades.updateSlips(this.slips);
   },
 };
 
 Panels.expeditions = {
-  sig: () => `${S.run.level}|${Object.keys(S.run.missions).join()}|${has('maps')}|${has('rope')}|${has('packs')}|${has('canteens')}|${researched('expcart')}`,
+  sig: () => `${S.run.level}|${Object.keys(S.run.missions).join()}|${has('maps')}|${has('rope')}|${has('packs')}|${has('canteens')}|${researched('expcart')}|${Exp.ask('missions:sig') || ''}`,
   build(p) {
     p.append(el('div', { class: 'panel-head' }, el('div', null,
       el('h2', { text: 'Missions' }),
       el('p', { class: 'panel-sub', text: 'Timed trips, paid for with almond water. Each needs one of your specialists at a certain level, but never takes them away from their work. Missions keep going while you are away. Their salvage is a share of what the Scavenger makes in the time they are gone (at least a floor for the level), set when the team leaves.' }))));
+    Exp.run('missions:head', p);
     const list = el('div', { class: 'expeditions' });
     this.cards = {};
     for (const m of MISSIONS.filter((x) => x.level <= S.run.level)) list.append(this.card(m));
@@ -4366,7 +4690,7 @@ Panels.expeditions = {
       el('li', null, el('span', { text: 'Echoes' }), `${pct(m.echoChance)} chance of ${m.echoRange[0]}–${m.echoRange[1]}${researched('expcart') ? ' (×1.5)' : ''}`),
       el('li', null, el('span', { text: 'Relic' }), `${pct(m.relicChance)} chance`));
     const foot = el('div', { class: 'exp-foot' });
-    const C = { hazard, salv, needs };
+    const C = { hazard, salv, needs, foot };
     if (active) {
       const bar = el('div', { class: 'bar', role: 'progressbar', 'aria-label': `${m.name} progress` }, el('i'));
       const left = el('span', { class: 'num' });
@@ -4379,6 +4703,7 @@ Panels.expeditions = {
       C.btn = btn; C.why = why;
     }
     this.cards[m.id] = C;
+    Exp.run('missions:card', m, C, !!active);
     return el('article', { class: 'exp' + (active ? ' active' : '') },
       el('div', { class: 'exp-head' }, el('h3', { text: m.name }), el('span', { class: active ? 'chip calm' : 'chip dim', text: active ? 'Under way' : `Level ${m.level}` })),
       el('p', { class: 'flavor', text: m.flavor }),
@@ -4409,12 +4734,14 @@ Panels.expeditions = {
         }
         setText(C.why, why);
       }
+      Exp.run('missions:cardUpdate', m, C);
     }
+    Exp.run('missions:update');
   },
 };
 
 Panels.research = {
-  sig: () => Object.keys(S.research).join() + '|' + S.deepTheory + '|' + S.run.doctrine + '|' + (S.researching ? S.researching.id + S.researching.rank : ''),
+  sig: () => Object.keys(S.research).join() + '|' + S.deepTheory + '|' + S.run.doctrine + '|' + (S.researching ? S.researching.id + S.researching.rank : '') + '|' + JSON.stringify(S.ext.ranks || '') + '|' + resq().map((q) => q.id).join() + '|' + Exp.sig(),
   build(p) {
     const ech = el('span', { class: 'num' });
     p.append(el('div', { class: 'panel-head' }, el('div', null,
@@ -4426,15 +4753,21 @@ Panels.research = {
     this.cur = { name: el('b'), left: el('span', { class: 'num' }), bar: el('div', { class: 'bar', role: 'progressbar', 'aria-label': 'Research progress' }, el('i')) };
     p.append(el('section', { class: 'res-active', 'aria-label': 'Research under way' },
       el('div', { class: 'res-active-head' }, el('span', { class: 'chip echo', text: 'Under way' }), this.cur.name, this.cur.left), this.cur.bar));
+    // Projects set aside while their content is switched off: already paid, they resume by themselves.
+    const set = resq();
+    if (set.length) {
+      p.append(el('p', { class: 'panel-sub res-paused', text: `Set aside, already paid: ${set.map((q) => `${RES[q.id] ? RES[q.id].name : q.id} (${fmtTime(q.left)} left)`).join(', ')}. ${set.length === 1 ? 'It resumes' : 'They resume'} by itself when switched back on and the slot is free.` }));
+    }
     this.nodes = [];
-    for (let tier = 0; tier <= 4; tier++) {
-      const items = RESEARCH.filter((R) => R.tier === tier);
+    const tiers = Math.max(4, ...ress().map((R) => R.tier));
+    for (let tier = 0; tier <= tiers; tier++) {
+      const items = ress().filter((R) => R.tier === tier);
       if (!items.length) continue;
       const grid = el('div', { class: 'slips' });
       for (const R of items) grid.append(this.node(R));
       p.append(el('section', { class: 'tier' }, el('span', { class: 'tier-label', text: `Tier ${tier + 1}` }), grid));
     }
-    const docs = RESEARCH.filter((R) => R.doctrine && researched(R.id));
+    const docs = ress().filter((R) => R.doctrine && researched(R.id));
     if (docs.length) {
       p.append(el('h3', { class: 'section-title', text: 'Doctrine for this iteration' }));
       p.append(el('p', { class: 'panel-sub', text: S.run.doctrine ? 'Adopted until you noclip.' : 'You may adopt one researched doctrine per iteration. It cannot be changed until you noclip.' }));
@@ -4454,12 +4787,13 @@ Panels.research = {
     const avail = researchAvailable(R);
     const cost = el('span', { class: 'sub' });
     const btn = el('button', { type: 'button', class: 'btn btn-stack primary', 'data-action': 'research', 'data-id': R.id },
-      el('span', { text: done ? 'Researched' : active ? 'Under way' : R.repeatable ? `Research rank ${S.deepTheory + 1}` : 'Start research' }), cost);
+      el('span', { text: done ? 'Researched' : active ? 'Under way' : R.repeatable ? `Research rank ${rankOf(R) + 1}` : 'Start research' }), cost);
     if (done || active) btn.disabled = true;
     const missing = R.req.filter((id) => !researched(id)).map((id) => RES[id].name);
+    if (R.reqLevel != null && S.life.maxLevel < R.reqLevel) missing.push(`reaching ${levelLabel(R.reqLevel)}`);
     this.nodes.push({ R, btn, cost, done, active });
     return el('article', { class: 'slip node' + (done ? ' done' : '') + (active ? ' active' : '') + (avail ? '' : ' locked') },
-      el('div', { class: 'slip-head' }, el('span', { text: R.doctrine ? 'Doctrine' : R.repeatable ? `Rank ${S.deepTheory}` : 'Research' }), el('span', { text: 'Echoes' })),
+      el('div', { class: 'slip-head' }, el('span', { text: R.doctrine ? 'Doctrine' : R.repeatable ? `Rank ${rankOf(R)}` : 'Research' }), el('span', { text: 'Echoes' })),
       el('h3', { text: R.name }),
       el('p', { class: 'effect', text: R.effect }),
       el('p', { class: 'flavor', text: R.flavor }),
@@ -4728,7 +5062,7 @@ Panels.archive = {
       sec('Facilities', [
         'Facilities never produce anything on their own. Each salvage facility adds to the facility multiplier on every survey you make by hand. Support equipment improves something else: beacons add rooms to every survey (yours and the Cartographer’s), condensers add almond water and arrays add Echoes from every source, and dampeners absorb noise.',
         'Reaching a level opens its whole wave of facilities at once. Each next unit costs more than the last. Tiers, installed from each facility’s row at 10, 25 and 50 owned, double a salvage facility’s bonus (support equipment ×1.5).',
-      ], LEVELS.filter((L, i) => !L.endless && FACILITIES.some((f) => f.level === i)).map((L) => { const i = LEVELS.indexOf(L); return `Level ${i}, ${L.name}: ${FACILITIES.filter((f) => f.level === i).map((f) => f.name).join(', ')}.`; })),
+      ], LEVELS.filter((L, i) => !L.endless && facs().some((f) => f.level === i)).map((L) => { const i = LEVELS.indexOf(L); return `Level ${i}, ${L.name}: ${facs().filter((f) => f.level === i).map((f) => f.name).join(', ')}.`; })),
       sec('Crew: the specialists', [
         'There are five specialists, one of each. Recruit each one once with salvage; they start work at once and keep working while you are away. Every level makes them better: the Crew tab shows what they do now and what the next level adds.',
         'They are the only passive production. The Scavenger recovers salvage: their salvage grows with the level’s depth and your global bonuses, never with your survey power, and your survey power never depends on them. The Cartographer maps rooms, the Dowser finds almond water, the Watcher absorbs noise and gives earlier warning of entities, and the Archivist records Echoes.',
@@ -4738,7 +5072,7 @@ Panels.archive = {
         'Missions are timed trips paid for with almond water. Each needs one of your specialists at a certain level but never takes them away from their work. They keep going while you are away and bring back salvage (a share of what the Scavenger makes while they are gone, at least a floor for the level, set when the team leaves), water, Echoes and sometimes a relic. A mission’s hazard is the chance that something follows the team back: they drop half the haul and attention rises.',
       ]),
       sec('Research', [
-        `Research costs Echoes, paid once when a project starts, and takes time: from ${fmtTime(Math.min(...RESEARCH.map((R) => R.time)))} to ${fmtTime(Math.max(...RESEARCH.map((R) => R.time)))}. The effect starts when it finishes. One project runs at a time.`,
+        `Research costs Echoes, paid once when a project starts, and takes time: from ${fmtTime(Math.min(...ress().map((R) => R.time)))} to ${fmtTime(Math.max(...ress().map((R) => R.time)))}. The effect starts when it finishes. One project runs at a time.`,
         'Research runs on the game clock: it advances while you play and while you are away, up to the offline limit, like everything else. A project under way is kept when you noclip, and so is everything researched. Doctrines can be adopted once their research has finished.',
       ]),
       sec('Entities in the corridor', [
@@ -4874,7 +5208,7 @@ function nextSurveyUpgrade() {
   if (best) return { u: best, locked: false };
   for (const id of SURVEY_LADDER) {
     const u = UPG[id];
-    if (u && !u.repeatable && !has(id) && !reqMet(u.req)) return { u, locked: true };
+    if (u && contentOn(u) && !u.repeatable && !has(id) && !reqMet(u.req)) return { u, locked: true };
   }
   return null;
 }
@@ -4882,8 +5216,10 @@ const lowerFirst = (s) => (s ? s[0].toLowerCase() + s.slice(1) : s);
 /** Every survey upgrade multiplier, by source; anything unlisted shows as "Other", so the parts always multiply out. */
 function surveyUpgradeParts(D) {
   const parts = [];
-  for (const u of BASE_UPGRADES) if (u.mult && has(u.id)) parts.push([u.name, u.mult]);
+  for (const u of BASE_UPGRADES) if (u.mult && owned(u)) parts.push([u.name, u.mult]);
+  for (const u of upgs()) if (u.fx && u.fx.survey && has(u.id)) parts.push([u.name, u.fx.survey]);
   if (researched('pattern')) parts.push(['Wallpaper Pattern Analysis', 1.5]);
+  for (const R of ress()) if (R.fx && R.fx.survey && !R.repeatable && researched(R.id)) parts.push([R.name, R.fx.survey]);
   if (memRank('muscle')) parts.push(['Muscle Memory', 2]);
   if (S.run.doctrine === 'doc_wet') parts.push(['Wet Doctrine', 0.5]);
   if (relic('vhs')) parts.push(['VHS relic', 1.1]);
@@ -4895,11 +5231,12 @@ function surveyUpgradeParts(D) {
 function renderPowerDetail(D) {
   const rows = [];
   const base = ['1 to start'];
-  for (const u of BASE_UPGRADES) if (u.hand && has(u.id)) base.push(`${u.name} +${u.hand}`);
+  for (const u of BASE_UPGRADES) if (u.hand && owned(u)) base.push(`${u.name} +${u.hand}`);
+  for (const u of upgs()) if (u.fx && u.fx.hand && has(u.id)) base.push(`${u.name} +${u.fx.hand}`);
   if (has('satchel')) base.push(`Canvas Satchel +${fmtPow(0.01 * totalFacilities())} (${fmt(totalFacilities())} facilities)`);
   rows.push(['Base', fmtPow(D.base), base.join(' · ')]);
-  const facs = FACILITIES.filter((f) => f.kind === 'salvage' && D.fac[f.id].total > 0).map((f) => `${f.name} +${fmtPow(D.fac[f.id].total)}`);
-  rows.push(['Facilities', fmtX(D.facMult), facs.length ? `1 + ${facs.join(' + ')}${D.facBoost !== 1 ? ` (bonuses ×${fmtPow(D.facBoost)})` : ''}` : 'none yet: build a Salvage Cart']);
+  const fl = facs().filter((f) => f.kind === 'salvage' && D.fac[f.id].total > 0).map((f) => `${f.name} +${fmtPow(D.fac[f.id].total)}`);
+  rows.push(['Facilities', fmtX(D.facMult), fl.length ? `1 + ${fl.join(' + ')}${D.facBoost !== 1 ? ` (bonuses ×${fmtPow(D.facBoost)})` : ''}` : 'none yet: build a Salvage Cart']);
   const ups = surveyUpgradeParts(D);
   rows.push(['Survey upgrades', fmtX(D.surveyUpg), ups.length ? ups.map(([k, v]) => `${k} ×${fmtPow(v)}`).join(' · ') : 'none yet']);
   rows.push(['Level depth', fmtX(D.depth), isEndless(S.run.level) ? `Level FUN ×${LEVELS[S.run.level].surveyMult}, floor ${fmt(D.floor)}` : `Level ${S.run.level}`]);
@@ -5027,6 +5364,7 @@ const UI = {
       case 'memory': buyMemory(id); break;
       case 'noclip': confirmNoclip(); break;
       case 'subtab': rt.archiveTab = id; break;
+      case 'goto-tab': this.selectTab(id); break;
       case 'noclip-subtab': rt.noclipTab = id; break;
       case 'doc':
         rt.openDoc = id;
@@ -5249,8 +5587,8 @@ const UI = {
       let dot = vis && !S.seen['visited_' + t.id] && t.id !== 'facilities' && t.id !== 'settings';
       if (t.id === 'upgrades') dot = dot || UPGRADES.some((u) => upgradeVisible(u) && canAffordUpgrade(u));
       if (t.id === 'crew') dot = dot || SPECIALISTS.some((s) => !recruited(s.id) && canHire(s)) || UPGRADES.some((u) => upgradeAvailable(u) && upgradeHome(u) === 'crew' && canAffordUpgrade(u));
-      if (t.id === 'facilities') dot = FACILITIES.some((f) => { const x = facVisible(f) && f.tiers.length && nextTier(f); return x && x.ready && canAffordUpgrade(x.u); });
-      if (t.id === 'research') dot = dot || (!S.researching && RESEARCH.some(canResearch));
+      if (t.id === 'facilities') dot = facs().some((f) => { const x = facVisible(f) && f.tiers.length && nextTier(f); return x && x.ready && canAffordUpgrade(x.u); });
+      if (t.id === 'research') dot = dot || (!S.researching && ress().some(canResearch));
       if (t.id === 'archive') dot = DOCS.some((d) => S.docs[d.id] && !S.docsRead[d.id]);
       if (t.id === 'noclip') dot = dot || (canNoclip() && !S.seen.noclipReadySeen);
       dot = dot || (vis && !!Exp.ask('tabDot', t.id));
@@ -5546,6 +5884,7 @@ function replaceState(st) {
   View.camZ = View.target = 0;
   View.level = S.run.level;
   View.scareAt = -1e9;
+  Exp.runAll('view:reset', 'state');
   Sound.setLights(!lightsOut());
   Sound.setWarning(false);
   applyVisualSettings();
@@ -5638,6 +5977,8 @@ function onKey(e) {
       summary: (D) => `Noise ${fmtRate(D.noise, 3)} vs absorption ${fmtRate(D.absorb)} · attention ${Math.round(S.run.attention)}, heading to ${Math.round(D.attnTarget)}` },
     { cat: 'Expedition', label: 'Missions', note: 'Mission time, rewards and safety.',
       summary: () => { const n = Object.keys(S.run.missions).length; return n ? `${plural(n, 'mission')} out now` : 'No missions out'; } },
+    { cat: 'Automation', label: 'Automation', note: 'What runs by itself once installed, and the switches that control it.',
+      summary: () => Exp.ask('automation:summary') || 'Nothing automated yet' },
   ];
   const CAT = Object.fromEntries(CATS.map((c) => [c.cat, c]));
   const catOf = (u) => (CAT[u.cat] ? u.cat : 'Other');
@@ -5690,6 +6031,7 @@ function onKey(e) {
     }
     const pointers = Object.keys(elsewhere).map((h) => `${[...elsewhere[h]].join(' and ')} requisitions are in ${HOME_LABEL[h]}`);
     if (pointers.length) p.append(el('p', { class: 'panel-sub cats-elsewhere', text: `Also available: ${pointers.join('; ')}.` }));
+    homePointers(p);
 
     if (!avail.length) p.append(el('p', { class: 'empty', text: 'Nothing to requisition right now. Map more rooms, build more facilities, or go deeper.' }));
     for (const c of cats) {
@@ -6063,7 +6405,7 @@ function onKey(e) {
 
   Panels.dev = {
     sig: () => [active(), S.run.level, Exp.sig(), Object.keys(S.research).length, Object.keys(S.run.upgrades).length,
-      FACILITIES.filter(facVisible).length, CURS.map(([c]) => dev.infinite[c]).join()].join('|'),
+      facs().filter(facVisible).length, CURS.map(([c]) => dev.infinite[c]).join(), JSON.stringify(S.ext.ranks || '')].join('|'),
     build(p) {
       view = { prod: [], status: null };
       p.append(el('div', { class: 'panel-head' }, el('div', null,
@@ -6106,21 +6448,21 @@ function onKey(e) {
           button('Map rooms', () => change('rooms', () => addRooms(Math.max(0, Math.floor(Number(form.rooms) || 0))))))));
 
       // Research, requisitions, facilities
-      const resOpts = RESEARCH.filter((R) => R.repeatable || !researched(R.id)).map((R) => [R.id, R.repeatable ? `${R.name} (rank ${S.deepTheory + 1})` : R.name]);
+      const resOpts = ress().filter((R) => R.repeatable || !researched(R.id)).map((R) => [R.id, R.repeatable ? `${R.name} (rank ${rankOf(R) + 1})` : R.name]);
       const active = S.researching ? RES[S.researching.id] : null;
       const upgOpts = UPGRADES.filter((u) => upgradeAvailable(u) && upgradeHome(u) !== 'none').map((u) => [u.id, `${u.name} (${u.cat})`]);
-      const facOpts = FACILITIES.filter(facVisible).map((f) => [f.id, f.name]);
+      const facOpts = facs().filter(facVisible).map((f) => [f.id, f.name]);
       p.append(section('Research, requisitions and facilities',
         'Completed research is kept across noclips, like earned research. Free requisitions use the normal purchase, so their requirements still apply; meet them with the controls above.',
         active ? row(el('span', { class: 'panel-sub', text: `Under way: ${active.name}${active.repeatable ? `, rank ${S.researching.rank}` : ''}, ${fmtTime(S.researching.end - S.time)} left.` }),
           button('Finish it now', () => change('research', () => { if (S.researching) S.researching.end = S.time; completeResearch(); }))) : null,
         resOpts.length ? row(select('Research', 'research', resOpts),
           button('Complete', () => change('research', () => completeNow(form.research))),
-          button('Complete all', () => change('research', () => { for (const R of RESEARCH) if (!R.repeatable) S.research[R.id] = true; if (S.researching && !RES[S.researching.id].repeatable) S.researching = null; }))) : el('p', { class: 'panel-sub', text: 'All research is complete.' }),
+          button('Complete all', () => change('research', () => { for (const R of ress()) if (!R.repeatable) S.research[R.id] = true; if (S.researching && !RES[S.researching.id].repeatable) S.researching = null; }))) : el('p', { class: 'panel-sub', text: 'All research is complete.' }),
         upgOpts.length ? row(select('Requisition', 'upgrade', upgOpts),
           button('Install for free', () => change('free requisition', () => installFree(form.upgrade)))) : el('p', { class: 'panel-sub', text: 'No requisition can be installed right now.' }),
         facOpts.length ? row(select('Facility', 'fac', facOpts), field('Count', 'facN', { min: 1, step: 1 }),
-          button('Add facilities', () => change('facilities', () => { const f = FAC[form.fac]; if (f && facVisible(f)) S.run.facilities[f.id] = count(f.id) + Math.max(0, Math.floor(Number(form.facN) || 0)); }))) : null));
+          button('Add facilities', () => change('facilities', () => { const f = FAC[form.fac]; if (f && contentOn(f) && facVisible(f)) S.run.facilities[f.id] = count(f.id) + Math.max(0, Math.floor(Number(form.facN) || 0)); }))) : null));
 
       // Specialists
       p.append(section('Specialists', 'Sets a specialist’s level directly; 0 dismisses them for this iteration. Their level requirement is skipped.',
@@ -6174,7 +6516,24 @@ function onKey(e) {
       }
       p.append(section('Experiments',
         'Switching an experiment off restores its original behaviour at once and keeps its saved data for when it comes back. It is not the same as reverting its code (git revert, see docs/experiments/README.md) or restoring an older save (Settings → Import). Choices here are stored in this browser only.',
-        list, row(button('Reset all experiments to their defaults', () => { Exp.reset(); rt.structureDirty = true; UI.update(true); }))));
+        list, row(button('Reset all experiments and content switches to their defaults', () => { Exp.reset(); rt.structureDirty = true; UI.update(true); }))));
+
+      // Single pieces of content, by their stable content ids
+      const items = Content.all();
+      if (items.length) {
+        const box = el('div', { class: 'dev-exps' });
+        for (const x of items) {
+          const on = Exp.itemOn(x.cid), expOn = Exp.on(x.exp);
+          const b = el('button', { type: 'button', class: 'btn small', 'aria-pressed': String(on), 'aria-label': `${x.name}: ${on ? 'on' : 'off'}. Turn ${on ? 'off' : 'on'}` }, on ? 'On' : 'Off');
+          b.addEventListener('click', () => { Exp.setItem(x.cid, !on); rt.structureDirty = true; UI.update(true); });
+          box.append(el('div', { class: 'dev-exp' + (on && expOn ? '' : ' off') },
+            el('div', null, el('b', { text: x.name }), el('code', { text: ` ${x.cid}` }), el('small', { text: `${on ? 'On' : 'Off'}${x.cid in Exp.itemSession ? ' · this page load (address)' : x.cid in Exp.items ? ' · set here' : ''} · part of ${x.exp}${expOn ? '' : ' (which is off)'}` })),
+            b));
+        }
+        p.append(section('Content switches',
+          'Switches one facility, requisition or research project off on its own. While off it does nothing and is not listed: what you own of it, its ranks and a project under way are kept (a project under way is set aside, already paid, and resumes when it comes back), and nothing is granted or charged twice when it returns. Stored in this browser only.',
+          box));
+      }
 
       p.append(section('Developer settings', null,
         row(button('Turn off infinite resources', () => { for (const [c] of CURS) dev.infinite[c] = false; persist(); rt.structureDirty = true; UI.update(true); }),
@@ -6214,7 +6573,7 @@ function onKey(e) {
     const R = RES[id];
     if (!R) return;
     if (S.researching && S.researching.id === id) { S.researching.end = S.time; completeResearch(); return; }
-    if (R.repeatable) S.deepTheory++;
+    if (R.repeatable) setRank(R, rankOf(R) + 1);
     else S.research[id] = true;
   }
   function installFree(id) {
@@ -7423,7 +7782,7 @@ function boot() {
   document.addEventListener('keydown', onKey);
   document.addEventListener('pointerdown', () => Sound.unlock(), { passive: true });
   // A hidden page never punishes: an entity in the corridor leaves when you switch away.
-  document.addEventListener('visibilitychange', () => { if (document.hidden) { if (rt.encounter) endEncounter('unseen'); save(); } });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { if (rt.encounter) endEncounter('unseen'); save(); } else Exp.runAll('page:visible'); });
   window.addEventListener('pagehide', () => save());
   window.addEventListener('beforeunload', () => save());
   if (window.matchMedia) {
@@ -7439,7 +7798,9 @@ function boot() {
       dvPreview, canNoclip, addRooms, enterLevel, completeFiniteSurvey, funFloor,
       facVisible, upgradeVisible, buyQuote, facilityCost, maxAffordable, facPrice, memoryCost, save, loadGame, sanitizeState, migrate, encodeSave, decodeSave,
       replaceState, exitRooms, canResearch, canBuyMemory, UI, View,
-      Exp, Wallet, contentOn, upgradeAvailable, upgradeHome, Panels, TABS, FAC, UPG, SPEC, MIS, CONDITIONS, ACHIEVEMENTS,
+      Exp, Wallet, contentOn, upgradeAvailable, upgradeHome, Panels, TABS, FAC, UPG, SPEC, MIS, RES, CONDITIONS, ACHIEVEMENTS,
+      Content, facs, upgs, ress, owned, rankOf, setRank, unitQuote, gatherFx, syncResearch, missionDuration, missionWater,
+      missionSalvage, specOutput, upgradePrice, upgradeCurrency, canAffordUpgrade, totalFacilities, count, has, researched,
       setBuyMode(m) { rt.buyMode = m; },
     };
   }

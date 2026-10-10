@@ -88,6 +88,63 @@ The game file is unchanged by this round, so the equivalence check still applies
   - `tools/tests/server-harness.js` starts the real server on a free port with a temporary database, and includes a cookie-keeping client.
   - `tools/tests/server-core.test.js` makes 19 checks, using probe features.
 
+### Fourth round: update 2.1 infrastructure
+
+Shared machinery for the features of update 2.1 ([UPDATE-2.1.md](UPDATE-2.1.md)). **It has no gameplay effect by itself:** no content uses it in this round. `tools/equivalence-check.js` was rebuilt for format 2 and proves this against `c903362`, the game before the update (see Tests).
+
+- **Content switches.** Each facility, requisition or research project an experiment adds has a stable content id: `facility:<id>`, `upgrade:<id>` or `research:<id>`. A facility's tiers share its id.
+  - `Exp.itemOn(cid)` and `Exp.setItem(cid, on)`. Switches are stored under `the-hum.content`, never in the save.
+  - `?content=-facility:copier` switches content for one page load.
+  - `contentOn()` checks both the experiment flag and the content id.
+  - The Dev tab lists every switchable piece of content.
+  - `Exp.reset()` restores flags and content switches together.
+- **Content from a slot.** `Content.facility/upgrade/research(exp, def)` add content from an experiment's own slot. The facility helper generates the tiers as well.
+  - The definitions stay in the lists while switched off, so saves keep their data.
+  - `facs()`, `upgs()` and `ress()` are the live lists, cached per switch change.
+  - Gameplay and interface code that lists content uses them: totals, waves, incidents, the Facilities and Research tabs, tab dots, the manual and the Dev tab.
+- **Data-driven effects.** `gatherFx()` collects:
+  - `fx` on installed requisitions and finished research;
+  - `fxRank` per rank of a repeatable project;
+  - the share of `kind: 'share'` facilities toward their `target`.
+
+  `derive()`, the mission functions and `researchTime()` apply them through one path. Switched-off content counts for nothing; its ownership is kept. Every value is neutral with no such content.
+  - `owned(u)` is `has()` plus `contentOn()`.
+  - The existing per-field loops (`hand`, `mult`, `rooms`) use it.
+- **Independent research ranks.** `rankOf(R)` and `setRank(R, n)`.
+  - Deep Survey Theory keeps `S.deepTheory`.
+  - Every other repeatable project keeps its own rank in `S.ext.ranks`.
+  - Cost, time, the project under way, completion, the Research tab and the Dev tab use it.
+- **Research needing a level.** `reqLevel` opens a project once that level has ever been reached (`S.life.maxLevel`).
+- **Research set aside.** `syncResearch()` runs every step.
+  - A project under way whose content is switched off moves to `S.ext.resq`, with its cost, time left and total, so it never holds the slot.
+  - It resumes by itself, already paid and oldest first, once its content is back and the slot is free.
+  - A project no longer needed is refunded.
+  - The Research tab lists projects set aside.
+- **Dormant data.**
+  - `countMapKeep()` keeps facility counts of unknown ids in `run.dormant.facilities`.
+  - Auto-buy choices of unknown facilities stay in `run.dormant.autobuy`.
+  - A project under way with an unknown id stays in `dormant.researching`.
+  - All of them come back when the content does.
+- **The save as the update found it.**
+  - Every save now records `ext.build = { v: '2.1.0' }`.
+  - The first time this build loads a save without that mark, it copies the save untouched to `the-hum.save.pre-2.1`.
+- **Hook points**, unanswered in this round:
+  - `step:split`: the earliest event time inside a step. `step()` cuts a long step there, so time away handles each event at its moment.
+  - `mission:done`: after each return, with its end time. Returns are handled in a bounded loop, so a mission sent again can return again inside one long step.
+  - `autobuy:run`: an experiment runs automatic purchasing instead of the Procurement Notes loop. There is one purchaser, never two.
+  - `facilities:row`, `facilities:rowUpdate`, `facilities:sig`, `facilities:autoControl`, `facilities:autoNote`.
+  - `crew:row`, `crew:rowUpdate`, `crew:sig`.
+  - `missions:head`, `missions:card`, `missions:cardUpdate`, `missions:update`, `missions:sig`.
+  - `view:frame`, `view:segment` (inside the corridor loop, after each stretch, so nearer walls hide what is drawn), `view:overlay` (under the entity and the anomaly) and `view:reset`.
+  - `page:visible`.
+  - `automation:summary`.
+- **Purchase and mission extension points.**
+  - `unitQuote(f, n)` and `buyFacility(id, { n, quiet })` buy exactly `n` units at their exact price, whatever the buy mode.
+  - `buyUpgrade(id, quiet)` and `hireSpecialist(id, quiet)` skip the sound and log line.
+  - `launchMission(id, { at, quiet })` starts a mission at a given moment.
+  - All of them keep the same checks and payment, and refuse a price that is not positive and finite.
+- **Requisitions in other tabs.** An upgrade can name its `home` tab. The Upgrades tab points to requisitions on sale elsewhere, with a button that opens that tab (`homePointers`). The upgrade categories experiment knows an Automation category.
+
 ## Save-schema effects
 
 These changes are additive and the save version stays 1.
@@ -112,6 +169,24 @@ These changes are additive and the save version stays 1.
 - `node tools/functional-test.js`: the original 55 checks, with every experiment off.
 - `node tools/tests/core.test.js`: 29 checks covering flags, storage, URL overrides, dormant ids, opaque experiment data and the wallet. The second-round hooks are also covered: price curves, the order of the noclip hooks, Noclip sub-tabs, a replaced Memories section, a custom facility layout and confirmation notes.
 - `node tools/run-tests.js` runs everything.
+
+### Tests for the fourth round
+
+- `node tools/equivalence-check.js` plays 8 seeded scripted sessions in `c903362` and in this build with every update-2.1 experiment off. Every other experiment stays at its default.
+  - The sessions include surveying, every kind of purchase in every buy mode, specialists, missions, research and doctrines, drinks, the lights, anomalies, entities, level changes, noclips with Memories, Procurement Notes auto-buy, time away and save round trips.
+  - It compares the full state, the log and every derived rate at 96 checkpoints.
+  - Run on 10 October 2026: **all 96 identical**.
+  - A planted change of 0.04% to one facility's bonus was reported on both seeds tried, so "identical" is meaningful.
+- `node tools/tests/update-core.test.js`: 29 checks.
+  - Content switches, registration and live lists.
+  - Effects that follow ownership and switches.
+  - Independent ranks.
+  - A project set aside and resumed without a second charge.
+  - Dormant counts and projects coming back.
+  - The three pre-update fixtures loading intact with the kept copy.
+  - Step splitting, several mission returns in one long step, and exact single-unit purchases.
+- **Fixtures** written by `c903362` itself: `tools/tests/fixtures/pre-update-l4.json`, `-l5.json` and `-fun.json`. They are made by `make-pre-update-saves.js`.
+- Every existing suite passed unchanged on this round: 23 suites, 629 checks.
 
 ## Limitations
 
