@@ -15,7 +15,7 @@ const { open, Checker } = require('./harness');
     const before = { salvage: H.S.run.salvage, rooms: H.S.run.rooms };
     H.rt.lastSurveyReal = -1e9;
     const ok = H.survey();
-    const one = { salvage: H.S.run.salvage, rooms: H.S.run.rooms };
+    const one = { salvage: H.S.run.salvage, rooms: H.S.run.rooms, aw: H.S.run.aw, echoes: H.S.echoes };   // a survey can find water
     for (let i = 0; i < 6000; i++) H.step(0.1, false);   // ten minutes without surveying
     const idle = { salvage: H.S.run.salvage, rooms: H.S.run.rooms, aw: H.S.run.aw, echoes: H.S.echoes, level: H.S.run.level };
     return { power: D.surveyPower, manual: D.manualSalvage, sps: D.sps, rps: D.roomsPerSec, aws: D.aws, eps: D.eps, auto: D.autoSurveys,
@@ -23,7 +23,7 @@ const { open, Checker } = require('./harness');
   });
   c.check('a fresh game has survey power +1 and recovers exactly 1 salvage per survey', fresh.power === 1 && fresh.manual === 1 && fresh.ok && fresh.one.salvage === 1, fresh);
   c.check('a fresh game produces nothing on its own: no salvage, rooms, water or Echoes per second', fresh.sps === 0 && fresh.rps === 0 && fresh.aws === 0 && fresh.eps === 0 && fresh.auto === 0, fresh);
-  c.check('ten minutes without surveying change nothing', fresh.idle.salvage === 1 && fresh.idle.rooms === 1 && fresh.idle.aw === 0 && fresh.idle.echoes === 0 && fresh.idle.level === 0, fresh.idle);
+  c.check('ten minutes without surveying change nothing', fresh.idle.salvage === 1 && fresh.idle.rooms === 1 && fresh.idle.aw === fresh.one.aw && fresh.idle.echoes === fresh.one.echoes && fresh.idle.level === 0, { one: fresh.one, idle: fresh.idle });
 
   // The first Salvage Cart: survey power 1 → 1.25 at once, still nothing passive.
   const cart = await ev(() => {
