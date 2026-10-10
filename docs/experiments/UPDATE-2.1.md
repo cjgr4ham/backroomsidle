@@ -63,11 +63,11 @@ Commits are listed oldest first. Revert newest first.
 | `EXP-CORE` (infrastructure, no flag) | — | — | `index.html` core | `ef3064f` infrastructure, `3a2bf68` slots, `53483ec` automation summary and quiet launch, `4cd988d` `upgrades:head`, `48b06ec` `Exp.collect`, `82ece24` `View.features`, `d08d73b` `view:light`, `fb198b2` `level:exit`, `92ffe5c` `fun:floorRooms`, `34c8ace` `dv:price` | — | every experiment that uses that hook |
 | `EXP-CREW-VISIBLE` | on | — | slot | `c568f5c`, `ff57115`, `ad5f214` (`crew:attend`), `25a1028` (`crew:kitHide`) | `82ece24` | `EXP-AMBIENT-EVENTS` before `ad5f214`; `EXP-CREW-EQUIPMENT` before `25a1028` |
 | `EXP-ROOM-VARIETY` | on | — | slot | `d1cd462` | `82ece24` | — |
-| `EXP-PRODUCTION-FEEDBACK` | on | — | slot + CSS slot | `723df07` | core | — |
+| `EXP-PRODUCTION-FEEDBACK` | on | — | slot + CSS slot | `723df07`, `d2b6a24` (its suite runs without `EXP-CREW-VISIBLE`) | core | — |
 | `EXP-AMBIENT-EVENTS` | on | — | slot | `ad1f0f2` | `d08d73b`; uses `crew:attend` if present | — |
 | `EXP-CREW-EQUIPMENT` | on | — | slot + CSS slot | `6d92629` | core; uses `crew:kit` and `crew:kitHide` if present | — |
 | `EXP-MISSION-AUTOREPEAT` | on | `upgrade:dispatch` | slot + CSS slot | `ce92fad` | `53483ec` | — |
-| `EXP-AUTO-UPGRADE` | on | `upgrade:procurement` | slot + CSS slot | `60c2705`, `762a8d2` (its suite no longer needs `EXP-LATE-UPGRADES`) | `4cd988d`, `48b06ec`, `53483ec` | — |
+| `EXP-AUTO-UPGRADE` | on | `upgrade:procurement` | slot + CSS slot | `60c2705`, `762a8d2` (its suite no longer needs `EXP-LATE-UPGRADES`), `0e69873` (its entry) | `4cd988d`, `48b06ec`, `53483ec` | — |
 | `EXP-LATE-FACILITIES` | on | `facility:copier`, `facility:tubes`, `facility:lathe`, `facility:relay` (tiers share them) | slot | `5f994c7`, `a529c70` (tuning) | `ef3064f` | — |
 | `EXP-LATE-UPGRADES` | on | `upgrade:stapler`, `upgrade:lamp`, `upgrade:coffee`, `upgrade:holdmusic`, `upgrade:speeddial`, `upgrade:wedges`, `upgrade:masterkey`, `upgrade:runner` | slot | `51919ec`, `a1b140a` (prices), `6964ea7` (effects) | `ef3064f` | — |
 | `EXP-LATE-RESEARCH` | on | `research:late_filing`, `research:late_acoustics`, `research:late_logistics`, `research:late_crewcraft`, `research:late_cartography`, `research:late_signal` | slot | `2017741`, `4bd5b02` (tuning) | `ef3064f` | — |
@@ -81,9 +81,9 @@ Other commits in the update:
 - Tools and tests:
   - `d28827d` the balance bot and `balance-report.js`;
   - `d9faf1d` the Level FUN and rebirth suites follow the balance experiments;
-  - `602f4d0` the equivalence check switches `EXP-DV-PRICES` off with the other update flags.
-  - `24dae1e` the facilities suite's scroll check measures the tab panels' own scroll (section 6).
-  - `ffa0221` the ledger suite's noise check reads its row again after an update that can rebuild the panel (section 6).
+  - `602f4d0` the equivalence check switches `EXP-DV-PRICES` off with the other update flags;
+  - `24dae1e`, `ffa0221` and `a1e395a` fix timing faults in the facilities, ledger and cloud-save suites (section 6).
+- `b95ee27` puts `EXP-AUTO-UPGRADE`'s entry back as its own commits left it; `0e69873` re-applies the change as part of that experiment.
 
 **Persistent data, by experiment.**
 
@@ -105,6 +105,9 @@ The five visual experiments, `EXP-LATE-BALANCE`'s exit and `EXP-DV-PRICES` store
   - To resolve it, keep the current list and delete the reverted experiment's name.
   - Then run `git add tools/tests/core.test.js` and `git revert --continue`.
 - That is what the revert proofs in section 6 do.
+- An experiment's own files (its entry and its suite) change only in that experiment's commits. This was checked for all twelve, so no revert meets a modify/delete conflict.
+- `c568f5c` (`EXP-CREW-VISIBLE`) also added the test harness's `manualFrames` option, which the room-variety and production-feedback suites use. Reverting it removes the option, and both suites still pass on the real frame loop (section 6).
+- `24dae1e`, `ffa0221` and `a1e395a` change suites from v2's tests commit `7f85235`. If v2 itself is ever reverted, revert them first.
 
 ## 3. How to switch things off
 
@@ -269,7 +272,7 @@ Every other number changed belongs to the update's own new content.
 
 ## 6. Tests and verification
 
-**The suites.** `node tools/run-tests.js` runs every suite. The last full run on the final head: *in progress, recorded here when it completes*.
+**The suites.** `node tools/run-tests.js` runs every suite. The last full run, on `a1e395a`: **all 36 suites passed, 893 checks**.
 
 | Suite | Checks | Covers |
 | --- | --- | --- |
@@ -289,24 +292,39 @@ Every other number changed belongs to the update's own new content.
 
 The older suites (economy, facilities, specialists, research, encounters, Level FUN, migration, rebirth, accounts, cloud save, leaderboard, viewports and the rest) all run in the same command.
 
-**The baseline equivalence.** `node tools/equivalence-check.js` compares `c903362` with this build, every update flag off, over 8 seeded sessions. The sessions include noclips, time away and save round trips. All **96 of 96 checkpoints are identical**, including the full state and every derived rate.
+**The baseline equivalence.** `node tools/equivalence-check.js` compares `c903362` with this build, every update flag off, over 8 seeded sessions. The sessions include noclips, time away and save round trips. On `a1e395a`, all **96 of 96 checkpoints are identical**, including the full state and every derived rate.
 
-**Revert proofs.** Run in throwaway clones, never in the working copy. Each experiment's commits were reverted from the final head, newest first, then the full suite and the equivalence check were run.
+**Revert proofs.** Run in throwaway clones, never in the working copy. Each experiment's commits were reverted, newest first, then the full suite and the equivalence check were run. Every revert met only the expected `core.test.js` list conflict.
 
-| Experiment | Reverted, newest first | Conflicts | Full suite afterwards | Equivalence with `c903362` |
+| Experiment | Reverted, newest first | Clone of | Full suite afterwards | Equivalence with `c903362` |
 | --- | --- | --- | --- | --- |
-| `EXP-DV-PRICES` | `2c1b860` | none | all 35 suites pass (883 checks) | 96 of 96 identical |
-| `EXP-AMBIENT-EVENTS` | `ad1f0f2` | the `core.test.js` list | 34 of 35 suites; one facilities check failed (below) | 96 of 96 identical |
-| `EXP-CREW-EQUIPMENT` | `6d92629` | the `core.test.js` list | all 35 suites pass (882 checks) | 96 of 96 identical |
-| `EXP-MISSION-AUTOREPEAT` | `ce92fad` | the `core.test.js` list | all 35 suites pass (858 checks) | 96 of 96 identical |
+| `EXP-DV-PRICES` | `2c1b860` | `602f4d0` | 35 suites, 883 checks, all pass | 96 of 96 |
+| `EXP-AMBIENT-EVENTS` | `ad1f0f2` | `be9b309` | 35 suites, 868 checks, all pass | 96 of 96 |
+| `EXP-CREW-EQUIPMENT` | `6d92629` | `602f4d0` | 35 suites, 882 checks, all pass | 96 of 96 |
+| `EXP-CREW-VISIBLE`, after `EXP-CREW-EQUIPMENT` and `EXP-AMBIENT-EVENTS` | `6d92629`, `25a1028`, `ad1f0f2`, `ad5f214`, `ff57115`, `c568f5c` | `0e69873` | 33 suites, 834 checks, all pass | 96 of 96 |
+| `EXP-ROOM-VARIETY` | `d1cd462` | `adfcf47` | 35 suites, 878 checks, all pass | 96 of 96 |
+| `EXP-PRODUCTION-FEEDBACK` | `723df07` | `adfcf47` | 35 suites, 883 checks, all pass | 96 of 96 |
+| `EXP-MISSION-AUTOREPEAT` | `ce92fad` | `602f4d0` | 35 suites, 858 checks, all pass | 96 of 96 |
+| `EXP-AUTO-UPGRADE` | `0e69873`, `762a8d2`, `60c2705` | `0e69873` | 35 suites, 859 checks, all pass | 96 of 96 |
+| `EXP-LATE-FACILITIES` | `a529c70`, `5f994c7` | `24dae1e` | 35 suites, 873 checks, all pass | 96 of 96 |
+| `EXP-LATE-UPGRADES` | `6964ea7`, `a1b140a`, `51919ec` | `be9b309` | 34 of 35 suites: one cloud-save check failed, a race in that test (below) | 96 of 96 |
+| `EXP-LATE-RESEARCH` | `4bd5b02`, `2017741` | `adfcf47` | 35 suites, 871 checks, all pass | 96 of 96 |
+| `EXP-LATE-BALANCE` | `fccf82c`, `09407dc` | `adfcf47` | 35 suites, 883 checks, all pass | 96 of 96 |
 
-*In progress:* the proofs for the other eight experiments are running, and this table is completed when they finish.
+- Commits after a clone's head change only tests and docs.
+- What is left in `index.html` after each revert: the empty slot markers, and `EXP-LATE-BALANCE`'s list of the three late-content flags. `Exp.on()` answers false for an experiment that is not in the build.
 
-The facilities check that failed measured the page's own scroll. At 1366×860 the tab panels scroll in their own column, and the page can move by one pixel only. It now measures the panel column (`24dae1e`, test only), and that proof is being run again.
+**Faults the proofs found, all in tests, not in the game.** Each was fixed in its own commit and the fix checked:
+- `24dae1e`: the facilities suite's scroll check measured the page's own scroll, which can move by one pixel at 1366×860. It now measures the tab panels' column.
+- `ffa0221`: the ledger suite's noise check kept a row that a panel rebuild replaces, one update in four. Reproduced by setting the UI tick; it now looks the row up again.
+- `762a8d2`: the procurement suite named the Master Key, from `EXP-LATE-UPGRADES`.
+- `d2b6a24`: the production-feedback suite assumed `EXP-CREW-VISIBLE` was in the build.
+- `a1e395a`: the cloud-save suite could read a copy kept in the browser before the account's versions arrived from the server.
+- A re-run also showed that `be9b309` had edited `EXP-AUTO-UPGRADE`'s entry outside its commits, so reverting it conflicted. `b95ee27` and `0e69873` fix that.
 
 **Save compatibility.** The test of `c903362` reading a 2.1 save is in section 4.
 
-**In the browser.** *In progress, recorded here when complete.*
+**In the browser.** The suites drive the real page in headless Chromium, including the interface at four screen sizes (`viewports.test.js`) and reduced motion (`crew-visible.test.js`).
 
 ## 7. Limitations and known issues
 
@@ -317,4 +335,7 @@ The facilities check that failed measured the page's own scroll. At 1366×860 th
 - **`c903362` loses late facility units and a late project under way** when it loads a 2.1 save (section 4).
 - **Reverting an older experiment commit conflicts on one line** of `tools/tests/core.test.js` (section 2).
 - **Ambient sounds were not heard.** The browser checks run headless. What is tested is that at most one sound is scheduled per 12 seconds, none with sound effects or ambience off, and that sounds never use the game's random sequence.
+- **Not run, to save time:**
+  - a separate browser pass (keyboard-only play, a phone-width tour of the new tabs, rapid clicking and an idle minute with frame timings);
+  - `EXP-PRODUCTION-FEEDBACK`'s revert again after its suite fix `d2b6a24`. The fix touches only its own suite and entry, and that suite passes on the final head and with `EXP-CREW-VISIBLE` reverted.
 - **Visual quality was judged from frame captures**, at the game's 384×216 resolution enlarged, at every level and with reduced motion.
