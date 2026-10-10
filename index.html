@@ -2204,7 +2204,9 @@ function deriveSanity(D, X) {
 function exitRooms(lv) {
   const L = LEVELS[lv];
   if (!L || L.endless) return Infinity;
-  return Math.ceil(L.exit * (memRank('route') ? 0.7 : 1) * (condMods().exit || 1));
+  // A balance experiment may set a level's exit (level:exit answers the rooms); with no answer it is the level's own.
+  const base = Exp.ask('level:exit', lv, L.exit);
+  return Math.ceil((base === undefined ? L.exit : base) * (memRank('route') ? 0.7 : 1) * (condMods().exit || 1));
 }
 function offlineCapSeconds() {
   let h = CONFIG.offline.baseCapHours;
