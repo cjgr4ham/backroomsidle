@@ -7938,6 +7938,23 @@ function onKey(e) {
 // ---------------------------------------------------------------------------
 //
 // >>> EXP-LATE-BALANCE
+// Late balance. Measured with the balance bot (tools/balance-report.js), the Night Office was the longest required
+// stretch of a run: about 18 minutes for an active player (2 surveys a second), against a target of about 15. Its exit
+// moves from 350,000 to 260,000 rooms, which measures about 15 minutes. Nothing else changes and nothing becomes harder:
+// with this experiment off the Night Office is exactly as before. Rooms already mapped on the level are never touched.
+// Registry entry and rollback: docs/experiments/EXP-LATE-BALANCE.md
+(function lateBalanceExperiment() {
+  const ID = 'EXP-LATE-BALANCE';
+  Exp.define({
+    id: ID,
+    name: 'Late balance',
+    summary: 'The Night Office’s exit at 260,000 rooms instead of 350,000: measured to bring the longest required stretch of a run to about 15 minutes.',
+  });
+  // Exits set by this experiment, by level id. Each is a reduction: no level gets longer.
+  const EXITS = { office: 260000 };
+  Exp.hook('level:exit', ID, (lv) => { const L = LEVELS[lv]; return L && EXITS[L.id] != null ? EXITS[L.id] : undefined; });
+  Exp.hook('balance:api', ID, () => ({ EXITS: { ...EXITS } }));
+})();
 // <<< EXP-LATE-BALANCE
 //
 // ---------------------------------------------------------------------------
