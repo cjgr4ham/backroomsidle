@@ -3880,13 +3880,20 @@ const View = {
     const slot = Math.floor(t * 10 + (h % 13));
     return hash(slot * 131 + (h & 0xffff)) % 100 < 22 ? 0.42 : 1;
   },
+  /** How lit stretch k is at time t. An experiment may change one stretch's light for a while (view:light answers a
+   *  factor, such as a failing light); with no answer it is the corridor's own light. */
   lightLevel(k, t) {
     const look = this.look;
-    if (look.sconces) return 0.95 * this.flick(k, t);
-    const lk = k - (((k % 2) + 2) % 2);
-    const dead = hash(lk * 13 + this.level * 101) % 100 < (look.deadLights || 9);
-    const base = k % 2 === 0 ? 1 : 0.86;
-    return (dead ? 0.55 : base) * this.flick(lk, t);
+    let l;
+    if (look.sconces) l = 0.95 * this.flick(k, t);
+    else {
+      const lk = k - (((k % 2) + 2) % 2);
+      const dead = hash(lk * 13 + this.level * 101) % 100 < (look.deadLights || 9);
+      const base = k % 2 === 0 ? 1 : 0.86;
+      l = (dead ? 0.55 : base) * this.flick(lk, t);
+    }
+    const m = Exp.ask('view:light', this, k, t);
+    return m === undefined ? l : l * m;
   },
 
   render(nowMs) {

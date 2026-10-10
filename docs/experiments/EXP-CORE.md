@@ -139,6 +139,7 @@ Shared machinery for the features of update 2.1 ([UPDATE-2.1.md](UPDATE-2.1.md))
   - `upgrades:head` (under the Upgrades tab's heading, in the plain layout and the categories layout alike) and `upgrades:update`.
   - `view:frame`, `view:segment` (inside the corridor loop, after each stretch, so nearer walls hide what is drawn), `view:overlay` (under the entity and the anomaly) and `view:reset`.
   - `View.features(k)` says what each wall of stretch k has, as `render()` draws it: a wall, a dark opening or a door. `view:features` lets an experiment that adds to the corridor say so, so anything moving in it can respect walls.
+  - `View.lightLevel(k, t)` asks `view:light` for a factor on one stretch's light, such as a failing light. With no answer, the light is exactly as before. Everything drawn in that stretch uses the result: walls, floor, ceiling, light panel, and the crew and rooms drawn with it.
   - `page:visible`.
   - `automation:summary`: experiments that automate something add a short phrase to a list. The Automation category joins the phrases.
 - **Purchase and mission extension points.**
