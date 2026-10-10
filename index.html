@@ -2932,7 +2932,7 @@ function canLaunch(m) {
 /**
  * Sends a mission. Supplies, length, hazard and haul are worked out the same way however it is sent. `opts.at` starts
  * it at an earlier moment of the game clock (a mission sent again the moment the last one returned, during time away);
- * `opts.quiet` skips the sound.
+ * `opts.quiet` skips the sound and the log line, for missions an experiment sends by itself.
  */
 function launchMission(id, opts) {
   const m = MIS[id];
@@ -2943,8 +2943,10 @@ function launchMission(id, opts) {
   const at = opts && opts.at != null ? Math.min(S.time, opts.at) : S.time;
   r.missions[id] = { start: at, end: at + dur, salvage: missionSalvage(m, D), hazard: missionHazard(m) };
   if (!r.flags.expedition) { r.flags.expedition = true; rt.structureDirty = true; }
-  log(`A team sets out for ${m.name}. Back in about ${fmtTime(dur)}.`, 'info', 'MISSION');
-  if (!(opts && opts.quiet)) Sound.play('buy');
+  if (!(opts && opts.quiet)) {
+    log(`A team sets out for ${m.name}. Back in about ${fmtTime(dur)}.`, 'info', 'MISSION');
+    Sound.play('buy');
+  }
   return true;
 }
 function completeMission(id) {
@@ -5990,7 +5992,7 @@ function onKey(e) {
     { cat: 'Expedition', label: 'Missions', note: 'Mission time, rewards and safety.',
       summary: () => { const n = Object.keys(S.run.missions).length; return n ? `${plural(n, 'mission')} out now` : 'No missions out'; } },
     { cat: 'Automation', label: 'Automation', note: 'What runs by itself once installed, and the switches that control it.',
-      summary: () => Exp.ask('automation:summary') || 'Nothing automated yet' },
+      summary: () => { const parts = []; Exp.run('automation:summary', parts); return parts.length ? parts.join(' · ') : 'Nothing automated yet'; } },
   ];
   const CAT = Object.fromEntries(CATS.map((c) => [c.cat, c]));
   const catOf = (u) => (CAT[u.cat] ? u.cat : 'Other');

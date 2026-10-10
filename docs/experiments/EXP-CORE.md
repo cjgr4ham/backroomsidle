@@ -137,11 +137,11 @@ Shared machinery for the features of update 2.1 ([UPDATE-2.1.md](UPDATE-2.1.md))
   - `missions:head`, `missions:card`, `missions:cardUpdate`, `missions:update`, `missions:sig`.
   - `view:frame`, `view:segment` (inside the corridor loop, after each stretch, so nearer walls hide what is drawn), `view:overlay` (under the entity and the anomaly) and `view:reset`.
   - `page:visible`.
-  - `automation:summary`.
+  - `automation:summary`: experiments that automate something add a short phrase to a list. The Automation category joins the phrases.
 - **Purchase and mission extension points.**
   - `unitQuote(f, n)` and `buyFacility(id, { n, quiet })` buy exactly `n` units at their exact price, whatever the buy mode.
   - `buyUpgrade(id, quiet)` and `hireSpecialist(id, quiet)` skip the sound and log line.
-  - `launchMission(id, { at, quiet })` starts a mission at a given moment.
+  - `launchMission(id, { at, quiet })` starts a mission at a given moment. `quiet` skips the sound and the log line.
   - All of them keep the same checks and payment, and refuse a price that is not positive and finite.
 - **Requisitions in other tabs.** An upgrade can name its `home` tab. The Upgrades tab points to requisitions on sale elsewhere, with a button that opens that tab (`homePointers`). The upgrade categories experiment knows an Automation category.
 
