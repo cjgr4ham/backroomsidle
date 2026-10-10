@@ -727,6 +727,12 @@ details.procure-all summary { padding: 8px 10px; cursor: pointer; font: 600 12px
 /* <<< EXP-AUTO-UPGRADE */
 /* -- */
 /* >>> EXP-PRODUCTION-FEEDBACK */
+.vp-feed {
+  left: 50%; bottom: 8px; transform: translateX(-50%); max-width: 46%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: 2px 6px; background: rgba(0, 0, 0, 0.45); opacity: 0; transition: opacity 0.4s;
+}
+.vp-feed.on { opacity: 1; }
+@media (max-width: 520px) { .vp-feed { bottom: 22px; max-width: 80%; } }
 /* <<< EXP-PRODUCTION-FEEDBACK */
 /* -- */
 /* >>> EXP-CREW-EQUIPMENT */
@@ -9180,6 +9186,101 @@ function onKey(e) {
 // ---------------------------------------------------------------------------
 //
 // >>> EXP-PRODUCTION-FEEDBACK
+// Grouped production feedback. Every 8 to 14 seconds while you are here, one specialist's work since their last
+// caption is summed up in a short line, such as "Scavenger recovered +12.4K salvage": over that crew member's head
+// when the visible crew shows them, otherwise at the bottom of the camera feed. It only reads what the simulation has
+// already credited (salvage, rooms, almond water and Echoes from each specialist's own rate, step by step); it never
+// grants anything. One caption at a time, none during an entity or a blackout, none for time away.
+// Registry entry and rollback: docs/experiments/EXP-PRODUCTION-FEEDBACK.md
+(function productionFeedbackExperiment() {
+  const ID = 'EXP-PRODUCTION-FEEDBACK';
+  Exp.define({
+    id: ID,
+    name: 'Production feedback',
+    summary: 'Sparse captions summing up what each specialist has already produced since their last one, over their head or at the foot of the camera feed. Never grants anything.',
+  });
+
+  // What each producing specialist adds, read from the step's own figures (rt.D), in its own words.
+  const LINES = [
+    { id: 'scavenge', rate: (D) => D.sps, text: (n) => `Scavenger recovered +${fmt(n)} salvage` },
+    { id: 'chart', rate: (D) => D.roomsPerSec, text: (n) => `Cartographer mapped +${fmtRooms(n)} rooms` },
+    { id: 'dowse', rate: (D) => D.aws, text: (n) => `Dowser found +${fmt(n)} almond water` },
+    { id: 'archive', rate: (D) => D.eps, text: (n) => `Archivist recorded +${fmtEcho(n)} Echoes` },
+  ];
+  const sum = {};          // id -> produced since that specialist's last caption (runtime only)
+  let next = 0, turn = 0;  // seconds of play to the next caption; whose turn it is
+  let shown = null;        // { id, text, age }
+  let dom = null;
+  const clear = () => { for (const k in sum) delete sum[k]; shown = null; if (dom) { dom.classList.remove('on'); dom.textContent = ''; } };
+
+  // Summing up: only while you are here, from the rates the step has just credited.
+  Exp.hook('step', ID, (dt, offline) => {
+    const D = rt.D;
+    if (offline || !D) return;
+    for (const L of LINES) if (recruited(L.id)) sum[L.id] = (sum[L.id] || 0) + L.rate(D) * dt;
+    if (shown) shown.age += dt;
+    next -= dt;
+    if (next > 0) return;
+    next = 8 + ((S.time * 7.3) % 6);   // 8 to 14 seconds, varied without touching the game's random sequence
+    if (rt.encounter || blackedOut()) return;
+    for (let i = 0; i < LINES.length; i++) {
+      const L = LINES[(turn + i) % LINES.length];
+      if (!(sum[L.id] > 0) || !recruited(L.id)) continue;
+      turn = (turn + i + 1) % LINES.length;
+      show(L.id, L.text(sum[L.id]));
+      sum[L.id] = 0;
+      return;
+    }
+  });
+  function show(id, text) {
+    shown = { id, text, age: 0 };
+    // Over their head if the visible crew is drawing them; otherwise at the foot of the camera feed.
+    const where = Exp.ask('crew:where', id);
+    if (dom) {
+      setText(dom, where ? '' : text);
+      dom.classList.toggle('on', !where);
+    }
+  }
+  // The caption over a crew member: drawn with the overlays, under the entity and the anomaly.
+  Exp.hook('view:overlay', ID, (V) => {
+    if (!shown || shown.age > 3.5) {
+      if (dom && shown && shown.age > 4.5) { dom.classList.remove('on'); shown = null; }
+      return;
+    }
+    const w = Exp.ask('crew:where', shown.id);
+    if (!w) return;
+    const ctx = V.ctx;
+    const fade = rt.reducedMotion ? 1 : Math.min(1, shown.age / 0.4, (3.5 - shown.age) / 0.6);
+    const rise = rt.reducedMotion ? 0 : shown.age * 3;
+    ctx.font = '7px monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    const tw = ctx.measureText(shown.text).width;
+    const x = Math.max(tw / 2 + 4, Math.min(V.W - tw / 2 - 4, w.x)), y = Math.max(16, w.y - 4 - rise);
+    ctx.globalAlpha = Math.max(0, fade);
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(x - tw / 2 - 3, y - 9, tw + 6, 10);
+    ctx.fillStyle = 'rgba(244,236,206,0.95)';
+    ctx.fillText(shown.text, x, y);
+    ctx.globalAlpha = 1;
+  });
+  Exp.hook('ui:init', ID, () => {
+    const hud = document.querySelector('#viewport .vp-hud');
+    if (!hud) return;
+    dom = el('span', { class: 'vp-feed', 'aria-hidden': 'true' });
+    hud.append(dom);
+  });
+  Exp.hook('ui:update', ID, () => {
+    if (!dom) return;
+    if (!Exp.on(ID) || (shown && shown.age > 4.5) || rt.encounter || blackedOut()) { if (dom.classList.contains('on')) dom.classList.remove('on'); }
+  });
+  Exp.hook('view:reset', ID, () => clear());
+  Exp.hook('afterLoad', ID, () => clear());
+  Exp.hook('flagsChanged', ID, () => clear());
+  Exp.hook('manual', ID, (add) => add('What the crew bring in', [
+    'Every few seconds a short line sums up what one specialist has produced since their last line, such as "Scavenger recovered +12.4K salvage". It is shown over their head when you can see them, or at the foot of the camera feed. It only reports what has already been added to your totals.',
+  ]));
+  Exp.hook('feedback:api', ID, () => ({ shown: () => shown && { ...shown }, sums: () => ({ ...sum }), dom: () => dom && { text: dom.textContent, on: dom.classList.contains('on') } }));
+})();
 // <<< EXP-PRODUCTION-FEEDBACK
 //
 // ---------------------------------------------------------------------------
