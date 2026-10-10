@@ -128,6 +128,7 @@ Shared machinery for the features of update 2.1 ([UPDATE-2.1.md](UPDATE-2.1.md))
 - **The save as the update found it.**
   - Every save now records `ext.build = { v: '2.1.0' }`.
   - The first time this build loads a save without that mark, it copies the save untouched to `the-hum.save.pre-2.1`.
+- **`Exp.collect(name)`** joins every enabled handler's answer. The rebuild signatures several experiments add to use it: `facilities:sig`, `crew:sig` and `missions:sig`.
 - **Hook points**, unanswered in this round:
   - `step:split`: the earliest event time inside a step. `step()` cuts a long step there, so time away handles each event at its moment.
   - `mission:done`: after each return, with its end time. Returns are handled in a bounded loop, so a mission sent again can return again inside one long step.

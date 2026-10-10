@@ -1554,6 +1554,14 @@ const Exp = {
     if (list) for (const h of list) if (this.on(h.id)) { const v = h.fn(...args); if (v !== undefined) return v; }
     return undefined;
   },
+  /** Every enabled handler's answer, joined: for rebuild signatures several experiments add to. */
+  collect(name, ...args) {
+    const list = this.hooks[name];
+    if (!list) return '';
+    const out = [];
+    for (const h of list) if (this.on(h.id)) { const v = h.fn(...args); if (v !== undefined) out.push(v); }
+    return out.join('|');
+  },
   /** A short string that changes whenever any flag or content switch changes, for interface rebuild checks. */
   sig() {
     const s = this.ids.map((id) => (this.on(id) ? '1' : '0')).join('');
@@ -4392,7 +4400,7 @@ function nextTier(f) {
 }
 
 Panels.facilities = {
-  sig: () => facs().filter(facVisible).map((f) => f.id).join() + '|' + memRank('procure') + '|' + rt.buyMode + '|' + (Exp.ask('facilities:sig') || ''),
+  sig: () => facs().filter(facVisible).map((f) => f.id).join() + '|' + memRank('procure') + '|' + rt.buyMode + '|' + Exp.collect('facilities:sig'),
   build(p) {
     const seg = el('div', { class: 'seg', role: 'group', 'aria-label': 'Purchase quantity' });
     for (const m of [1, 10, 25, 'max']) {
@@ -4605,7 +4613,7 @@ function specNow(s, D) {
   return lvl ? specOutput(s, lvl, D) : 'not recruited';
 }
 Panels.crew = {
-  sig: () => `${S.run.level}|${SPECIALISTS.map((s) => (recruited(s.id) ? 1 : 0)).join('')}|${UPGRADES.filter((u) => upgradeAvailable(u) && upgradeHome(u) === 'crew').map((u) => u.id).join()}|${UPGRADES.filter((u) => owned(u) && u.cat === 'Crew').length}|${Exp.ask('crew:sig') || ''}`,
+  sig: () => `${S.run.level}|${SPECIALISTS.map((s) => (recruited(s.id) ? 1 : 0)).join('')}|${UPGRADES.filter((u) => upgradeAvailable(u) && upgradeHome(u) === 'crew').map((u) => u.id).join()}|${UPGRADES.filter((u) => owned(u) && u.cat === 'Crew').length}|${Exp.collect('crew:sig')}`,
   build(p) {
     p.append(el('div', { class: 'panel-head' }, el('div', null,
       el('h2', { text: 'Crew' }),
@@ -4683,7 +4691,7 @@ Panels.crew = {
 };
 
 Panels.expeditions = {
-  sig: () => `${S.run.level}|${Object.keys(S.run.missions).join()}|${has('maps')}|${has('rope')}|${has('packs')}|${has('canteens')}|${researched('expcart')}|${Exp.ask('missions:sig') || ''}`,
+  sig: () => `${S.run.level}|${Object.keys(S.run.missions).join()}|${has('maps')}|${has('rope')}|${has('packs')}|${has('canteens')}|${researched('expcart')}|${Exp.collect('missions:sig')}`,
   build(p) {
     p.append(el('div', { class: 'panel-head' }, el('div', null,
       el('h2', { text: 'Missions' }),
