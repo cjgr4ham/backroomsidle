@@ -3135,7 +3135,12 @@ function syncResearch() {
 }
 
 // ---------------------------------------------------------------- memories and noclip
-function memoryCost(M) { return M.repeatable ? Math.ceil(M.baseCost * Math.pow(M.growth, memRank(M.id))) : M.cost; }
+/**
+ * A Déjà Vu price: the shop's own (`base`), unless a balance experiment sets it. `kind` is 'memory' for a Memory (its
+ * rank is `level`) or 'level' for a level an experiment's shop sells; dv:price answers the price.
+ */
+function dvPrice(id, level, base, kind) { const v = Exp.ask('dv:price', id, level, base, kind); return v === undefined ? base : v; }
+function memoryCost(M) { return dvPrice(M.id, memRank(M.id), M.repeatable ? Math.ceil(M.baseCost * Math.pow(M.growth, memRank(M.id))) : M.cost, 'memory'); }
 function canBuyMemory(M) { return (M.repeatable || !memRank(M.id)) && Wallet.can('dv', memoryCost(M)); }
 function buyMemory(id) {
   const M = MEM[id];
@@ -10095,7 +10100,7 @@ function boot() {
       doResearch, completeResearch, researchCost, researchTime, adoptDoctrine,
       noclip, buyMemory, killLights, drink, documentAnomaly, spawnAnomaly, scheduleIncident, spawnEncounter, endEncounter,
       dvPreview, canNoclip, addRooms, enterLevel, completeFiniteSurvey, funFloor,
-      facVisible, upgradeVisible, buyQuote, facilityCost, maxAffordable, facPrice, memoryCost, save, loadGame, sanitizeState, migrate, encodeSave, decodeSave,
+      facVisible, upgradeVisible, buyQuote, facilityCost, maxAffordable, facPrice, memoryCost, dvPrice, save, loadGame, sanitizeState, migrate, encodeSave, decodeSave,
       replaceState, exitRooms, canResearch, canBuyMemory, UI, View,
       Exp, Wallet, contentOn, upgradeAvailable, upgradeHome, Panels, TABS, FAC, UPG, SPEC, MIS, RES, CONDITIONS, ACHIEVEMENTS,
       Content, facs, upgs, ress, owned, rankOf, setRank, unitQuote, gatherFx, syncResearch, missionDuration, missionWater,
