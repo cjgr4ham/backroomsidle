@@ -695,6 +695,15 @@ body.reduce-motion .vp-banner { animation: none; opacity: 1; }
 /* <<< EXP-NOCLIP-LEADERBOARD */
 /* -- */
 /* >>> EXP-MISSION-AUTOREPEAT */
+.auto-toggle { min-height: 26px; padding: 3px 8px; font: 600 11px var(--font-mono); letter-spacing: 0.02em; }
+.auto-toggle[aria-pressed="true"] { border-color: var(--ok); color: var(--ok); }
+.auto-status { margin: 0; font: 11px/1.4 var(--font-mono); color: var(--dim); }
+.auto-status.warn { color: var(--warn); }
+.auto-ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; flex-basis: 100%; }
+.dispatch-bar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); background: var(--panel); font-size: 13px; }
+.dispatch-bar .num { color: var(--dim); font: 12px var(--font-mono); }
+.dispatch-bar .auto-toggle { margin-left: auto; }
+.dispatch-offer { display: grid; gap: 8px; }
 /* <<< EXP-MISSION-AUTOREPEAT */
 /* -- */
 /* >>> EXP-AUTO-UPGRADE */
@@ -7876,6 +7885,220 @@ function onKey(e) {
 // ---------------------------------------------------------------------------
 //
 // >>> EXP-MISSION-AUTOREPEAT
+// Dispatch Protocol. A salvage requisition in the Missions tab that gives every mission an Auto-repeat switch (off
+// until you turn it on). A mission with Auto-repeat on is sent again the moment it returns, through launchMission():
+// requirements checked again, supplies paid, length, hazard and haul worked out as for any dispatch, one at a time per
+// mission. When it cannot go, it waits and says why, and is tried again every couple of seconds; waiting missions go
+// oldest first (ties in the order of the missions list), and one waiting only for almond water holds the water for
+// itself. A pause switch holds everything. Turning a switch off never recalls a team already out.
+// While away, the step is cut at each return (step:split), so every return is handled at its own moment, up to the
+// offline limit, once each. Choices are kept in S.ext.dispatch, through noclips; they do nothing until Dispatch
+// Protocol is installed again.
+// Content id: upgrade:dispatch.
+// Registry entry and rollback: docs/experiments/EXP-MISSION-AUTOREPEAT.md
+(function dispatchProtocolExperiment() {
+  const ID = 'EXP-MISSION-AUTOREPEAT';
+  Exp.define({
+    id: ID,
+    name: 'Dispatch Protocol',
+    summary: 'A requisition that gives each mission an Auto-repeat switch: it is sent again when it returns, or as soon as it can be paid for, with a waiting status, a deterministic queue and a pause switch.',
+  });
+  const UP = Content.upgrade(ID, {
+    id: 'dispatch', cat: 'Automation', home: 'expeditions', name: 'Dispatch Protocol', cost: { salvage: 4e6 }, req: { level: 2, flag: 'expedition' },
+    effect: 'Each mission gets an Auto-repeat switch. A mission with it on is sent again the moment it returns, or as soon as you can pay for it.',
+    flavor: 'A rota pinned by the door. Teams read it on the way out and are back in time for the next line.',
+  });
+
+  // ------------------------------------------------------------- choices (S.ext.dispatch)
+  //   auto:   { missionId: true }  missions with Auto-repeat on (a mission not listed is off)
+  //   paused: true                 every Auto-repeat held
+  //   wait:   { missionId: time }  since when a mission with Auto-repeat on has been waiting: the queue order
+  Exp.ext.state.dispatch = (v) => {
+    if (!isObj(v)) return undefined;
+    const out = { auto: {} };
+    if (isObj(v.auto)) for (const id of Object.keys(v.auto).slice(0, 60)) if (ID_RE.test(id) && v.auto[id] === true) out.auto[id] = true;
+    if (v.paused === true) out.paused = true;
+    if (isObj(v.wait)) {
+      for (const id of Object.keys(v.wait).slice(0, 60)) {
+        const t = num(v.wait[id], NaN, 0, 1e13);
+        if (ID_RE.test(id) && Number.isFinite(t) && out.auto[id]) (out.wait || (out.wait = {}))[id] = t;
+      }
+    }
+    return out;
+  };
+  const NONE = { auto: {} };
+  const P = () => (isObj(S.ext.dispatch) ? S.ext.dispatch : NONE);
+  const prefs = () => (isObj(S.ext.dispatch) ? S.ext.dispatch : (S.ext.dispatch = { auto: {} }));
+  const installed = () => has(UP.id) && contentOn(UP);
+  const running = () => Exp.on(ID) && installed() && !P().paused;
+  const wants = (id) => P().auto[id] === true;
+
+  /** Why a mission cannot be sent now ('' when it can). Water comes last: it is the only thing waiting fixes. */
+  function blocker(m) {
+    const r = S.run;
+    if (r.missions[m.id]) return 'out';
+    if (r.level < m.level) return 'level';
+    if (!missionReady(m)) return 'specialist';
+    if (!Wallet.can('aw', missionWater(m))) return 'water';
+    return '';
+  }
+  /** The waiting queue: missions with Auto-repeat on and no team out, oldest first, then in the missions list's order. */
+  function queue() {
+    const p = P();
+    const list = MISSIONS.filter((m) => wants(m.id) && !S.run.missions[m.id]);
+    const since = (m) => (p.wait && p.wait[m.id] != null ? p.wait[m.id] : Infinity);
+    return list.sort((a, b) => since(a) - since(b) || MISSIONS.indexOf(a) - MISSIONS.indexOf(b));
+  }
+  let sent = 0, waitedSent = 0;
+  function send(m, at) {
+    if (!launchMission(m.id, { at, quiet: true })) return false;
+    const p = prefs();
+    if (p.wait && p.wait[m.id] != null) {
+      if (p.wait[m.id] < at - 1) waitedSent++;
+      if (!rt.offline && p.wait[m.id] < at - 30) log(`Dispatch Protocol: ${m.name} sent again after waiting ${fmtTime(at - p.wait[m.id])}.`, 'info', 'DISPATCH');
+      delete p.wait[m.id];
+      if (!Object.keys(p.wait).length) delete p.wait;
+    }
+    sent++;
+    return true;
+  }
+  /**
+   * Goes through the queue once. A mission held up by its level or its specialist cannot be helped by waiting, so it is
+   * passed over; one held up only by almond water keeps its place, and the missions behind it wait too, so the oldest
+   * gets the water first. `returning`, with its return time, starts exactly then.
+   */
+  function service(returning, at) {
+    const p = prefs();
+    for (const m of MISSIONS) if (wants(m.id) && !S.run.missions[m.id] && !(p.wait && p.wait[m.id] != null)) (p.wait || (p.wait = {}))[m.id] = m.id === returning ? at : S.time;
+    for (const m of queue()) {
+      const why = blocker(m);
+      if (why === 'water') break;
+      if (why) continue;
+      send(m, m.id === returning ? at : S.time);
+    }
+  }
+
+  // A mission with Auto-repeat on returns: it joins the queue at its return time and is sent again at once if it can.
+  Exp.hook('mission:done', ID, (id, end) => {
+    if (!running() || !wants(id)) return;
+    service(id, end);
+  });
+  // Everything waiting is tried again every couple of seconds of game time, and at every step of time away.
+  let acc = 0;
+  Exp.hook('step', ID, (dt, offline) => {
+    if (!running()) return;
+    acc += dt;
+    if (acc < 2 && !offline) return;
+    acc = 0;
+    if (queue().length) service(null, S.time);
+  });
+  // Time away is cut at each return of a mission with Auto-repeat on (a hair after it, so the return is always due),
+  // so each return, and the next team sent, happens at its own moment rather than at the end of a long step.
+  Exp.hook('step:split', ID, (t0, t1) => {
+    if (!running()) return undefined;
+    let best;
+    for (const id in S.run.missions) {
+      if (!wants(id)) continue;
+      const end = S.run.missions[id].end;
+      const cut = end + Math.max(1e-6, Math.abs(end) * 1e-12);
+      if (cut > t0 && cut < t1 && (best === undefined || cut < best)) best = cut;
+    }
+    return best;
+  });
+  // A new iteration starts with no missions out: nothing is waiting.
+  Exp.hook('noclip:newRun', ID, () => { if (isObj(S.ext.dispatch)) delete S.ext.dispatch.wait; });
+
+  // ------------------------------------------------------------- the Missions tab
+  function statusText(m) {
+    if (!wants(m.id)) return '';
+    if (P().paused) return 'Auto-repeat is paused.';
+    if (S.run.missions[m.id]) return 'Goes out again the moment it returns.';
+    const why = blocker(m);
+    if (why === 'level') return `Waiting: reach ${levelLabel(m.level)}.`;
+    if (why === 'specialist') return `Waiting for the ${SPEC[m.needs.id].name} at level ${m.needs.level}.`;
+    if (why === 'water') return `Waiting for ${fmt(missionWater(m))} almond water.`;
+    const ahead = queue().find((x) => x.id !== m.id && blocker(x) === 'water');
+    if (ahead && queue().indexOf(ahead) < queue().indexOf(m)) return `Waiting behind ${ahead.name}, which was waiting first.`;
+    return 'Going out now.';
+  }
+  function toggle(id) {
+    const p = prefs();
+    if (p.auto[id]) { delete p.auto[id]; if (p.wait) { delete p.wait[id]; if (!Object.keys(p.wait).length) delete p.wait; } }
+    else p.auto[id] = true;
+    rt.structureDirty = true;
+    UI.update();
+  }
+  function setPaused(on) {
+    const p = prefs();
+    if (on) p.paused = true; else delete p.paused;
+    log(on ? 'Dispatch Protocol paused: no mission goes out by itself. Teams already out finish their trips.' : 'Dispatch Protocol resumed.', 'info', 'DISPATCH');
+    rt.structureDirty = true;
+    UI.update();
+  }
+  let head = null;
+  Exp.hook('missions:sig', ID, () => `${installed()}|${upgradeAvailable(UP)}`);
+  Exp.hook('missions:head', ID, (p) => {
+    head = null;
+    if (installed()) {
+      const count = el('span', { class: 'num' });
+      const pause = el('button', { type: 'button', class: 'btn small auto-toggle', 'aria-pressed': 'false' });
+      pause.addEventListener('click', () => setPaused(!P().paused));
+      p.append(el('section', { class: 'dispatch-bar', 'aria-label': 'Dispatch Protocol' },
+        el('b', { text: 'Dispatch Protocol' }), count, pause));
+      head = { count, pause };
+    } else if (upgradeAvailable(UP)) {
+      head = { slips: [] };
+      const grid = el('div', { class: 'slips' }, Panels.upgrades.slip(UP, head.slips));
+      p.append(el('section', { class: 'dispatch-offer', 'aria-label': 'Automation for missions' }, el('h3', { class: 'section-title', text: 'Automation' }), grid));
+    } else if (contentOn(UP) && (S.run.level >= 1 || S.iteration > 1)) {
+      p.append(el('p', { class: 'panel-sub dispatch-later', text: `Dispatch Protocol, which sends missions again by themselves, can be requisitioned here: ${lowerFirst(reqText(UP.req)) || 'soon'}` }));
+    }
+  });
+  Exp.hook('missions:card', ID, (m, C) => {
+    if (!installed()) return;
+    const btn = el('button', { type: 'button', class: 'btn small auto-toggle', 'aria-pressed': String(wants(m.id)) });
+    btn.addEventListener('click', () => toggle(m.id));
+    const status = el('p', { class: 'auto-status' });
+    C.foot.append(el('div', { class: 'auto-ctl' }, btn, status));
+    C.auto = { btn, status };
+  });
+  Exp.hook('missions:cardUpdate', ID, (m, C) => {
+    if (!C.auto) return;
+    const on = wants(m.id);
+    setText(C.auto.btn, `Auto-repeat: ${on ? 'ON' : 'OFF'}`);
+    setAttr(C.auto.btn, 'aria-pressed', on);
+    setAttr(C.auto.btn, 'aria-label', `Auto-repeat for ${m.name}: ${on ? 'on' : 'off'}`);
+    const st = statusText(m);
+    setText(C.auto.status, st);
+    C.auto.status.classList.toggle('warn', /^Waiting/.test(st));
+    setHidden(C.auto.status, !st);
+  });
+  Exp.hook('missions:update', ID, () => {
+    if (!head) return;
+    if (head.slips) { Panels.upgrades.updateSlips(head.slips); return; }
+    const n = MISSIONS.filter((m) => wants(m.id)).length;
+    setText(head.count, P().paused ? `paused · ${plural(n, 'mission')} set to repeat` : n ? `${plural(n, 'mission')} on Auto-repeat` : 'turn on Auto-repeat on a mission below');
+    setText(head.pause, P().paused ? 'Resume all' : 'Pause all');
+    setAttr(head.pause, 'aria-pressed', !!P().paused);
+    setAttr(head.pause, 'aria-label', P().paused ? 'Resume Auto-repeat for every mission' : 'Pause Auto-repeat for every mission');
+  });
+  Exp.hook('automation:summary', ID, (parts) => {
+    if (!installed()) return;
+    const n = MISSIONS.filter((m) => wants(m.id)).length;
+    parts.push(P().paused ? 'Dispatch Protocol paused' : `${plural(n, 'mission')} on Auto-repeat`);
+  });
+  Exp.hook('manual', ID, (add) => add('Dispatch Protocol', [
+    'A requisition in the Missions tab (from Level 2, after your first mission). It gives each mission an Auto-repeat switch, off until you turn it on.',
+    'A mission with Auto-repeat on is sent again the moment it returns, exactly as if you sent it: its specialist and level are checked again, its almond water is paid, and its length, hazard and haul are worked out again. One team per mission at a time. Specialists keep working.',
+    'When it cannot go, its card says why (for example "Waiting for 260 almond water") and it is tried again every couple of seconds. Missions waiting go oldest first; one waiting only for water keeps its place, so the missions behind it wait too.',
+    'Pause all holds every Auto-repeat. Turning a switch off never recalls a team already out. Your choices are kept, also through a noclip, and do nothing until Dispatch Protocol is installed again.',
+    'While you are away, each return is handled at its own time, up to the offline limit.',
+  ]));
+  // For the tools and tests: HUM.Exp.ask('dispatch:api').
+  const API = { queue: () => queue().map((m) => m.id), blocker: (id) => blocker(MIS[id]), statusText: (id) => statusText(MIS[id]), toggle, setPaused,
+    sent: () => sent, waitedSent: () => waitedSent, running };
+  Exp.hook('dispatch:api', ID, () => API);
+})();
 // <<< EXP-MISSION-AUTOREPEAT
 //
 // ---------------------------------------------------------------------------
