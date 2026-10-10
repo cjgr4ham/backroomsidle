@@ -15,15 +15,18 @@ Four facilities join the last two waves:
 
 | Code | Facility | Wave | Kind | First unit | Growth | Each unit |
 | --- | --- | --- | --- | --- | --- | --- |
-| F-12 | Carbon Copier | Level 4 | support, share | 2B | ×1.3 | specialists work +4% |
-| F-13 | Pneumatic Tube Network | Level 4 | support, rooms | 6B | ×1.45 | +10% rooms per survey, yours and the Cartographer's |
-| F-14 | Door-Number Lathe | Level 5 | salvage | 200B | ×1.22 | +600 to the facility multiplier (× facility bonuses) |
-| F-15 | Hallway Signal Relay | Level 5 | support, share | 80B | ×1.5 | research +5% faster, for projects started after it is built |
+| F-12 | Carbon Copier | Level 4 | support, share | 2B | ×1.7 | specialists work +3% |
+| F-13 | Pneumatic Tube Network | Level 4 | support, rooms | 6B | ×1.7 | +5% rooms per survey, yours and the Cartographer's |
+| F-14 | Door-Number Lathe | Level 5 | salvage | 200B | ×1.3 | +300 to the facility multiplier (× facility bonuses) |
+| F-15 | Hallway Signal Relay | Level 5 | support, share | 80B | ×1.8 | research +5% faster, for projects started after it is built |
 
 - Like every facility, **none produces anything on its own**. Two improve a specialist you have, one improves your surveys, and one makes research faster.
 - Each has three tiers at 10, 25 and 50 owned: ×2 for the Lathe and ×1.5 for the others. They are priced like every tier.
 - Each makes noise, and each resets when you noclip.
-- The Lathe is the largest salvage facility. Its price grows slowly enough to stay worth buying through Level FUN.
+- The Lathe is the largest salvage facility.
+- **Tuned after the balance runs** (its own commit), from the first numbers: Copier +4% at ×1.3 a unit, Tubes +10% at ×1.45, Lathe +600 at ×1.22, Relay ×1.5.
+  - With those numbers, Levels 4 and 5 were fine, but the facilities could be stacked without limit in Level FUN. Its depth grows with every room mapped, so a 30-minute stay there gave 12 times the Déjà Vu of the game before the update, and the next iteration's stay about 1,000 times.
+  - Prices now grow ×1.7–1.8 a unit (the Lathe ×1.3), and the shares are smaller. The full measurements are in [UPDATE-2.1.md](UPDATE-2.1.md).
 
 ## 2. Files and functions
 

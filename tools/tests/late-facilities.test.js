@@ -49,20 +49,20 @@ const NEW = ['copier', 'tubes', 'lathe', 'relay'];
     const a = H.derive().sps;
     H.buyFacility('copier', { n: 4 });   // 5 owned
     const b = H.derive().sps;
-    out.copierRatio = b / a;   // (1 + 5 × 0.04) / (1 + 1 × 0.04)
+    out.copierRatio = b / a;   // (1 + 5 × 0.03) / (1 + 1 × 0.03)
     // The Relay: research started now is faster; one under way keeps its time.
     H.S.echoes = 1e6;
     const t0 = H.researchTime(H.RES.pattern);
     H.buyFacility('relay', { n: 3 });    // 4 owned: +20% speed
     out.relayTime = H.researchTime(H.RES.pattern) / t0;   // 1 owned before (1.05), 4 owned now (1.2)
     // Prices: exact, the same curve as every facility
-    out.price = [H.unitQuote(H.FAC.lathe, 1).cost, Math.ceil(2e11 * 1.22)];
+    out.price = [H.unitQuote(H.FAC.lathe, 1).cost, Math.ceil(2e11 * 1.3)];
     return out;
   });
   c.check('none of them produces anything on its own', fx.noPassive, fx);
-  c.check('the Lathe adds 600 × facility bonuses to the facility multiplier', Math.abs(fx.lathePoints - 600 * fx.facBoost) < 1e-6 * fx.lathePoints, fx);
-  c.check('the Tube Network adds 10% rooms per survey per unit', Math.abs(fx.rps1 / fx.rps0 - 1.1) < 1e-9, fx);
-  c.check('each Copier adds 4% to specialist work', Math.abs(fx.copierRatio - 1.2 / 1.04) < 1e-9, fx);
+  c.check('the Lathe adds 300 × facility bonuses to the facility multiplier', Math.abs(fx.lathePoints - 300 * fx.facBoost) < 1e-6 * fx.lathePoints, fx);
+  c.check('the Tube Network adds 5% rooms per survey per unit', Math.abs(fx.rps1 / fx.rps0 - 1.05) < 1e-9, fx);
+  c.check('each Copier adds 3% to specialist work', Math.abs(fx.copierRatio - 1.15 / 1.03) < 1e-9, fx);
   c.check('each Relay makes research started after it 5% faster', Math.abs(fx.relayTime - 1.05 / 1.2) < 1e-9, fx);
   c.check('they make noise like other facilities', fx.noise1 > fx.noise0, fx);
   c.check('prices follow the exact geometric curve', fx.price[0] === fx.price[1], fx.price);
@@ -84,8 +84,8 @@ const NEW = ['copier', 'tubes', 'lathe', 'relay'];
     return { list, ok, ratio: after / before, text: row && row.querySelector('.fs-effect').textContent, tier: row && row.querySelector('.tier-line').textContent };
   });
   c.check('each has three tiers at 10, 25 and 50 owned, switched with it', tiers.list.every((l) => l.length === 3 && l.map((x) => x[1]).join() === '10,25,50' && l.every((x) => x[2] && x[2].startsWith('facility:'))), tiers.list);
-  c.check('a support tier multiplies its share by 1.5', tiers.ok && Math.abs(tiers.ratio - (1 + 10 * 0.06) / (1 + 10 * 0.04)) < 1e-9, tiers);
-  c.check('the row says what each one does, in fixed words', /^Each: \+6% specialist work · 10 owned: \+60% · noise /.test(tiers.text) && /Tiers 1\/3/.test(tiers.tier), tiers);
+  c.check('a support tier multiplies its share by 1.5', tiers.ok && Math.abs(tiers.ratio - (1 + 10 * 0.045) / (1 + 10 * 0.03)) < 1e-9, tiers);
+  c.check('the row says what each one does, in fixed words', /^Each: \+4\.5% specialist work · 10 owned: \+45% · noise /.test(tiers.text) && /Tiers 1\/3/.test(tiers.tier), tiers);
 
   // Switched off: gone from every list, no effect, nothing purchasable; what you own is kept and returns intact.
   const off = await ev(() => {
