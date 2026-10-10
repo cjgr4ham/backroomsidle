@@ -1,0 +1,6 @@
+# Caddy in front of The Hum on a virtual machine: it obtains and renews the TLS certificate itself.
+# Replace hum.example.org with your domain, whose DNS A/AAAA records point at this machine.
+hum.example.org {
+	encode gzip
+	reverse_proxy 127.0.0.1:8080
+}

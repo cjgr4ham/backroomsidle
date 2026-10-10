@@ -1,0 +1,11 @@
+# Only package.json, index.html and server/ go into the image (see Dockerfile).
+.git
+data
+node_modules
+docs
+tools
+**/*.md
+Dockerfile
+.dockerignore
+fly.toml
+deploy
