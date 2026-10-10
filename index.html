@@ -8495,6 +8495,466 @@ function onKey(e) {
 // ---------------------------------------------------------------------------
 //
 // >>> EXP-CREW-VISIBLE
+// Visible crew. The specialists you have recruited work in the corridor, in world space: each has a stretch of the
+// corridor (a world position along it, z, and across it, x), is drawn in perspective with that stretch's light and fog,
+// and is hidden by nearer walls like anything else in the corridor. A survey moves the camera on at once: the crew stay
+// where they are, slide to the edge of the view and pass behind the camera, and are no longer drawn. A crew member left
+// behind abandons the scene and walks after you; stop surveying and they catch up from behind, or come out of a doorway
+// ahead if they went another way. Nobody jumps while you can see them, nobody is drawn twice, nobody walks through a
+// wall (they only leave the corridor through an opening). At most two are on stage at once; the others work out of
+// sight. Only recruited specialists appear, never one taken by an incident.
+// It is drawing only: it reads the game and never changes it. It has its own random sequence and its own clock (the
+// frame time), so the economy, the simulation and the save are exactly the same with it on or off.
+// Registry entry and rollback: docs/experiments/EXP-CREW-VISIBLE.md
+(function visibleCrewExperiment() {
+  const ID = 'EXP-CREW-VISIBLE';
+  Exp.define({
+    id: ID,
+    name: 'Visible crew',
+    summary: 'Recruited specialists work in the corridor in world space: passed by your surveys, catching up when you stop, two on stage at a time. Drawing only.',
+  });
+
+  // ------------------------------------------------------------- its own random sequence
+  let seed = 0x5eed1e55;
+  const rnd = () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const rr = (a, b) => a + rnd() * (b - a);
+
+  // Each role: colours, where it works and how long a scene lasts (seconds).
+  const ROLES = {
+    scavenge: { name: 'Scavenger', body: [96, 80, 50], legs: [52, 46, 36], accent: [184, 104, 48], skin: [168, 132, 104], site: 'wall', work: [8, 13] },
+    chart: { name: 'Cartographer', body: [130, 118, 86], legs: [70, 64, 50], accent: [232, 226, 204], skin: [176, 140, 112], site: 'ahead', work: [6, 10] },
+    dowse: { name: 'Dowser', body: [56, 84, 108], legs: [44, 58, 72], accent: [124, 178, 196], skin: [156, 122, 96], site: 'water', work: [7, 12] },
+    watch: { name: 'Watcher', body: [88, 88, 94], legs: [56, 56, 62], accent: [236, 220, 156], skin: [178, 144, 118], site: 'door', work: [7, 12] },
+    archive: { name: 'Archivist', body: [86, 62, 52], legs: [54, 42, 36], accent: [196, 64, 50], skin: [164, 130, 102], site: 'wall', work: [8, 14] },
+  };
+  const WALK = 0.95, CATCH = 1.9, SIDE = 0.9;   // segments per second along the corridor; world units per second across it
+  const STAGE = 2;                              // crew on stage at once
+
+  const crew = { actors: {}, clock: 0, rotateAt: 4, composed: false, resets: 0 };
+  const reset = () => { crew.actors = {}; crew.rotateAt = crew.clock + rr(1.5, 3); crew.composed = false; crew.resets++; };
+  const onStage = () => Object.values(crew.actors).filter((a) => a.state !== 'out');
+  const roster = () => SPECIALISTS.filter((s) => recruited(s.id) && !specAway(s.id)).map((s) => s.id);
+
+  function actor(id) {
+    return { id, role: ROLES[id], state: 'out', t: 0, z: 0, x: 0, tx: 0, tz: 0, side: 1, site: null, alpha: 0, phase: rr(0, 6),
+      until: 0, gestureAt: 0, gesture: 0, resultAt: 0, leaveNext: false, outSince: crew.clock, onSince: 0, behindSince: 0, path: null, facing: 1 };
+  }
+
+  // ------------------------------------------------------------- where things can happen
+  const HW = () => View.hw;
+  const features = (k) => View.features(k);
+  const wallKind = (f, side) => (side < 0 ? f.left : f.right);
+  /** Where someone can leave the corridor: an open doorway or a room off it (the Long Hallway's doors stay shut). */
+  const passable = (kind) => kind === 'opening' || kind === 'bay' || kind === 'junction';
+  /** What the Watcher checks: any of those, and the Long Hallway's shut doors. */
+  const checkable = (kind) => passable(kind) || kind === 'door';
+  /** The span of a doorway along stretch k and its top, as render() and room variety draw them. */
+  const span = (f, side) => (side < 0 ? f.leftSpan : f.rightSpan) || (wallKind(f, side) === 'door' ? [0.3, 0.7] : [0.22, 0.78]);
+  const taken = (a, k, side) => Object.values(crew.actors).some((b) => b !== a && b.site && b.site.k === k && (b.site.side === side || side === 0 || b.site.side === 0));
+  /** A work site ahead for a role: a stretch of wall, a doorway, water, or a spot further down the corridor. */
+  function pickSite(a, V) {
+    const k0 = Math.floor(V.camZ + rr(3, 4.5));
+    const look = LOOKS[V.level] || LOOKS[0];
+    for (let i = 0; i < 6; i++) {
+      const k = k0 + i;
+      const f = features(k);
+      const sides = rnd() < 0.5 ? [-1, 1] : [1, -1];
+      const role = a.role.site;
+      if (role === 'ahead') {
+        if (taken(a, k, 0)) continue;
+        return { k, side: sides[0], kind: 'scan', x: sides[0] * rr(0.15, 0.45), z: k + rr(0.35, 0.65) };
+      }
+      for (const side of sides) {
+        const w = wallKind(f, side);
+        if (taken(a, k, side)) continue;
+        if (role === 'door' && checkable(w)) return { k, side, kind: 'door', x: side * (HW() - 0.62), z: k + 0.5 };
+        if (role === 'water' && (look.puddles || look.water || look.pipes) && w === 'wall') {
+          if (look.pipes) return { k, side, kind: 'pipe', x: side * (HW() - 0.42), z: k + 0.5 };
+          return { k, side, kind: 'floor', x: side * rr(0.35, 0.7), z: k + 0.5 };
+        }
+        if ((role === 'wall' || role === 'water') && w === 'wall') return { k, side, kind: role === 'water' ? 'pipe' : 'panel', x: side * (HW() - 0.42), z: k + 0.5 };
+      }
+    }
+    // Nothing fitting nearby: the middle of the corridor a little ahead.
+    const k = Math.floor(V.camZ + rr(4, 6));
+    return { k, side: rnd() < 0.5 ? -1 : 1, kind: 'stand', x: rr(-0.5, 0.5), z: k + 0.5 };
+  }
+  /** The nearest doorway ahead within reach, for coming out of one or going into one. */
+  function doorAhead(V, from, to, avoid) {
+    for (let k = Math.floor(V.camZ + from); k <= Math.floor(V.camZ + to); k++) {
+      const f = features(k);
+      for (const side of [-1, 1]) if (passable(wallKind(f, side)) && !(avoid && avoid.k === k && avoid.side === side)) return { k, side, f };
+    }
+    return null;
+  }
+
+  // ------------------------------------------------------------- movement: across first inside a doorway, never through walls
+  /** Moves an actor toward (tx, tz). While it is beyond the wall line it first steps back into the corridor (or keeps
+   *  to the doorway's span), so it can only cross the wall line inside a doorway. Returns true on arrival. */
+  function walk(a, dt, speed) {
+    const hw = HW() - 0.25;
+    const inWall = Math.abs(a.x) > hw;
+    const targetInWall = Math.abs(a.tx) > hw;
+    let tx = a.tx, tz = a.tz;
+    if (inWall && Math.abs(a.tz - a.z) > 0.05) tx = Math.sign(a.x) * (hw - 0.1);      // out of the doorway first
+    else if (targetInWall && Math.abs(a.tz - a.z) > 0.05) tx = Math.sign(a.tx) * (hw - 0.1);   // to the doorway along the corridor first
+    const dz = tz - a.z, dx = tx - a.x;
+    if (Math.abs(dz) > 1e-4 && (!(inWall || targetInWall) || Math.abs(dx) < 0.02)) {
+      const step = Math.sign(dz) * Math.min(Math.abs(dz), speed * dt);
+      a.z += step;
+      a.facing = Math.sign(dz);
+      a.phase += Math.abs(step) * 9;
+    }
+    if (Math.abs(dx) > 1e-4) {
+      const step = Math.sign(dx) * Math.min(Math.abs(dx), SIDE * dt * (inWall || targetInWall ? 0.8 : 1));
+      a.x += step;
+      a.phase += Math.abs(step) * 6;
+    }
+    return Math.abs(a.tz - a.z) < 0.02 && Math.abs(a.tx - a.x) < 0.02;
+  }
+  const setTarget = (a, x, z) => { a.tx = x; a.tz = z; };
+
+  // ------------------------------------------------------------- the scenes
+  function enter(a, V) {
+    const d = doorAhead(V, 3.5, 9);
+    a.leaveNext = false;
+    a.onSince = crew.clock;
+    a.alpha = 0;
+    if (d && rnd() < 0.7) {
+      const sp = span(d.f, d.side);
+      a.state = 'emerge';
+      a.z = d.k + (sp[0] + sp[1]) / 2; a.x = d.side * (HW() + 0.45); a.side = d.side;
+      setTarget(a, d.side * (HW() - 0.6), a.z);
+    } else {
+      a.state = 'catchup';
+      a.z = V.camZ - rr(0.4, 1.6); a.x = rr(-0.6, 0.6);
+      a.behindSince = crew.clock;
+      a.alpha = 1;
+    }
+    a.t = 0;
+  }
+  function startWork(a) {
+    a.state = 'working';
+    a.t = 0;
+    a.until = crew.clock + rr(a.role.work[0], a.role.work[1]);
+    a.gestureAt = crew.clock + rr(1.5, 3.5);
+    a.resultAt = crew.clock + rr(5, 9);
+    a.side = a.site ? a.site.side : a.side;
+  }
+  function toSite(a, V) {
+    a.site = pickSite(a, V);
+    setTarget(a, a.site.x, a.site.z);
+    a.state = 'moving';
+    a.t = 0;
+  }
+  function leave(a, V) {
+    a.site = null;
+    const d = doorAhead(V, 1.5, 7, null);
+    if (d && Math.abs(d.k + 0.5 - a.z) < 4) {
+      const sp = span(d.f, d.side);
+      a.state = 'leaving';
+      setTarget(a, d.side * (HW() + 0.5), d.k + (sp[0] + sp[1]) / 2);
+    } else {
+      a.state = 'leaving';
+      setTarget(a, a.x, V.camZ - 1);   // back past the camera
+    }
+    a.t = 0;
+  }
+  function goOut(a) { a.state = 'out'; a.site = null; a.outSince = crew.clock; a.leaveNext = false; }
+
+  /** One frame of the director: who is on stage, and what each of them does. dt is frame time, capped. */
+  function direct(V, dt) {
+    crew.clock += dt;
+    const ids = roster();
+    for (const id of ids) {
+      if (crew.actors[id]) continue;
+      crew.actors[id] = actor(id);
+      crew.actors[id].outSince = crew.clock - 2;   // someone just recruited (or back) walks on within about a second
+    }
+    for (const id in crew.actors) {
+      const a = crew.actors[id];
+      if (ids.includes(id)) continue;
+      // Taken by an incident, or gone: off stage now; never drawn again until back.
+      if (a.state === 'out' || !visibleNow(a, V)) { delete crew.actors[id]; continue; }
+      if (a.state !== 'leaving') leave(a, V);
+    }
+    if (!crew.composed) { compose(V); crew.composed = true; }
+    const encounter = !!rt.encounter, dark = lightsOut();
+    for (const a of Object.values(crew.actors)) step1(a, V, dt, encounter, dark);
+    // Rotation: a larger change every 15 to 30 seconds.
+    const on = onStage().filter((a) => a.state !== 'leaving');
+    const want = Math.min(STAGE, ids.length);
+    if (crew.clock >= crew.rotateAt && !encounter) {
+      crew.rotateAt = crew.clock + rr(15, 30);
+      const out = Object.values(crew.actors).filter((a) => a.state === 'out' && ids.includes(a.id)).sort((x, y) => x.outSince - y.outSince);
+      if (on.length < want && out.length) enter(out[0], V);
+      else if (out.length && on.length) on.sort((x, y) => x.onSince - y.onSince)[0].leaveNext = true;
+    } else if (on.length < want && !encounter) {
+      const out = Object.values(crew.actors).filter((a) => a.state === 'out' && ids.includes(a.id) && crew.clock - a.outSince > 3).sort((x, y) => x.outSince - y.outSince);
+      if (out.length) enter(out[0], V);
+    }
+  }
+
+  function step1(a, V, dt, encounter, dark) {
+    a.t += dt;
+    if (a.state === 'out') return;
+    const rel = a.z - V.camZ;
+    // Passed by the camera: the scene is abandoned and they walk after you.
+    if (rel < View.near + 0.05 && a.state !== 'catchup' && a.state !== 'leaving') {
+      a.state = 'catchup'; a.site = null; a.behindSince = crew.clock; a.t = 0; a.alpha = 1;
+    }
+    // Something in the corridor: everyone keeps still against a wall until it has gone.
+    if (encounter) {
+      if (a.state === 'emerge' || (a.state === 'catchup' && rel < View.near)) return;
+      a.tx = Math.sign(a.x || 1) * (HW() - 0.4);
+      a.tz = a.z;
+      walk(a, dt, 0.4);
+      return;
+    }
+    if (a.alpha < 1) a.alpha = Math.min(1, a.alpha + dt / 0.6);
+    switch (a.state) {
+      case 'emerge':
+        if (walk(a, dt, WALK)) toSite(a, V);
+        break;
+      case 'catchup': {
+        // Behind the camera for long, or too far behind: they went another way and will come out of a doorway.
+        if (rel < 0 && (crew.clock - a.behindSince > 12 || rel < -8)) { goOut(a); break; }
+        setTarget(a, Math.max(-0.7, Math.min(0.7, a.x)), V.camZ + 3);
+        walk(a, dt, CATCH);
+        if (a.z - V.camZ > 2.4) toSite(a, V);
+        break;
+      }
+      case 'moving':
+        if (a.site && a.site.z - V.camZ < 1.2) { toSite(a, V); break; }   // the site fell behind: another one
+        if (walk(a, dt, WALK)) startWork(a);
+        break;
+      case 'working':
+        if (dark) { a.until += dt; a.resultAt += dt; break; }   // lights out: the work stops with production
+        if (crew.clock >= a.gestureAt) { a.gesture = 1; a.gestureAt = crew.clock + rr(2, 4); }
+        if (a.gesture > 0) a.gesture = Math.max(0, a.gesture - dt * 1.4);
+        if (crew.clock >= a.resultAt) {
+          a.resultAt = crew.clock + rr(5, 12);
+          if (a.site) Exp.run('crew:result', { id: a.id, k: a.site.k, side: a.site.side, kind: a.site.kind, z: a.z, x: a.x });
+        }
+        if (crew.clock >= a.until) { a.state = 'packing'; a.t = 0; a.until = crew.clock + rr(1.5, 2.6); }
+        break;
+      case 'packing':
+        if (crew.clock >= a.until) { if (a.leaveNext) leave(a, V); else toSite(a, V); }
+        break;
+      case 'leaving':
+        if (walk(a, dt, WALK) || Math.abs(a.x) > HW() + 0.42) goOut(a);
+        else if (a.tz < V.camZ && a.z - V.camZ < View.near) goOut(a);
+        if (Math.abs(a.x) > HW()) a.alpha = Math.max(0, a.alpha - dt / 0.5);
+        break;
+      default: break;
+    }
+  }
+  const visibleNow = (a, V) => a.state !== 'out' && a.z - V.camZ > View.near + 0.02 && a.z - V.camZ < 19;
+
+  /** A representative scene: on-stage crew already at work ahead. After loading, and when the page is shown again. */
+  function compose(V) {
+    const ids = roster();
+    for (const id of ids) if (!crew.actors[id]) crew.actors[id] = actor(id);
+    const list = ids.map((id) => crew.actors[id]);
+    list.forEach((a, i) => {
+      if (i < STAGE) {
+        a.site = null;
+        a.site = pickSite(a, V);
+        a.z = a.site.z; a.x = a.site.x;
+        setTarget(a, a.x, a.z);
+        a.alpha = 1;
+        a.onSince = crew.clock - i * 8;
+        startWork(a);
+        a.until = crew.clock + rr(3, a.role.work[1]);
+      } else goOut(a);
+    });
+    crew.rotateAt = crew.clock + rr(12, 24);
+  }
+
+  // ------------------------------------------------------------- drawing
+  const where = {};   // id -> where it was drawn this frame, for other experiments (feedback captions)
+  function drawActor(V, a, k, lit, t, reduced) {
+    const rel = a.z - V.camZ;
+    if (rel <= V.near + 0.02 || rel > 19) return;
+    const ctx = V.ctx, R = a.role, fy = V.fy;
+    const s = V.F / rel;                    // pixels per world unit at this depth
+    const inDoor = Math.abs(a.x) > V.hw;
+    const l = lit * (inDoor ? 0.55 : 1) * (rt.encounter ? 0.7 : 1);
+    const col = (c, m) => V.shade(c, rel, l * (m || 1));
+    const base = V.P(a.x, fy, rel);
+    const walking = !reduced && (a.state === 'moving' || a.state === 'catchup' || a.state === 'emerge' || a.state === 'leaving');
+    const working = a.state === 'working' || a.state === 'packing';
+    const kneel = working && (a.site && (a.site.kind === 'floor' || (a.id === 'archive' && a.site.kind === 'panel')));
+    // Beyond the wall line only what shows through the doorway is drawn.
+    if (inDoor) {
+      const side = Math.sign(a.x), f = features(Math.floor(a.z)), sp = span(f, side);
+      const top = (side < 0 ? f.leftTop : f.rightTop) || f.top;
+      const za = Math.max(V.near, Math.floor(a.z) + sp[0] - V.camZ), zb = Math.floor(a.z) + sp[1] - V.camZ;
+      if (zb <= V.near) return;
+      const p1 = V.P(side * V.hw, fy, za), p2 = V.P(side * V.hw, top, za), p3 = V.P(side * V.hw, top, zb), p4 = V.P(side * V.hw, fy, zb);
+      ctx.save();
+      ctx.beginPath(); ctx.moveTo(p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]); ctx.lineTo(p3[0], p3[1]); ctx.lineTo(p4[0], p4[1]); ctx.closePath();
+      ctx.clip();
+    }
+    const H = kneel ? 1.15 : 1.72;
+    const cycle = walking ? Math.sin(a.phase) : 0;
+    const gx = working && !reduced ? a.gesture : 0;
+    const bx = base[0], by = base[1];
+    const w = 0.34 * s, hip = (kneel ? 0.45 : 0.86) * s, shoulder = (H - 0.3) * s, headR = 0.115 * s;
+    ctx.globalAlpha = Math.max(0, Math.min(1, a.alpha));
+    // Legs
+    ctx.fillStyle = col(R.legs);
+    const legW = Math.max(1, 0.12 * s);
+    if (kneel) {
+      ctx.fillRect(bx - w * 0.45, by - hip, w * 0.9, hip * 0.6);
+    } else {
+      ctx.fillRect(bx - w * 0.36 + cycle * w * 0.12, by - hip, legW, hip - Math.max(0, cycle) * hip * 0.12);
+      ctx.fillRect(bx + w * 0.36 - legW - cycle * w * 0.12, by - hip, legW, hip - Math.max(0, -cycle) * hip * 0.12);
+    }
+    // Body (the Watcher's long coat comes down over the knees)
+    ctx.fillStyle = col(R.body);
+    const coat = a.id === 'watch' && !kneel ? hip * 0.45 : 0;
+    ctx.fillRect(bx - w / 2, by - shoulder, w, shoulder - hip + 1 + coat);
+    ctx.fillStyle = col(R.accent, 0.95);
+    ctx.fillRect(bx - w / 2, by - shoulder + w * 0.32, w, Math.max(1, w * 0.14));   // a band: hi-vis, notebook strap, apron
+    // Arms: toward the wall at work, swinging while walking
+    ctx.fillStyle = col(R.body, 0.85);
+    const armL = (H - 0.95) * s;
+    const reach = working ? (a.site ? a.site.side : a.side) : 0;
+    const lift = working ? (0.35 + 0.25 * gx) : 0;
+    for (const sgn of [-1, 1]) {
+      const toward = reach && sgn === reach;
+      const ax = bx + sgn * (w / 2) + (toward ? sgn * w * 0.25 : 0);
+      const swing = walking ? sgn * cycle * armL * 0.18 : 0;
+      const ay = by - shoulder + (toward ? -lift * armL * 0.5 : 0) + swing;
+      ctx.fillRect(Math.min(ax, ax + sgn * legW * 0.2), ay, Math.max(1, legW * 0.85), armL * (toward ? 0.8 : 1));
+    }
+    // Head
+    ctx.fillStyle = col(R.skin);
+    const turn = !reduced && a.id === 'chart' && working ? Math.sin(crew.clock * 1.3) * w * 0.12 : 0;
+    const tilt = !reduced && a.id === 'watch' && working ? w * 0.08 * Math.sin(crew.clock * 0.7) : 0;
+    const hx = bx + turn + tilt, hy = by - shoulder - headR * 1.05;
+    ctx.beginPath();
+    ctx.ellipse(hx, hy, headR * 0.9, headR, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Headgear, so each role reads at a glance: a hard hat, a surveyor's cap, headphones.
+    if (a.id === 'scavenge') { ctx.fillStyle = col([214, 150, 40]); ctx.fillRect(hx - headR * 1.05, hy - headR * 1.15, headR * 2.1, headR * 0.75); }
+    if (a.id === 'chart') { ctx.fillStyle = col([196, 186, 150]); ctx.fillRect(hx - headR * 0.95, hy - headR * 1.05, headR * 1.9, headR * 0.55); ctx.fillRect(hx - headR * 0.2 + a.facing * 0, hy - headR * 0.6, headR * 1.35, headR * 0.22); }
+    if (a.id === 'archive') {
+      ctx.fillStyle = col([30, 28, 26]);
+      ctx.fillRect(hx - headR * 0.95, hy - headR * 1.08, headR * 1.9, headR * 0.28);
+      ctx.fillRect(hx - headR * 1.15, hy - headR * 0.35, headR * 0.4, headR * 0.7);
+      ctx.fillRect(hx + headR * 0.75, hy - headR * 0.35, headR * 0.4, headR * 0.7);
+    }
+    const g = { bx, by, s, w, hip, shoulder, headR, H, side: a.site ? a.site.side : a.side, facing: a.facing, working, walking, kneel, rel, lit: l, reduced, gesture: gx };
+    roleProps(V, a, g, col, t);
+    Exp.run('crew:kit', V, a, g, col);
+    ctx.globalAlpha = 1;
+    if (inDoor) ctx.restore();
+    if (reduced) label(V, a, g);
+    where[a.id] = { x: bx, y: by - shoulder - headR * 2.4, s, rel, label: !!reduced };
+  }
+  /** What makes each role recognisable at a glance, and what a scene shows while it happens. */
+  function roleProps(V, a, g, col, t) {
+    const ctx = V.ctx, s = g.s, site = a.site;
+    if (a.id === 'scavenge' && g.working && site && site.kind === 'panel') {
+      // The wall panel they have open: a dark hole and its cover hanging below.
+      const z0 = site.z - 0.18 - V.camZ, z1 = site.z + 0.18 - V.camZ, x = site.side * (V.hw - 0.005);
+      if (z0 > V.near) {
+        V.wallRect(x, z0, z1, -0.35, 0.15, V.shade([18, 16, 12], g.rel, 1));
+        V.wallRect(x - site.side * 0.01, z0, z1, -0.62, -0.38, V.shade([150, 140, 110], g.rel, g.lit));
+      }
+      ctx.fillStyle = col([120, 82, 40]);   // a sack at their feet
+      ctx.fillRect(g.bx - g.side * g.w * 0.9 - g.w * 0.25, g.by - 0.32 * s, g.w * 0.5, 0.32 * s);
+    }
+    if (a.id === 'chart') {
+      ctx.fillStyle = col([236, 230, 210]);   // the notebook, held up while they map
+      ctx.fillRect(g.bx - g.w * 0.3, g.by - g.shoulder + g.w * 0.45, g.w * 0.6, g.w * 0.42);
+    }
+    if (a.id === 'dowse') {
+      ctx.fillStyle = col([170, 176, 160]);   // the mop bucket
+      ctx.fillRect(g.bx + g.side * g.w * 0.7 - g.w * 0.22, g.by - 0.24 * s, g.w * 0.44, 0.24 * s);
+      if (g.working && site && (site.kind === 'floor' || site.kind === 'pipe')) {
+        ctx.fillStyle = col([200, 220, 214], 1.1);   // a bottle being filled
+        const by = site.kind === 'pipe' ? g.by - 0.9 * s : g.by - 0.18 * s;
+        ctx.fillRect(g.bx + g.side * g.w * 0.55, by, Math.max(1, 0.06 * s), 0.16 * s);
+      }
+    }
+    if (a.id === 'watch') {
+      // The flashlight beam: into the doorway they are checking, or down the corridor.
+      const into = g.working && site && site.kind === 'door';
+      const hx = g.bx + (into ? site.side : 0) * g.w * 0.6, hy = g.by - g.shoulder + g.w * 0.6;
+      const len = (into ? 0.9 : 1.6) * s;
+      const dirX = into ? site.side : 0.15 * Math.sin(crew.clock * 0.4);
+      const grad = ctx.createLinearGradient(hx, hy, hx + dirX * len, hy - (into ? 0 : 0.15 * len));
+      const alpha = (lightsOut() ? 0.32 : 0.16) * (g.reduced ? 1 : 0.8 + 0.2 * Math.sin(crew.clock * 2.1));
+      grad.addColorStop(0, `rgba(255,240,190,${alpha.toFixed(3)})`);
+      grad.addColorStop(1, 'rgba(255,240,190,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(hx, hy);
+      ctx.lineTo(hx + dirX * len + (into ? 0 : -0.25 * len), hy - 0.28 * len);
+      ctx.lineTo(hx + dirX * len + (into ? 0 : 0.25 * len), hy + 0.28 * len);
+      ctx.closePath();
+      ctx.fill();
+    }
+    if (a.id === 'archive') {
+      ctx.fillStyle = col([40, 38, 34]);   // the recorder at their feet, its light on while it records
+      ctx.fillRect(g.bx + g.side * g.w * 0.6 - g.w * 0.2, g.by - 0.12 * s, g.w * 0.4, 0.12 * s);
+      if (g.working && (g.reduced || Math.floor(crew.clock * 2) % 2 === 0)) {
+        ctx.fillStyle = '#ff4630';
+        ctx.fillRect(g.bx + g.side * g.w * 0.6 - 1, g.by - 0.1 * s, Math.max(1, 0.04 * s), Math.max(1, 0.04 * s));
+      }
+    }
+  }
+  function label(V, a, g) {
+    const ctx = V.ctx;
+    const size = Math.max(5, Math.min(9, Math.round(0.16 * g.s)));
+    ctx.font = `${size}px monospace`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    const text = a.role.name.toUpperCase();
+    const tw = ctx.measureText(text).width;
+    ctx.fillRect(g.bx - tw / 2 - 2, g.by - g.shoulder - g.headR * 2.2 - size - 2, tw + 4, size + 2);
+    ctx.fillStyle = 'rgba(240,232,200,0.9)';
+    ctx.fillText(text, g.bx, g.by - g.shoulder - g.headR * 2.2);
+  }
+
+  // ------------------------------------------------------------- hooks
+  Exp.hook('view:frame', ID, (V, dt) => {
+    for (const id in where) delete where[id];
+    if (!V.ctx) return;
+    direct(V, Math.min(0.1, Math.max(0, dt)));
+    // Reduced motion: no walking. Everyone is simply where they are going, in a still pose, with a name label.
+    if (rt.reducedMotion) {
+      for (const a of Object.values(crew.actors)) {
+        if (a.state === 'out') continue;
+        if (a.state === 'catchup') { if (a.z < V.camZ + 2.5) a.z = V.camZ + 2.5; continue; }
+        a.x = a.tx; a.z = a.tz; a.alpha = 1;
+      }
+    }
+  });
+  Exp.hook('view:segment', ID, (V, k, z0, z1, lit, hk, t) => {
+    for (const a of Object.values(crew.actors)) {
+      if (a.state === 'out' || Math.floor(a.z) !== k) continue;
+      drawActor(V, a, k, lit, t, rt.reducedMotion);
+    }
+  });
+  Exp.hook('view:reset', ID, () => reset());
+  Exp.hook('page:visible', ID, () => { crew.composed = false; });
+  Exp.hook('flagsChanged', ID, (id, on) => { if (id === ID) reset(); });
+  Exp.hook('crew:where', ID, (id) => where[id]);
+  Exp.hook('manual', ID, (add) => add('Your crew in the corridor', [
+    'The specialists you have recruited can be seen at work in the corridor: the Scavenger at the wall panels, the Cartographer mapping ahead, the Dowser at the water, the Watcher checking doorways, the Archivist recording. Two at a time; the others are working out of sight.',
+    'Survey and you walk past them. They finish later, or follow you. Nothing they do changes what they produce: that is the same whether you see them or not.',
+  ]));
+  // For the tools and tests: HUM.Exp.ask('crew:api').
+  const API = {
+    actors: () => Object.values(crew.actors).map((a) => ({ id: a.id, state: a.state, z: a.z, x: a.x, rel: a.z - View.camZ, visible: visibleNow(a, View), site: a.site && { ...a.site }, alpha: a.alpha })),
+    direct: (dt) => direct(View, dt), compose: () => compose(View), reset, where: () => ({ ...where }), clock: () => crew.clock, resets: () => crew.resets,
+  };
+  Exp.hook('crew:api', ID, () => API);
+})();
 // <<< EXP-CREW-VISIBLE
 //
 // ---------------------------------------------------------------------------

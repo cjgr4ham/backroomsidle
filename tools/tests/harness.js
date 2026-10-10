@@ -19,13 +19,17 @@ class Checker {
   }
 }
 
-/** Opens the game with an empty save. `query` selects experiments, e.g. '?exp=all' or '?exp=none'. */
-async function open(query, viewport) {
+/**
+ * Opens the game with an empty save. `query` selects experiments, e.g. '?exp=all' or '?exp=none'. With
+ * `opts.manualFrames` the game's frame loop never runs: the test steps the simulation and renders frames itself.
+ */
+async function open(query, viewport, opts) {
   const browser = await playwright.chromium.launch();
   const page = await browser.newPage({ viewport: viewport || { width: 1366, height: 860 } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+  if (opts && opts.manualFrames) await page.addInitScript(() => { window.requestAnimationFrame = () => 0; });
   await page.goto(url(query));
   await page.evaluate(() => { window.HUM.rt.saveBlocked = true; localStorage.clear(); });
   await page.reload();
