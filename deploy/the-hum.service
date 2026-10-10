@@ -1,0 +1,30 @@
+# systemd unit for The Hum on a virtual machine, behind Caddy (deploy/Caddyfile).
+# Install: copy the repository to /opt/the-hum, create the user and data folder (docs/DEPLOYMENT.md), then
+#   sudo cp deploy/the-hum.service /etc/systemd/system/ && sudo systemctl enable --now the-hum
+[Unit]
+Description=The Hum game server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=the-hum
+Group=the-hum
+WorkingDirectory=/opt/the-hum
+Environment=HOST=127.0.0.1
+Environment=PORT=8080
+Environment=DATA_DIR=/var/lib/the-hum
+Environment=TRUST_PROXY=1
+Environment=REQUIRE_HTTPS=1
+ExecStart=/usr/bin/node server/server.js
+Restart=on-failure
+RestartSec=5
+# The server closes the database cleanly on SIGTERM, which systemd sends on stop.
+KillSignal=SIGTERM
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/the-hum
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

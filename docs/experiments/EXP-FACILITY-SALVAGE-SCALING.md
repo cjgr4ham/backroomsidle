@@ -1,5 +1,7 @@
 # EXP-FACILITY-SALVAGE-SCALING: the salvage-first Facilities shop
 
+> **Folded into the core in v2** (commit `a52658d`). This entry is kept as the record of the experiment as it was. Its salvage-first Facilities tab is now the game's, with previews in survey power instead of salvage per second, one price curve per facility, and level waves instead of in-level requirements. The flag, the code slot and `facility-scaling.test.js` no longer exist; `facilities.test.js` covers the tab. See [V2-REDESIGN.md](V2-REDESIGN.md).
+
 | Field | Value |
 | --- | --- |
 | Identifier | `EXP-FACILITY-SALVAGE-SCALING` |

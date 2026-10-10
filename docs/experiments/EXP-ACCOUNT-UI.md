@@ -1,5 +1,7 @@
 # EXP-ACCOUNT-UI: the account interface
 
+> **In v2:** Unchanged. See [V2-REDESIGN.md](V2-REDESIGN.md).
+
 | Field | Value |
 | --- | --- |
 | Identifier | `EXP-ACCOUNT-UI` |

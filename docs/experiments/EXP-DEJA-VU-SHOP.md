@@ -1,5 +1,7 @@
 # EXP-DEJA-VU-SHOP: the Déjà Vu shop
 
+> **In v2:** Old Friends' extra levels bring specialists in order (the Cartographer, the Dowser, the Watcher, the Archivist) instead of wanderers. Buying a level applies only that item's own bonus: buying Old Friends no longer hands out Stashed Salvage's starting salvage again, a bug the v2 tests found and fixed. See [V2-REDESIGN.md](V2-REDESIGN.md).
+
 | Field | Value |
 | --- | --- |
 | Identifier | `EXP-DEJA-VU-SHOP` |

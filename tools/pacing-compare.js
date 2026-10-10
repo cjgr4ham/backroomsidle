@@ -1,11 +1,13 @@
 // Compares pacing between builds or experiment settings with the balance bot: medians over seeds.
 // Usage: node tools/pacing-compare.js [--seeds=7] [--runs=2] [--max=150] [--profiles=active:3:0.8,casual:1:0.5] <label=query|file> ...
-//   e.g. node tools/pacing-compare.js "original=?exp=none" "click=?exp=none,EXP-CLICK-POWER"
-//        node tools/pacing-compare.js "crew=?exp=none,EXP-CREW-AUTOMATION" "neglect=?exp=none,EXP-CREW-AUTOMATION|--crew=base"
-//        node tools/pacing-compare.js "baseline=@ebfa0c6" "now=?exp=none"    (@rev builds that git revision)
+//   e.g. node tools/pacing-compare.js "now="                                 (this build, experiments at their defaults)
+//        node tools/pacing-compare.js "now=" "off=?exp=none"                  (with every experiment off)
+//        node tools/pacing-compare.js "before=@07846e5" "now="                (@rev builds that git revision)
 //        node tools/pacing-compare.js "variant=/tmp/build.html?exp=none,EXP-A"   (another file, with flags)
-// Columns: minutes to each level and the exit, Déjà Vu at the end of the iteration, the share of salvage from
-// surveys made by hand, attention at 5 and 10 minutes, peak attention, drinks and averted incidents.
+//        node tools/pacing-compare.js "now=" "tuned=|--tune=/tmp/numbers.js"     (extra bot options after |)
+// Columns: minutes to each level and the end of the survey (exit), Déjà Vu at the end of the iteration, the shares
+// of salvage from surveys made by hand and from the Scavenger, attention at 5 and 10 minutes, peak attention,
+// drinks, averted incidents, and entities seen and caught (the bot stands still unless given --reckless).
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -33,7 +35,7 @@ const PROFILES = (opt.profiles || 'active:3:0.8,casual:1:0.5').split(',').map((s
 const med = (a) => { const s = a.filter((x) => x != null && !Number.isNaN(x)).sort((x, y) => x - y); return s.length ? s[Math.floor((s.length - 1) / 2)] : null; };
 const at = (r, m, k) => { const s = r.shots.find((x) => x.min === m); return s ? s[k] : null; };
 
-const cols = ['profile', 'build', 'iter', 'L1', 'L2', 'L3', 'L4', 'L5', 'exit', 'dv', 'hand%', 'att@5', 'att@10', 'peak', 'drinks', 'averted'];
+const cols = ['profile', 'build', 'iter', 'L1', 'L2', 'L3', 'L4', 'L5', 'exit', 'dv', 'hand%', 'idle%', 'att@5', 'att@10', 'peak', 'drinks', 'averted', 'enc', 'caught'];
 console.log(cols.join('\t'));
 for (const [pname, clicks, doc] of PROFILES) {
   for (const b of builds) {
@@ -49,6 +51,9 @@ for (const [pname, clicks, doc] of PROFILES) {
       for (const k of ['L1', 'L2', 'L3', 'L4', 'L5', 'exit']) row[k] = med(rs.map((r) => r.ms[k]));
       row.dv = med(rs.map((r) => r.dv));
       row['hand%'] = Math.round(100 * med(rs.map((r) => r.manualShare)));
+      row['idle%'] = Math.round(100 * med(rs.map((r) => r.idleShare || 0)));
+      row.enc = med(rs.map((r) => r.stats.encounters));
+      row.caught = med(rs.map((r) => r.stats.caught));
       row['att@5'] = med(rs.map((r) => at(r, 5, 'att')));
       row['att@10'] = med(rs.map((r) => at(r, 10, 'att')));
       row.peak = Math.round(med(rs.map((r) => r.peakAttention)));

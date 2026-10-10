@@ -1,7 +1,9 @@
 // Functional tests for The Hum. Drives the real page in headless Chromium.
 // Run: node tools/functional-test.js   (needs Playwright with a Chromium build)
-// These are the original checks. They run with every experiment switched off (?exp=none), which must
-// behave exactly as the pre-experiment game. Set HUM_QUERY to test another combination.
+// The core game with every experiment switched off (?exp=none): surveying and survey power, purchases,
+// specialists and missions, attention and incidents, sanity, anomalies, levels, completion and noclip, saving,
+// time away, damaged and hostile saves, export and import, reset and the keyboard. Set HUM_QUERY to test
+// another combination of experiments.
 const path = require('path');
 let playwright;
 try { playwright = require('playwright'); } catch (e) { playwright = require('/opt/node22/lib/node_modules/playwright'); }
@@ -33,6 +35,7 @@ function check(name, cond, detail) {
   await fresh();
   check('starts at level 0 with nothing', await ev(() => HUM.S.run.level === 0 && HUM.S.run.salvage === 0 && HUM.S.run.rooms === 0));
   check('survey button is visible and enabled', await page.isEnabled('#btnSurvey'));
+  check('a fresh game recovers +1 per survey and produces nothing on its own', await ev(() => { const D = HUM.derive(); return D.surveyPower === 1 && D.sps === 0 && D.roomsPerSec === 0; }));
 
   console.log('Surveying and purchases');
   // Surveys closer than 60 ms apart are refused (key-repeat guard). Under load two clicks can reach the page closer
@@ -41,14 +44,15 @@ function check(name, cond, detail) {
   const afterClicks = await ev(() => ({ rooms: HUM.S.run.rooms, salvage: HUM.S.run.salvage, surveys: HUM.S.run.stats.surveys }));
   check('20 clicks map 20 rooms', afterClicks.rooms === 20, afterClicks);
   check('salvage recovered from surveys', afterClicks.salvage >= 20, afterClicks);
-  await ev(() => { HUM.S.run.salvage = 1000; });
+  await ev(() => { HUM.S.run.salvage = 1000; HUM.S.run.nextEncounterAt = 1e12; });
   const quote = await ev(() => { HUM.setBuyMode(10); const f = HUM.FACILITIES[0]; return HUM.buyQuote(f); });
   const expected10 = await ev(() => Math.ceil(HUM.facilityCost(HUM.FACILITIES[0], 0, 10)));
   check('x10 quote equals the summed cost of 10', quote.cost === expected10 && quote.n === 10, { quote, expected10 });
-  const before = await ev(() => HUM.S.run.salvage);
+  const before = await ev(() => ({ salvage: HUM.S.run.salvage, power: HUM.derive().surveyPower }));
   await ev(() => HUM.buyFacility('cart'));
-  const after = await ev(() => ({ salvage: HUM.S.run.salvage, carts: HUM.S.run.facilities.cart }));
-  check('buying x10 charges exactly the quoted price', Math.abs(before - after.salvage - quote.cost) < 1e-6 && after.carts === 10, { before, after, quote });
+  const after = await ev(() => ({ salvage: HUM.S.run.salvage, carts: HUM.S.run.facilities.cart, power: HUM.derive().surveyPower, sps: HUM.derive().sps }));
+  check('buying x10 charges exactly the quoted price', Math.abs(before.salvage - after.salvage - quote.cost) < 1e-6 && after.carts === 10, { before, after, quote });
+  check('carts raise survey power and add no passive salvage', after.power > before.power && after.sps === 0, { before, after });
   const maxCheck = await ev(() => {
     HUM.setBuyMode('max'); HUM.S.run.salvage = 5000;
     const f = HUM.FACILITIES[0]; const q = HUM.buyQuote(f);
@@ -65,36 +69,50 @@ function check(name, cond, detail) {
   check('rapid double purchase only buys what is affordable', spam.a === true && spam.b === false && spam.salvage >= 0, spam);
   const rates = await ev(() => { const D = HUM.derive(); const f = D.fac.cart; return { each: f.each, total: f.total, n: HUM.S.run.facilities.cart }; });
   check('displayed facility total equals count x each', Math.abs(rates.total - rates.each * rates.n) < 1e-9, rates);
+  const wave = await ev(() => { HUM.S.run.salvage = 1e9; return { vat: HUM.buyFacility('vat'), visible: HUM.facVisible(HUM.FAC.vat) }; });
+  check('a facility of a deeper level cannot be bought before its level', wave.vat === false && wave.visible === false, wave);
 
   console.log('Upgrades');
-  const upg = await ev(() => { HUM.S.run.salvage = 100; const before = HUM.derive().surveyFlat; const ok = HUM.buyUpgrade('flashlight'); return { ok, before, after: HUM.derive().surveyFlat, salvage: HUM.S.run.salvage, again: HUM.buyUpgrade('flashlight') }; });
-  check('flashlight doubles survey salvage, charged once', upg.ok && Math.abs(upg.after / upg.before - 2) < 1e-9 && upg.salvage === 60 && upg.again === false, upg);
+  const upg = await ev(() => {
+    const u = HUM.UPGRADES.find((x) => x.id === 'flashlight');
+    HUM.S.run.salvage = u.cost.salvage + 100;
+    const before = HUM.derive().surveyPower;
+    const ok = HUM.buyUpgrade('flashlight');
+    return { ok, before, after: HUM.derive().surveyPower, mult: u.mult, salvage: HUM.S.run.salvage, again: HUM.buyUpgrade('flashlight') };
+  });
+  check('the Flashlight multiplies survey power by its stated amount, charged once', upg.ok && Math.abs(upg.after / upg.before - upg.mult) < 1e-9 && upg.salvage === 100 && upg.again === false, upg);
   const locked = await ev(() => { HUM.S.run.salvage = 1e9; return HUM.buyUpgrade('boots'); });
   check('cannot buy an upgrade whose requirement is not met', locked === false);
 
-  console.log('Crew and expeditions');
-  const crew = await ev(() => {
-    HUM.S.run.flags.water = true; HUM.S.run.aw = 1000; HUM.S.run.salvage = 1000;
-    HUM.buyUpgrade('radio');
-    for (let i = 0; i < 5; i++) HUM.hire();
-    HUM.assign('scavenge', 3);
-    return { total: HUM.S.run.crew.total, scav: HUM.S.run.crew.jobs.scavenge, idle: HUM.crewIdle(), cantOverAssign: HUM.assign('chart', 10) && HUM.crewIdle() === 0 };
+  console.log('Specialists and missions');
+  const spec = await ev(() => {
+    const r = HUM.S.run;
+    r.flags.water = true; r.aw = 1000; r.salvage = 1e6;
+    const a = HUM.hireSpecialist('scavenge'), b = HUM.hireSpecialist('chart'), c = HUM.hireSpecialist('scavenge');
+    return { a, b, c, specs: { ...r.specialists }, sps: HUM.derive().sps, auto: HUM.derive().autoSurveys };
   });
-  check('hire and assign keep crew consistent', crew.total === 5 && crew.scav === 3 && crew.idle === 2, crew);
-  const exp = await ev(() => {
-    const r = HUM.S.run; r.crew.jobs.chart = 0;
-    const idleBefore = HUM.crewIdle();
-    const ok = HUM.launchExpedition('stairwell');
-    const busy = HUM.crewIdle();
-    const salvageBefore = r.salvage;
-    HUM.S.run.expeditions.stairwell.hazard = 1;   // force the hazard roll for the test
-    for (let i = 0; i < 1300; i++) HUM.step(0.1, false);
-    return { ok, idleBefore, busy, done: !r.expeditions.stairwell, gained: r.salvage > salvageBefore, missing: r.crew.missing.length, total: r.crew.total };
+  check('specialists are recruited and upgraded with salvage and work at once', spec.a && spec.b && spec.c && spec.specs.scavenge === 2 && spec.specs.chart === 1 && spec.sps > 0 && spec.auto > 0, spec);
+  const mis = await ev(() => {
+    const r = HUM.S.run;
+    const aw0 = r.aw;
+    const ok = HUM.launchMission('stairwell');
+    const paid = aw0 - r.aw;   // measured now: the team may bring water back
+    const x = { ...r.missions.stairwell };
+    r.missions.stairwell.hazard = 1;   // force the hazard roll for the test
+    // The haul was fixed when the team left; with the Scavenger off duty nothing else adds salvage meanwhile.
+    const keep = r.specialists.scavenge;
+    delete r.specialists.scavenge;
+    const att0 = r.attention;
+    const s0 = r.salvage;
+    const dur = x.end - x.start;
+    for (let i = 0; i < Math.ceil(dur / 0.1) + 5; i++) HUM.step(0.1, false);
+    const out = { ok, paid, done: !r.missions.stairwell, haul: x.salvage, gained: r.salvage - s0, attention: r.attention - att0,
+      specs: { ...r.specialists }, working: HUM.derive().spec.chart.working, n: r.stats.expeditions };
+    r.specialists.scavenge = keep;
+    return out;
   });
-  check('expedition takes idle crew and completes', exp.ok && exp.busy === exp.idleBefore - 1 && exp.done && exp.gained, exp);
-  check('hazard sends one wanderer missing without deleting them', exp.missing === 1 && exp.total === 5, exp);
-  const back = await ev(() => { HUM.step(1900, true); return { missing: HUM.S.run.crew.missing.length, total: HUM.S.run.crew.total }; });
-  check('missing wanderers come back', back.missing === 0 && back.total === 5, back);
+  check('a mission pays its water, needs its specialist, and completes on the game clock', mis.ok && mis.paid === 3 && mis.done && mis.n === 1, mis);
+  check('a hazard halves the haul and raises attention, and never takes a specialist', Math.abs(mis.gained - mis.haul / 2) < 1e-6 && mis.attention > 0 && mis.specs.chart === 1 && mis.working, mis);
 
   console.log('Attention and incidents');
   const att = await ev(() => {
@@ -106,34 +124,37 @@ function check(name, cond, detail) {
   });
   check('attention settles at 100*N/(N+A)', Math.abs(att.target - att.expected) < 1e-9 && Math.abs(att.attention - att.target) < 1, att);
   const inc = await ev(() => {
-    const r = HUM.S.run; r.attention = 95; r.incidentGraceUntil = 0; r.pendingIncident = null;
+    const r = HUM.S.run; r.attention = 95; r.incidentGraceUntil = 0; r.pendingIncident = null; r.nextEncounterAt = 1e12;
     const results = {};
     for (const type of ['breach', 'taken', 'raid', 'shock']) {
       r.pendingIncident = null; r.incidentGraceUntil = 0;
       HUM.scheduleIncident();
       r.pendingIncident.type = type;
       if (type === 'breach') r.pendingIncident.target = 'boiler';
-      if (type === 'raid') { HUM.S.saved = r.facilities; r.facilities = {}; r.disabled = {}; for (const j in r.crew.jobs) r.crew.jobs[j] = 0; }
-      const snap = { salvage: r.salvage = 10000, sanity: r.sanity = 90, missing: r.crew.missing.length, total: r.crew.total };
+      // During the raid nobody earns, so the 8% can be measured exactly.
+      const keep = r.specialists;
+      if (type === 'raid') r.specialists = {};
+      const snap = { salvage: r.salvage = 10000, sanity: r.sanity = 90 };
       const at = r.pendingIncident.at;
       while (HUM.S.time < at + 0.05) HUM.step(0.1, false);
-      if (type === 'raid') { r.facilities = HUM.S.saved; delete HUM.S.saved; }
-      results[type] = { disabled: !!r.disabled.boiler, salvage: r.salvage, sanity: r.sanity, missing: r.crew.missing.length - snap.missing, total: r.crew.total, pending: !!r.pendingIncident };
+      if (type === 'raid') r.specialists = keep;
+      results[type] = { disabled: !!r.disabled.boiler, salvage: r.salvage, sanity: r.sanity, away: Object.keys(r.away), levels: { ...r.specialists }, pending: !!r.pendingIncident, snap };
     }
     return results;
   });
   check('breach takes a facility offline', inc.breach.disabled, inc.breach);
-  check('taken moves a wanderer to missing, total unchanged', inc.taken.missing === 1 && inc.taken.total === 5, inc.taken);
+  check('taken sends a specialist away for a while, keeping their level', inc.taken.away.length === 1 && inc.taken.levels.scavenge === 2 && inc.taken.levels.chart === 1, inc.taken);
   check('raid takes 8% of stockpiled salvage', Math.abs(inc.raid.salvage - 9200) < 5, inc.raid);
   check('shock costs sanity', inc.shock.sanity < 90, inc.shock);
   const avert = await ev(() => {
-    const r = HUM.S.run; r.lightsReadyAt = 0; r.lightsUntil = 0; r.incidentGraceUntil = 0; r.attention = 95;
+    const r = HUM.S.run; r.away = {}; r.lightsReadyAt = 0; r.lightsUntil = 0; r.incidentGraceUntil = 0; r.attention = 95;
+    const on = HUM.derive().sps;
     HUM.scheduleIncident();
     const ok = HUM.killLights();
     const D = HUM.derive();
-    return { ok, pending: r.pendingIncident, averted: r.stats.averted, sps: D.sps, attention: r.attention };
+    return { ok, pending: r.pendingIncident, averted: r.stats.averted, on, sps: D.sps, attention: r.attention };
   });
-  check('kill the lights averts the incident and halts production', avert.ok && avert.pending === null && avert.averted >= 1 && avert.sps === 0 && avert.attention <= 50, avert);
+  check('kill the lights averts the incident and halts the specialists', avert.ok && avert.pending === null && avert.averted >= 1 && avert.on > 0 && avert.sps === 0 && avert.attention <= 50, avert);
   const relight = await ev(() => { for (let i = 0; i < 160; i++) HUM.step(0.1, false); return { out: HUM.derive().lightsOut, cooling: !HUM.killLights() }; });
   check('lights return and the switch recharges', relight.out === false && relight.cooling, relight);
 
@@ -168,7 +189,7 @@ function check(name, cond, detail) {
   check('hallucinated anomalies give nothing', an.phantom === 0, an);
   check('automated documentation pays half on expiry', an.auto > 0 && an.cleared, an);
 
-  console.log('Levels and noclip');
+  console.log('Levels, completion and noclip');
   const lv = await ev(() => {
     const r = HUM.S.run; r.level = 0; r.levelRooms = 0;
     const need = HUM.exitRooms(0);
@@ -177,40 +198,45 @@ function check(name, cond, detail) {
     HUM.rt.lastSurveyReal = -1e9; HUM.survey();
     return { level: r.level, levelRooms: r.levelRooms };
   });
-  check('mapping the exit rooms moves to the next level', lv.level === 1 && lv.levelRooms === 0, lv);
-  await ev(() => { const r = HUM.S.run; r.level = 3; r.stats.salvage = 5e8; HUM.S.life.maxLevel = 3; HUM.rt.structureDirty = true; });
+  check('mapping the exit rooms moves to the next level, carrying the extra rooms', lv.level === 1 && lv.levelRooms > 0 && lv.levelRooms < 10, lv);
+  await ev(() => { const r = HUM.S.run; r.level = 3; r.stats.salvage = 5e10; r.stats.time = 1800; HUM.S.life.maxLevel = 3; HUM.rt.structureDirty = true; });
   await page.waitForTimeout(300);
   await page.click('#tab-noclip');
   await page.waitForTimeout(200);
+  const lockedNoclip = await ev(() => { const b = document.querySelector('#panel-noclip [data-action="noclip"]'); return { can: HUM.canNoclip(), preview: HUM.dvPreview(), button: b ? b.disabled : 'none' }; });
+  check('noclip is locked before the survey is complete, even with Déjà Vu waiting', !lockedNoclip.can && lockedNoclip.preview > 0 && lockedNoclip.button !== false, lockedNoclip);
+  await ev(() => { const r = HUM.S.run; r.level = 5; HUM.completeFiniteSurvey(); HUM.rt.structureDirty = true; });
+  await page.waitForTimeout(300);
+  const done = await ev(() => ({ level: HUM.S.run.level, exitFound: HUM.S.run.exitFound, noclips: HUM.S.life.noclips }));
+  check('completing the survey opens noclip and enters Level FUN without counting a noclip', done.level === 6 && done.exitFound && done.noclips === 0, done);
   const preview = await ev(() => HUM.dvPreview());
-  check('Déjà Vu preview is positive at level 3', preview > 0, preview);
   await page.click('[data-action="noclip"]');
   await page.waitForTimeout(150);
   check('noclip asks for confirmation', await page.isVisible('.modal'));
   await page.click('.modal .btn.primary');
   await page.waitForTimeout(300);
-  const post = await ev(() => ({ iter: HUM.S.iteration, dv: HUM.S.dv, level: HUM.S.run.level, salvage: HUM.S.run.salvage, research: Object.keys(HUM.S.research).length, crew: HUM.S.run.crew.total }));
-  check('noclip resets the run and grants Déjà Vu', post.iter === 2 && post.dv === preview && post.level === 0 && post.salvage === 0 && post.crew === 0, post);
+  const post = await ev(() => ({ iter: HUM.S.iteration, dv: HUM.S.dv, level: HUM.S.run.level, salvage: HUM.S.run.salvage, research: Object.keys(HUM.S.research).length, specs: Object.keys(HUM.S.run.specialists).length, noclips: HUM.S.life.noclips }));
+  check('noclip resets the run, counts one noclip and grants Déjà Vu', post.iter === 2 && post.dv === preview && post.level === 0 && post.salvage === 0 && post.specs === 0 && post.noclips === 1, post);
   check('research survives noclip', post.research > 0, post);
   const mem = await ev(() => { const ok = HUM.buyMemory('muscle'); return { ok, dv: HUM.S.dv, rank: HUM.S.memories.muscle, again: HUM.buyMemory('muscle') }; });
   check('memories cost Déjà Vu once', mem.ok && mem.rank === 1 && mem.again === false && mem.dv === preview - 1, mem);
 
-  console.log('Saving, loading and offline progress');
-  await ev(() => { HUM.S.run.facilities.cart = 30; HUM.S.run.salvage = 123; HUM.save(); });
+  console.log('Saving, loading and time away');
+  await ev(() => { const r = HUM.S.run; r.facilities.cart = 30; r.salvage = 123; r.specialists = { scavenge: 2 }; HUM.rt.saveBlocked = false; HUM.save(); HUM.rt.saveBlocked = true; });
   const saved = await ev(() => JSON.parse(localStorage.getItem('the-hum.save')));
-  check('save is versioned JSON', saved.v === 1 && saved.run.facilities.cart === 30);
+  check('save is versioned JSON (format 2)', saved.v === 2 && saved.run.facilities.cart === 30 && saved.run.specialists.scavenge === 2, { v: saved.v });
   await ev(() => { HUM.rt.saveBlocked = true; const s = JSON.parse(localStorage.getItem('the-hum.save')); s.lastSaved = Date.now() - 2 * 3600 * 1000; localStorage.setItem('the-hum.save', JSON.stringify(s)); });
   await page.reload();
   await page.waitForTimeout(500);
   const off = await ev(() => ({ salvage: HUM.S.run.salvage, offline: HUM.S.life.offlineTime, modal: !!document.querySelector('.modal'), title: document.querySelector('.modal h2') && document.querySelector('.modal h2').textContent }));
-  check('two hours away credits offline production', off.salvage > 1000 && off.offline >= 7100, off);
+  check('two hours away credits the Scavenger’s salvage', off.salvage > 1000 && off.offline >= 7100, off);
   check('a report is shown after time away', off.modal && /away/i.test(off.title || ''), off);
   await page.click('.modal .btn.primary');
   await ev(() => { HUM.rt.saveBlocked = true; const s = JSON.parse(localStorage.getItem('the-hum.save')); s.lastSaved = Date.now() - 30 * 24 * 3600 * 1000; localStorage.setItem('the-hum.save', JSON.stringify(s)); });
   await page.reload();
   await page.waitForTimeout(500);
   const capped = await ev(() => ({ text: document.querySelector('.modal') && document.querySelector('.modal').textContent }));
-  check('offline credit is capped and the cap is stated', /Only the first 8h/.test(capped.text || ''), capped.text && capped.text.slice(0, 200));
+  check('time away is capped and the cap is stated', /Only the first 8h/.test(capped.text || ''), capped.text && capped.text.slice(0, 200));
   await page.click('.modal .btn.primary');
   const neg = await ev(() => { HUM.rt.saveBlocked = true; const s = JSON.parse(localStorage.getItem('the-hum.save')); s.lastSaved = Date.now() + 3600 * 1000; localStorage.setItem('the-hum.save', JSON.stringify(s)); return true; });
   await page.reload();
@@ -226,10 +252,12 @@ function check(name, cond, detail) {
   check('the corrupted save is kept, not deleted', cor.kept, cor);
   await page.click('.modal .btn.primary');
   const hostile = await ev(() => {
-    const st = HUM.sanitizeState({ v: 1, run: { salvage: -5, aw: 'lots', sanity: 900, level: 99, facilities: { cart: 1e99, nope: 4 }, crew: { total: 2, jobs: { scavenge: 50 } }, upgrades: { flashlight: true, hacked: true } }, echoes: Infinity, log: [{ text: '<img src=x onerror=alert(1)>', type: 'evil' }] });
-    return { salvage: st.run.salvage, aw: st.run.aw, sanity: st.run.sanity, level: st.run.level, cart: st.run.facilities.cart, nope: st.run.facilities.nope, scav: st.run.crew.jobs.scavenge, hacked: st.run.upgrades.hacked, echoes: st.echoes, logType: st.log[0].type };
+    const st = HUM.sanitizeState({ v: 2, run: { salvage: -5, aw: 'lots', sanity: 900, level: 99, facilities: { cart: 1e99, nope: 4 }, specialists: { scavenge: 1e9, chart: -3, nobody: 5 }, crew: { total: 2 }, upgrades: { flashlight: true, hacked: true } }, echoes: Infinity, log: [{ text: '<img src=x onerror=alert(1)>', type: 'evil' }] });
+    return { salvage: st.run.salvage, aw: st.run.aw, sanity: st.run.sanity, level: st.run.level, exitFound: st.run.exitFound, cart: st.run.facilities.cart, nope: st.run.facilities.nope,
+      specs: st.run.specialists, crew: 'crew' in st.run, hacked: st.run.upgrades.hacked, echoes: st.echoes, logType: st.log[0].type };
   });
-  check('hostile save values are clamped and unknown ids dropped', hostile.salvage === 0 && hostile.aw === 0 && hostile.sanity === 100 && hostile.level === 5 && hostile.cart === 1e6 && hostile.nope === undefined && hostile.scav === 0 && hostile.hacked === undefined && hostile.echoes === 0 && hostile.logType === 'info', hostile);
+  check('hostile save values are clamped and unknown ids dropped', hostile.salvage === 0 && hostile.aw === 0 && hostile.sanity === 100 && hostile.level === 6 && hostile.exitFound === true && hostile.cart === 1e6 && hostile.nope === undefined
+    && JSON.stringify(hostile.specs) === '{"scavenge":60}' && !hostile.crew && hostile.hacked === undefined && hostile.echoes === 0 && hostile.logType === 'info', hostile);
   let newer;
   try { newer = await ev(() => { try { HUM.sanitizeState({ v: 99 }); return 'accepted'; } catch (e) { return e.message; } }); } catch (e) { newer = String(e); }
   check('a save from a newer version is refused with a reason', /newer version/.test(newer), newer);
@@ -239,8 +267,8 @@ function check(name, cond, detail) {
   console.log('Export and import');
   const code = await ev(() => HUM.encodeSave());
   check('export produces a prefixed string', code.startsWith('HUM1.'));
-  const round = await ev((c) => { const st = HUM.decodeSave(c); return { carts: st.run.facilities.cart, iter: st.iteration }; }, code);
-  check('export decodes back to the same state', round.carts === 30 && round.iter === 2, round);
+  const round = await ev((c) => { const st = HUM.decodeSave(c); return { carts: st.run.facilities.cart, iter: st.iteration, v: st.v }; }, code);
+  check('export decodes back to the same state', round.carts === 30 && round.iter === 2 && round.v === 2, round);
   let bad;
   bad = await ev(() => { try { HUM.decodeSave('HUM1.@@@'); return 'accepted'; } catch (e) { return e.message; } });
   check('damaged import text is rejected with a message', /damaged/.test(bad), bad);
@@ -279,11 +307,12 @@ function check(name, cond, detail) {
 
   console.log('Long session');
   const long = await ev(() => {
+    HUM.S.run.specialists = { scavenge: 5, chart: 3, dowse: 2 };
     const t0 = performance.now();
     const rep = HUM.catchUp(24 * 3600);
-    return { ms: performance.now() - t0, applied: rep.applied, finite: Number.isFinite(HUM.S.run.salvage) && Number.isFinite(HUM.S.echoes) };
+    return { ms: performance.now() - t0, applied: rep.applied, finite: Number.isFinite(HUM.S.run.salvage) && Number.isFinite(HUM.S.echoes) && Number.isFinite(HUM.S.run.rooms) };
   });
-  check('a day of catch-up is bounded and fast', long.ms < 2000 && long.finite, long);
+  check('a day of catch-up is bounded and fast', long.ms < 2000 && long.finite && long.applied === 8 * 3600, long);
 
   check('no console or page errors', errors.length === 0, errors.slice(0, 5));
   console.log(`\n${passes} passed, ${failures} failed`);

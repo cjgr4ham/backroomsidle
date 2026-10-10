@@ -78,8 +78,13 @@ module.exports = {
       if (typeof b.lineage !== 'string' || !/^[0-9a-f]{32}$/.test(b.lineage)) throw bad('That report does not name a save.');
       if (!Number.isInteger(b.iteration) || b.iteration < 1 || b.iteration > 1e6) throw bad('That report does not name an iteration.');
       if (!run) throw bad('That report has no run.');
-      if (!Number.isInteger(run.level) || run.level < 0 || run.level > 5 || typeof run.exitFound !== 'boolean') throw bad('That report has no valid level.');
-      if (run.exitFound && run.level !== 5) throw bad('The exit is on Level 5.');
+      // Levels 0–5 are the finite survey; completing the Long Hallway (Level 5) records the exit and leads into Level
+      // FUN (6), which is where a current game noclips from. Pages loaded before that update could noclip from Level 3
+      // onwards without the exit, so those reports are still accepted. These are shape checks, not proof: the count is
+      // limited by the rate rules below, never by anything the report claims.
+      if (!Number.isInteger(run.level) || run.level < 0 || run.level > 6 || typeof run.exitFound !== 'boolean') throw bad('That report has no valid level.');
+      if (run.exitFound && run.level < 5) throw bad('The exit is on Level 5.');
+      if (run.level === 6 && !run.exitFound) throw bad('Level FUN is only reached by completing the survey.');
       if (run.level < 3 && !run.exitFound) throw bad('A noclip needs Level 3 or the exit.');
       if (!Number.isInteger(run.gain) || run.gain < 1 || run.gain > 1e15) throw bad('A noclip earns at least one Déjà Vu.');
       if (typeof run.time !== 'number' || !Number.isFinite(run.time) || run.time < rules.minRunSec || run.time > 1e10) throw bad('That run is too short to be a noclip.');

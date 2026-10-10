@@ -73,28 +73,43 @@ const ID = 'EXP-DEV-MENU';
   await btn('Map rooms');
   await page.waitForTimeout(50);
   c.check('Map rooms adds rooms toward the next level', await ev(() => HUM.S.run.levelRooms === 250));
-  await btn('Find the exit');
+  const lvlOpts = await ev(() => [...document.querySelectorAll('#panel-dev select[aria-label="Level"] option')].map((o) => o.value));
+  c.check('the level list offers only the finite levels (Level FUN is reached by completing the survey)', lvlOpts.join() === '0,1,2,3,4,5', lvlOpts);
+  const n0 = await ev(() => ({ noclips: HUM.S.life.noclips, iteration: HUM.S.iteration }));
+  await btn('Complete the survey');
   await page.waitForTimeout(50);
-  c.check('Find the exit reaches Level 5 and opens the exit', await ev(() => HUM.S.run.level === 5 && HUM.S.run.exitFound === true));
+  const comp = await ev(() => ({ level: HUM.S.run.level, exitFound: HUM.S.run.exitFound, can: HUM.canNoclip(), noclips: HUM.S.life.noclips, iteration: HUM.S.iteration }));
+  c.check('Complete the survey uses the game’s completion: Level FUN, noclip open, no noclip counted', comp.level === 6 && comp.exitFound && comp.noclips === n0.noclips && comp.iteration === n0.iteration, { n0, comp });
 
-  // Research, requisitions, machines, crew.
+  // Research, requisitions, facilities, specialists.
   const before = await ev(() => ({ echoes: HUM.S.echoes, research: Object.keys(HUM.S.research).length }));
   await page.selectOption('#panel-dev select[aria-label="Research"]', 'pattern');
   await btn('Complete');
   await page.waitForTimeout(50);
   const rs = await ev(() => ({ pattern: HUM.S.research.pattern === true, echoes: HUM.S.echoes }));
   c.check('completing research sets it without spending Echoes', rs.pattern && rs.echoes === before.echoes, { before, rs });
-  await page.selectOption('#panel-dev select[aria-label="Machine"]', 'vat');
+  // A project under way can be finished at once.
+  await ev(() => { const H = HUM; H.S.echoes = 100; H.doResearch('hum'); H.UI.selectTab('dev'); H.rt.structureDirty = true; H.UI.update(true); });
+  await btn('Finish it now');
+  await page.waitForTimeout(50);
+  const fin = await ev(() => ({ hum: HUM.S.research.hum === true, active: HUM.S.researching, echoes: HUM.S.echoes }));
+  c.check('Finish it now completes the project under way, once', fin.hum && fin.active === null && fin.echoes === 96, fin);
+  await page.selectOption('#panel-dev select[aria-label="Facility"]', 'vat');
   await page.fill('#panel-dev input[aria-label="Count"]', '7');
   const vat0 = await ev(() => ({ n: HUM.S.run.facilities.vat || 0, salvage: HUM.S.run.salvage }));
-  await btn('Add machines');
+  await btn('Add facilities');
   await page.waitForTimeout(50);
-  const vat1 = await ev(() => ({ n: HUM.S.run.facilities.vat || 0, salvage: HUM.S.run.salvage }));
-  c.check('adding machines adds that many and changes nothing else', vat1.n === vat0.n + 7 && Math.abs(vat1.salvage - vat0.salvage) < 50, { vat0, vat1 });
-  await page.fill('#panel-dev input[aria-label="Wanderers"]', '4');
-  await btn('Add wanderers');
+  const vat1 = await ev(() => ({ n: HUM.S.run.facilities.vat || 0, salvage: HUM.S.run.salvage, sps: HUM.derive().sps }));
+  c.check('adding facilities adds that many and changes nothing else (still no passive salvage)', vat1.n === vat0.n + 7 && Math.abs(vat1.salvage - vat0.salvage) < 50 && vat1.sps === 0, { vat0, vat1 });
+  await page.selectOption('#panel-dev select[aria-label="Specialist"]', 'chart');
+  await page.fill('#panel-dev input[aria-label="Level"]', '4');
+  await btn('Set level');
   await page.waitForTimeout(50);
-  c.check('adding wanderers brings them idle, with the radio', await ev(() => HUM.S.run.crew.total === 4 && HUM.S.run.upgrades.radio === true));
+  c.check('a specialist’s level can be set directly', await ev(() => HUM.S.run.specialists.chart === 4 && HUM.derive().autoSurveys > 0));
+  await btn('Recruit all five');
+  await page.waitForTimeout(50);
+  const five = await ev(() => ({ ...HUM.S.run.specialists }));
+  c.check('Recruit all five recruits the others at level 1 and keeps raised levels', JSON.stringify(five) === JSON.stringify({ chart: 4, scavenge: 1, dowse: 1, watch: 1, archive: 1 }), five);
   const free = await ev(() => {
     const u = HUM.UPGRADES.find((x) => HUM.upgradeAvailable(x) && x.cost.salvage > 1000);
     return u ? u.id : null;
@@ -105,7 +120,8 @@ const ID = 'EXP-DEV-MENU';
     await btn('Install for free');
     await page.waitForTimeout(50);
     const fr = await ev((id) => ({ owned: HUM.S.run.upgrades[id] === true, salvage: HUM.S.run.salvage }), free);
-    c.check('Install for free uses the normal purchase without charging', fr.owned && Math.abs(fr.salvage - s0) < 50, { free, s0, fr });
+    // The specialists keep earning while the test waits, so "not charged" means the balance never went down.
+    c.check('Install for free uses the normal purchase without charging', fr.owned && fr.salvage >= s0, { free, s0, fr });
   } else c.check('Install for free has something to install', false, 'no candidate');
 
   // Meters, events and time.
@@ -116,11 +132,13 @@ const ID = 'EXP-DEV-MENU';
   await page.waitForTimeout(50);
   c.check('attention and sanity can be set', await ev(() => Math.abs(HUM.S.run.attention - 80) < 1 && Math.abs(HUM.S.run.sanity - 33) < 1));
   await btn('Schedule an incident');
+  await btn('Send an entity');
   await page.waitForTimeout(50);
-  const inc = await ev(() => !!HUM.S.run.pendingIncident);
-  await btn('Clear incident and blackout');
+  const inc = await ev(() => ({ incident: !!HUM.S.run.pendingIncident, entity: !!HUM.rt.encounter }));
+  await btn('Clear incident, entity and blackout');
   await page.waitForTimeout(50);
-  c.check('an incident can be scheduled and cleared', inc && await ev(() => HUM.S.run.pendingIncident === null), inc);
+  const cleared = await ev(() => ({ incident: HUM.S.run.pendingIncident, entity: HUM.rt.encounter, caught: HUM.S.run.stats.caught }));
+  c.check('an incident and an entity can be sent and cleared, with no penalty', inc.incident && inc.entity && cleared.incident === null && cleared.entity === null && cleared.caught === 0, { inc, cleared });
   const t0 = await ev(() => HUM.S.time);
   await page.fill('#panel-dev input[aria-label="Minutes away"]', '30');
   await btn('Simulate time away');
@@ -131,7 +149,7 @@ const ID = 'EXP-DEV-MENU';
 
   // Production view and experiment switches.
   const prod = await ev(() => { HUM.UI.selectTab('dev'); HUM.UI.update(true); return document.querySelector('#panel-dev .dev-prod').textContent; });
-  c.check('production figures are shown live', /Salvage\/s/.test(prod) && /Facility multiplier/.test(prod), prod.slice(0, 120));
+  c.check('production figures are shown live', /Survey power/.test(prod) && /facilities ×/.test(prod) && /Passive salvage\/s/.test(prod) && /Automatic surveys/.test(prod), prod.slice(0, 200));
   // Any other experiment in the build will do (this page starts with them switched off by ?exp=none).
   const sw = await ev(() => {
     const rows = [...document.querySelectorAll('#panel-dev .dev-exp')];

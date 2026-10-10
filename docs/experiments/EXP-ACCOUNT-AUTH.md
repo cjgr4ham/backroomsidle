@@ -1,5 +1,7 @@
 # EXP-ACCOUNT-AUTH: accounts and sessions
 
+> **In v2:** Unchanged. How a public deployment finds the server is described in [docs/DEPLOYMENT.md](../DEPLOYMENT.md). See [V2-REDESIGN.md](V2-REDESIGN.md).
+
 | Field | Value |
 | --- | --- |
 | Identifier | `EXP-ACCOUNT-AUTH` |

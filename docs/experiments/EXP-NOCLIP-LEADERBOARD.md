@@ -1,5 +1,7 @@
 # EXP-NOCLIP-LEADERBOARD: the noclip leaderboard
 
+> **In v2:** A current game noclips from Level FUN, so reports carry level 6 with the exit found. The server accepts those, and still accepts reports from pages loaded before the update (Level 3–5 without the exit). Completing the survey never sends a report. See [V2-REDESIGN.md](V2-REDESIGN.md).
+
 | Field | Value |
 | --- | --- |
 | Identifier | `EXP-NOCLIP-LEADERBOARD` |

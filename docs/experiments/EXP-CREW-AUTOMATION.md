@@ -1,5 +1,7 @@
 # EXP-CREW-AUTOMATION: crew-run operation
 
+> **Folded into the core in v2** (commit `a52658d`). This entry is kept as the record of the experiment as it was. The workforce it organised no longer exists: five unique specialists replaced hiring and jobs, and the staffing rule is gone. Its crew requisitions remain, in the Crew tab, now multiplying the specialists' work. The flag, the code slot and `crew.test.js` no longer exist; `specialists.test.js` covers the Crew tab. See [V2-REDESIGN.md](V2-REDESIGN.md).
+
 | Field | Value |
 | --- | --- |
 | Identifier | `EXP-CREW-AUTOMATION` |

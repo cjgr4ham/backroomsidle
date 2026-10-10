@@ -1,5 +1,7 @@
 # EXP-FACILITY-INDEPENDENCE: facilities never need crew
 
+> **Folded into the core in v2** (commit `a52658d`). This entry is kept as the record of the experiment as it was. There is no crew to need: facilities only raise the facility multiplier (salvage) or support something else, and never depend on anyone. The flag, the code slot and `facility-independence.test.js` no longer exist; `economy.test.js` covers facilities. See [V2-REDESIGN.md](V2-REDESIGN.md).
+
 | Field | Value |
 | --- | --- |
 | Identifier | `EXP-FACILITY-INDEPENDENCE` |

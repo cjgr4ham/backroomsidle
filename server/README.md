@@ -8,7 +8,7 @@ The game itself is one file, `index.html`, and runs anywhere a browser can open 
 
 Players need an account only for those features. Without one, the game saves in the browser as before.
 
-**Status: implemented and tested here, not deployed.** The code was run and tested in a local environment against real HTTP and a real browser (see `tools/tests/server-*.test.js` and the account tests). No public server is running. Until someone deploys this behind HTTPS, these copies have no accounts and no leaderboard, and they say so in the game:
+**Status: implemented, tested and packaged, not deployed.** The code was run and tested in a local environment against real HTTP and a real browser (see `tools/tests/server-*.test.js` and the account tests). The container image (`Dockerfile`) was built and run there too. No public server is running. Until someone deploys this behind HTTPS, these copies have no accounts and no leaderboard, and they say so in the game:
 
 - the published claude.ai artifact;
 - copies opened from disk;
@@ -49,6 +49,12 @@ Open the printed address. `tools/run-tests.js` starts its own servers on free po
 
 ## Deploying
 
+**[docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md) has the full steps, the checks to run on the public URL, and what is still needed.** The repository includes:
+
+- a `Dockerfile` and `.dockerignore`;
+- a Fly.io configuration, `fly.toml`;
+- a Caddyfile and a systemd unit in `deploy/`.
+
 Any host that runs a Node process with a persistent volume works: a small virtual machine, or a platform service with a disk. One example uses Caddy, which obtains a TLS certificate automatically:
 
 ```
@@ -67,7 +73,8 @@ Run it under a process manager, such as systemd or the platform's own, that rest
 ## Data, backups and rollbacks
 
 - **The database.** Everything is in one SQLite file, `DATA_DIR/the-hum.db`, with its `-wal` and `-shm` companions.
-- **Backups.** Back up with `sqlite3 the-hum.db ".backup backup.db"`, or copy the files while the server is stopped. Restore by replacing them while it is stopped.
+- **Backups.** Copy the database while the server runs with `node server/backup.js /path/to/backup.db` (no `sqlite3` tool needed). You can also use `sqlite3 the-hum.db ".backup backup.db"`, or copy the files while the server is stopped.
+- **Restores.** Stop the server, then replace `the-hum.db` and delete the `-wal` and `-shm` files. The file must belong to the server's user, or the server cannot write it and stops at start.
 - **Tables and migrations.** Each feature in `server/features/` owns its tables and applies numbered migrations, recorded in `schema_migrations`.
   - Migrations only add.
   - **Reverting or switching off a feature never drops its tables or deletes rows.** The data stays, unused, and returns with the feature.

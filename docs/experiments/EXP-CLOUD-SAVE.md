@@ -1,5 +1,7 @@
 # EXP-CLOUD-SAVE: the account's save
 
+> **In v2:** The server accepts save formats 1 and 2. A format-1 save downloaded from the account is migrated by the game, as any other load is (see the v2 entry). See [V2-REDESIGN.md](V2-REDESIGN.md).
+
 | Field | Value |
 | --- | --- |
 | Identifier | `EXP-CLOUD-SAVE` |
