@@ -24,7 +24,8 @@ const opt = Object.fromEntries(args.filter((a) => a.startsWith('--')).map((a) =>
 const pos = args.filter((a) => !a.startsWith('--'));
 // Every experiment update 2.1 added. Keep in step with docs/experiments/UPDATE-2.1.md.
 const UPDATE_FLAGS = ['EXP-CREW-VISIBLE', 'EXP-ROOM-VARIETY', 'EXP-PRODUCTION-FEEDBACK', 'EXP-AMBIENT-EVENTS', 'EXP-CREW-EQUIPMENT',
-  'EXP-MISSION-AUTOREPEAT', 'EXP-AUTO-UPGRADE', 'EXP-LATE-FACILITIES', 'EXP-LATE-UPGRADES', 'EXP-LATE-RESEARCH', 'EXP-LATE-BALANCE'];
+  'EXP-MISSION-AUTOREPEAT', 'EXP-AUTO-UPGRADE', 'EXP-LATE-FACILITIES', 'EXP-LATE-UPGRADES', 'EXP-LATE-RESEARCH', 'EXP-LATE-BALANCE',
+  'EXP-DV-PRICES'];
 const REV = pos[0] || 'c903362';
 const QUERY = pos[1] || '?exp=' + UPDATE_FLAGS.map((id) => '-' + id).join(',');
 const SEEDS = Array.from({ length: Number(opt.seeds || 8) }, (_, i) => i + 1);
