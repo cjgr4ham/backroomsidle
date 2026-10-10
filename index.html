@@ -1905,8 +1905,10 @@ const specAway = (id) => (S.run.away[id] || 0) > S.time;
 const specialistCount = () => SPECIALISTS.reduce((n, s) => n + (recruited(s.id) ? 1 : 0), 0);
 const isEndless = (lv) => !!(LEVELS[lv] && LEVELS[lv].endless);
 const levelLabel = (i) => (isEndless(i) ? LEVELS[i].name : `Level ${i}: ${LEVELS[i].name}`);
-/** Floors of Level FUN passed: every CONFIG.fun.floorRooms rooms mapped there. */
-const funFloor = () => (isEndless(S.run.level) ? Math.floor(S.run.levelRooms / CONFIG.fun.floorRooms) : 0);
+/** Rooms to a floor of Level FUN: CONFIG.fun.floorRooms, unless a balance experiment sets it (fun:floorRooms). */
+const funFloorRooms = () => { const v = Exp.ask('fun:floorRooms'); return v === undefined ? CONFIG.fun.floorRooms : v; };
+/** Floors of Level FUN passed: every funFloorRooms() rooms mapped there. */
+const funFloor = () => (isEndless(S.run.level) ? Math.floor(S.run.levelRooms / funFloorRooms()) : 0);
 
 function reqMet(req) {
   if (!req) return true;
@@ -5164,7 +5166,7 @@ Panels.archive = {
       ]),
       sec('Levels and Level FUN', [
         'Each level has a fixed number of rooms to map before you find the way down. Deeper levels multiply every survey and the Scavenger’s salvage. Rooms mapped past an exit carry on into the next level.',
-        `The last room of Level 5, The Long Hallway, completes the survey: noclip opens, and you go on into Level FUN with everything you have. Level FUN never ends. Every ${fmt(C.fun.floorRooms)} rooms there is a floor, and each floor adds +${pct(C.fun.floorBonus)} to its depth multiplier.`,
+        `The last room of Level 5, The Long Hallway, completes the survey: noclip opens, and you go on into Level FUN with everything you have. Level FUN never ends. Every ${fmt(funFloorRooms())} rooms there is a floor, and each floor adds +${pct(C.fun.floorBonus)} to its depth multiplier.`,
       ], LEVELS.map((L, i) => (L.endless ? `${L.name}: endless. ${L.blurb}` : `Level ${i}, ${L.name}: ${fmt(exitRooms(i))} rooms. ${L.blurb}`))),
       sec('Attention', [
         'Facilities make noise. Dampeners, the Watcher and some research absorb it. Attention drifts toward 100 × noise ÷ (noise + absorption); the white marker on the meter shows where it is heading.',
@@ -5538,9 +5540,9 @@ const UI = {
     if (nameEl.__t !== nameTxt) { nameEl.replaceChildren(isEndless(r.level) ? 'Level FUN ' : `Level ${r.level} `, el('small', { text: isEndless(r.level) ? 'endless' : L.name })); nameEl.__t = nameTxt; }
     let frac;
     if (isEndless(r.level)) {
-      const floor = funFloor(), into = r.levelRooms - floor * CONFIG.fun.floorRooms;
+      const floor = funFloor(), into = r.levelRooms - floor * funFloorRooms();
       setText($('levelVal'), `${fmt(r.levelRooms)} rooms · floor ${fmt(floor)}`);
-      frac = into / CONFIG.fun.floorRooms;
+      frac = into / funFloorRooms();
       setAttr($('levelBar'), 'aria-label', 'Progress to the next floor of Level FUN');
     } else {
       const need = exitRooms(r.level);
@@ -6212,7 +6214,7 @@ function onKey(e) {
     { id: 'rooms', title: 'Rooms and levels', show: () => true, rows: [
       ['Mapped this iteration', () => fmt(S.run.rooms), () => 'Every room you or the Cartographer have mapped since your last noclip.'],
       ['On this level', () => (isEndless(S.run.level) ? `${fmt(Math.floor(S.run.levelRooms))} · floor ${fmt(funFloor())}` : `${fmt(Math.floor(S.run.levelRooms))} / ${fmt(exitRooms(S.run.level))}`),
-        () => (isEndless(S.run.level) ? `Level FUN never ends. Every ${fmt(CONFIG.fun.floorRooms)} rooms is a floor.` : S.run.level === FINAL_LEVEL ? 'Rooms to map to complete the survey and open noclip.' : `Rooms to map to find the way down to Level ${S.run.level + 1}.`)],
+        () => (isEndless(S.run.level) ? `Level FUN never ends. Every ${fmt(funFloorRooms())} rooms is a floor.` : S.run.level === FINAL_LEVEL ? 'Rooms to map to complete the survey and open noclip.' : `Rooms to map to find the way down to Level ${S.run.level + 1}.`)],
       ['Per survey', (D) => fmtRooms(D.roomsPerSurvey), () => 'Rooms one survey maps: yours or the Cartographer’s. Beacons raise it.'],
       ['Automatic', (D) => `${fmtRate(D.roomsPerSec)} rooms/s`, (D) => (recruited('chart') ? `${fmtRate(D.autoSurveys, 3)} automatic surveys/s from the Cartographer.` : 'None: only the Cartographer maps rooms on their own.')],
       ['Next level', (D) => { if (isEndless(S.run.level)) return 'endless'; const need = exitRooms(S.run.level) - S.run.levelRooms; return D.roomsPerSec > 0 ? `~${fmtTime(Math.max(0, need) / D.roomsPerSec)}` : '—'; }, () => 'At the Cartographer’s rate alone. Your own surveys make it sooner.'],
