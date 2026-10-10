@@ -87,9 +87,11 @@ const drive = () => {
     H.S.run.specialists = { scavenge: 6 };
     window.run(20);
     const crewShown = H.Exp.ask('crew:where', 'scavenge');
-    return { dom: api.dom(), crew: !!crewShown, shown: api.shown() };
+    return { dom: api.dom(), crew: !!crewShown, shown: api.shown(), crewInBuild: !!H.Exp.defs['EXP-CREW-VISIBLE'] };
   });
-  c.check('with the crew visible and the Scavenger on stage, the caption is drawn over them, not in the page', where.crew && where.shown && where.dom && where.dom.on === false, where);
+  // Without EXP-CREW-VISIBLE in the build nobody is on stage; the caption at the foot of the feed is checked below.
+  c.check('with the crew visible and the Scavenger on stage, the caption is drawn over them, not in the page',
+    !where.crewInBuild || (where.crew && where.shown && where.dom && where.dom.on === false), where);
   c.check('no console or page errors so far', g.errors.length === 0, g.errors.slice(0, 5));
   await g.browser.close();
 

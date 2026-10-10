@@ -42,7 +42,7 @@ Dev tab → Experiments, `?exp=-EXP-PRODUCTION-FEEDBACK` for one page load, or `
 
 ## 5. How to reverse the code
 
-`git revert` this experiment's commit. It fills only its own JavaScript and CSS slots and adds its test and this entry.
+`git revert` this experiment's commits, newest first: the suite fix that lets it run without `EXP-CREW-VISIBLE`, then the experiment's own commit. It fills only its own JavaScript and CSS slots and adds its test and this entry.
 
 ## 6. Persistent data
 
