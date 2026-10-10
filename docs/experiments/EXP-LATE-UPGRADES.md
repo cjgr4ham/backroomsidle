@@ -17,15 +17,18 @@ Eight one-off requisitions, all paid in salvage:
 | --- | --- | --- | --- | --- |
 | Industrial Stapler | Level 4 | 6B | +6 base salvage on every survey you make by hand | manual salvage |
 | Green Desk Lamp | Level 4 | 25B | surveys you make by hand ×1.5 | manual salvage |
-| Night Shift Coffee | Level 4, 3 specialists | 15B | specialists work ×1.5 (Crew tab) | specialist output |
+| Night Shift Coffee | Level 4, 3 specialists | 6B (was 15B in its first commit) | specialists work ×1.5 (Crew tab) | specialist output |
 | Hold Music | Level 4 | 8B | noise ×0.75 | noise |
 | Speed Dial | Level 4, a mission sent | 12B | missions 25% shorter and 25% cheaper in almond water | missions |
 | Door Wedges | Level 5 | 150B | every survey maps ×1.5 rooms | mapping |
-| Master Key | Level 5 | 600B | surveys you make by hand ×2 | manual salvage |
+| Master Key | Level 5 | 300B (was 600B in its first commit) | surveys you make by hand ×2 | manual salvage |
 | Hallway Runner | Level 5, the Cartographer | 250B | the Cartographer works ×2 (Crew tab) | mapping, specialist output |
 
 - Before the update, Levels 4 and 5 had three salvage requisitions between them: the Compass (1B), Unpaid Overtime (2B) and Carbon Copies (30B).
 - The new ones are priced for the income there. They range from about a minute of income to the largest late purchase, the Master Key. The measured times are in [UPDATE-2.1.md](UPDATE-2.1.md).
+- **Price tuning, in its own commit after the balance runs.** Both changes make the game easier, not harder.
+  - **Night Shift Coffee: 15B → 6B.** At 15B it cost about 6 minutes of income when it went on sale in Level 4, so it was bought only near the end of the level. At 6B it costs about 2.7 minutes, so it can help in the Night Office, the longest stretch of a run.
+  - **Master Key: 600B → 300B.** At 600B it cost about 22 minutes of income when it went on sale, beyond the 5–12 minute band for major purchases. At 300B it costs about 11 minutes.
 - Each effect is declared as data (`fx`). `derive()` and the mission functions apply it through the same path as everything else.
 - The survey slips and the survey line project what the Stapler, the Lamp, the Master Key and Door Wedges do to a survey.
 
