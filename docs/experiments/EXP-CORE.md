@@ -138,6 +138,7 @@ Shared machinery for the features of update 2.1 ([UPDATE-2.1.md](UPDATE-2.1.md))
   - `missions:head`, `missions:card`, `missions:cardUpdate`, `missions:update`, `missions:sig`.
   - `upgrades:head` (under the Upgrades tab's heading, in the plain layout and the categories layout alike) and `upgrades:update`.
   - `view:frame`, `view:segment` (inside the corridor loop, after each stretch, so nearer walls hide what is drawn), `view:overlay` (under the entity and the anomaly) and `view:reset`.
+  - `View.features(k)` says what each wall of stretch k has, as `render()` draws it: a wall, a dark opening or a door. `view:features` lets an experiment that adds to the corridor say so, so anything moving in it can respect walls.
   - `page:visible`.
   - `automation:summary`: experiments that automate something add a short phrase to a list. The Automation category joins the phrases.
 - **Purchase and mission extension points.**

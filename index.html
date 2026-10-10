@@ -3824,6 +3824,23 @@ const View = {
   scare() { this.scareAt = performance.now(); },
 
   P(x, y, z) { return [this.cx + x * this.F / z, this.cy - y * this.F / z]; },
+  /**
+   * What each wall of stretch k of the corridor has, as render() draws it: 'wall', 'opening' (a dark doorway at
+   * z k+0.22..k+0.78, up to y 0.55, or 0.9 between cubicles) or 'door' (the Long Hallway's doors, z k+0.3..k+0.7).
+   * Experiments that add to the corridor say so through view:features, so what moves in it can respect walls.
+   */
+  features(k) {
+    const look = LOOKS[this.level] || LOOKS[0];
+    const hk = hash((k * 31 + this.level * 977) | 0);
+    const f = { k, hk, left: 'wall', right: 'wall', top: look.cubicles ? 0.9 : 0.55 };
+    if (look.doors) { f.left = 'door'; f.right = 'door'; }
+    else {
+      if (hk % 6 === 0) f.left = 'opening';
+      if ((hk >>> 8) % 7 === 0) f.right = 'opening';
+    }
+    Exp.run('view:features', this, k, f);
+    return f;
+  },
   shade(c, z, k) {
     const f = 1 - Math.exp(-z * this.look.density);
     const m = k * this.dark, fd = this.dark, fog = this.look.fog;
